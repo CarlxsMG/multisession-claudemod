@@ -241,7 +241,10 @@ conversation gets a note when the settings no longer match.
 
 Every 3.2 s `syncCrew` reads `$.agent.list()`: statuses follow the engine's, unknown agents
 started before the plugin loaded are adopted, and a shelved worker that works again comes back
-with its history. The same pass lifts takeovers whose run ended.
+with its history. The same pass lifts takeovers whose run ended. `STATUS_OF`
+(`src/crew/workers.ts`) maps every status the engine's types name, so one they add fails `tsc`;
+a status an engine newer than those types reports changes nothing the crew knows: a worker keeps
+its status, a shelved one stays on the shelf, and an unknown agent waits for one the crew reads.
 
 The engine ends an agent a while after its last `turn.complete` (seconds, or until background
 work it owns is over) and then drops it from the list. So the list never sets a worker the crew

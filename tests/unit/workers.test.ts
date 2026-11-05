@@ -1,7 +1,7 @@
 import { expect, test } from 'claude-code/testing'
 
 import type { Worker, WorkerStatus } from '../../types'
-import { claimName, findWorker, makeWorker, prune, takenNames } from '../../src/crew/workers'
+import { claimName, findWorker, makeWorker, prune, statusOf, takenNames } from '../../src/crew/workers'
 import { WORKER_NAMES, freshName, isWorkerName } from '../../src/persona/names'
 
 const worker = (id: string, name: string, status: WorkerStatus, updatedAt = 0): Worker => ({
@@ -66,4 +66,11 @@ test('the list keeps every active worker and the 24 most recent others, and hand
   expect(kept).toHaveLength(25)
   expect(kept.some(w => w.id === 'busy')).toBe(true)
   expect(out.map(w => w.id).sort()).toEqual(['idle-0', 'idle-1', 'idle-2', 'idle-3', 'idle-4', 'idle-5'])
+})
+
+test("a worker's status from each of the engine's, and none from one the crew has no word for", () => {
+  const states = ['pending', 'running', 'waiting', 'idle', 'completed', 'failed', 'killed']
+  expect(states.map(statusOf)).toEqual(['starting', 'working', 'waiting', 'idle', 'done', 'failed', 'stopped'])
+  expect(statusOf('paused')).toBeUndefined()
+  expect(statusOf('toString')).toBeUndefined()
 })

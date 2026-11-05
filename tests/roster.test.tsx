@@ -82,3 +82,33 @@ test('the roster shows one worker in full when asked', async ($, on) => {
   expect(await roster()).toMatch(/last report: Billing: y+…$/)
   expect(await roster('nobody')).toBe('crew: no worker "nobody". Workers: pip.')
 })
+
+test('an agent status the crew has no word for leaves each worker as the crew knew it', async ($, on) => {
+  let spawned = 0
+  const status = new Map<string, AgentInfo['status']>()
+  const infos = (): AgentInfo[] => [...status].map(([id, s]) => ({ id, description: `Task of ${id}`, type: 'general-purpose', status: s }))
+  engine(on, { nextId: () => `agent-${++spawned}`, agents: infos })
+  await $.session.start({ cwd: '/work/main', surface: 'terminal', isInteractive: true })
+  const roster = async () => String((await $.tool.call({ tool: 'mcp__crew__roster' })).result)
+  // What an engine newer than the crew's types may report.
+  const unknown = 'paused' as AgentInfo['status']
+
+  await $.tool.call({ tool: 'mcp__crew__delegate', task: 'Task 1', repo: '/work/api' })
+  await $.tool.call({ tool: 'mcp__crew__delegate', task: 'Task 2', repo: '/work/web' })
+  status.set('agent-1', 'running').set('agent-2', 'running')
+  await $.turn.complete({ answer: 'Hecho', durationMs: 1, isAborted: false, turnId: 't2', agentId: 'agent-2', reason: 'answer' })
+  status.set('agent-2', 'completed')
+  await crewCommand($, 'clear')
+  expect(await roster()).toMatch(/^Nova's crew \(1\):\n- Pip: address "pip", working, /)
+
+  // Pip stays busy, Bolt stays cleared, and an agent the crew never knew waits.
+  status.set('agent-1', unknown).set('agent-2', unknown).set('agent-9', unknown)
+  expect(await roster()).toMatch(/^Nova's crew \(1\):\n- Pip: address "pip", working, /)
+
+  // A status the crew reads brings them in.
+  status.set('agent-2', 'running').set('agent-9', 'idle')
+  const text = await roster()
+  expect(text.split('\n')[0]).toBe("Nova's crew (3):")
+  expect(text).toMatch(/\n- Bolt: address "bolt", working, repo \/work\/web, /)
+  expect(text).toMatch(/\n- \w+: address "agent-9", idle, /)
+})
