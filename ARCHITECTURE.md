@@ -213,7 +213,8 @@ agents.
 - `turn.complete` ends the run (`endRun`) as done, failed or stopped, puts the report's first
   line in the feed, shows an end toast, and, for a worker whose report goes to another worker,
   queues an end line for the conversation. A run whose end never arrived is closed by the
-  progress tick once the engine shows the worker not active and nothing happened for 5 s.
+  progress tick once the worker is not busy and nothing happened for 5 s: the engine shows it
+  ended, or no longer lists it (see below).
 - A **round** runs from the first worker starting while none ran to the last one ending. While it
   lasts, a **check-in** is placed every interval (3 minutes by default) when something changed;
   when it closes, a **summary** is placed if two or more workers ran or it outlasted the
@@ -240,6 +241,13 @@ conversation gets a note when the settings no longer match.
 Every 3.2 s `syncCrew` reads `$.agent.list()`: statuses follow the engine's, unknown agents
 started before the plugin loaded are adopted, and a shelved worker that works again comes back
 with its history. The same pass lifts takeovers whose run ended.
+
+The engine ends an agent a while after its last `turn.complete` (seconds, or until background
+work it owns is over) and then drops it from the list. So the list never sets a worker the crew
+saw finish back to busy: a status read in that gap would outlive the agent. What does wake a
+finished worker (a message, a resume, a turn's start, a tool call) has a hook. A busy worker
+the engine lists no more, with nothing heard from it for a minute (`GONE_MS`), takes its run's
+end, or `stopped` when that end never reached the crew and the engine had listed it.
 
 ## Rendering
 
