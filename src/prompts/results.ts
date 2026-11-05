@@ -13,6 +13,10 @@ export const DELEGATE_FAILED = 'crew: delegate failed; use the Agent tool instea
 
 export const noRepo = (cwd: string): string => `crew: ${cwd} does not exist.`
 
+/** A `model` that names none of the families the Agent tool takes. */
+export const noModel = (asked: string): string =>
+  `crew: no model "${asked}"; nothing started. Models: sonnet, opus, fable, or none for the session's.`
+
 /** No worker by that name or address: delegate's and the roster's alike. */
 export const noWorker = (key: string, addresses: readonly string[]): string =>
   `crew: no worker "${key}". Workers: ${addresses.length > 0 ? addresses.join(', ') : 'none'}.`

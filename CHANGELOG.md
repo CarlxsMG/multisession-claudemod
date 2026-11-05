@@ -13,6 +13,12 @@ All notable changes to crew are written here. The format follows
 - The newest check-in in the conversation follows the round in place, its steps and phases as
   they change and its times once a minute, instead of keeping what it showed when it was placed.
 
+### Fixed
+
+- A full model id given to `delegate` (`claude-sonnet-4-5`) starts the worker on its family's
+  alias, and reuses one asked for that alias, instead of failing the spawn; a model that names
+  no family is turned down with the aliases it takes.
+
 ## [0.1.0] - 2026-11-05
 
 The first public release.

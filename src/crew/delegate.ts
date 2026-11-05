@@ -13,6 +13,7 @@ import {
   heldFor,
   heldMissed,
   heldWentFirst,
+  noModel,
   noRepo,
   noWorker,
   notForWorkers,
@@ -20,6 +21,7 @@ import {
   started,
   unreachable,
 } from '../prompts/results'
+import { modelAlias } from '../model-label'
 import { heldTasks, taskClose } from '../prompts/worker'
 import {
   readDropped,
@@ -83,8 +85,13 @@ async function delegate($: Engine, input: object, callId?: string): Promise<stri
     cwd = joinPath(sessionCwd, home ? home + repo.slice(1) : repo)
     if (!(await $.fs.exists(cwd))) return noRepo(cwd)
   }
-  // Workers run on sonnet at the least: a haiku request takes the session's model.
-  const model = /haiku/i.test(asked) ? '' : asked
+  // The Agent tool's `model` takes an alias only, so a full id goes as its
+  // family, for the spawn and for the reuse that compares it with what a
+  // worker was asked. Workers run on sonnet at the least: a haiku request
+  // takes the session's model.
+  const alias = asked === '' ? '' : modelAlias(asked)
+  if (alias === undefined) return noModel(asked)
+  const model = alias === 'haiku' ? '' : alias
   // Any type the Agent tool can dispatch, but a fork is that tool's own.
   if (type === 'fork') return FORK_REFUSED
   const look = await readLook($)

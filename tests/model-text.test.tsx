@@ -117,6 +117,7 @@ test("delegate's results: started, given, busy repositories, and what it turns d
   expectText('result.noWorker', await delegate($, { task: 'Review it', worker: 'nobody' }))
   expectText('result.fork', await delegate($, { task: 'Review it', subagent_type: 'fork' }))
   expectText('result.noRepo', await delegate($, { task: 'Review it', repo: '/work/missing' }))
+  expectText('result.noModel', await delegate($, { task: 'Review it', model: 'gpt-5' }))
   expectText('result.notForWorkers', await delegate($, { task: 'Split this', agentId: 'agent-1' }))
   await finish($, 'agent-2')
   seen.undelivered = 'the agent is gone'
