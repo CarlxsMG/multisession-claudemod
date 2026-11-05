@@ -27,9 +27,9 @@ test('a share code or a stored look naming a key every object inherits gets the 
   await $.session.start({ cwd: '/work/main', surface: 'terminal', isInteractive: true })
   expect((await composeBrief($))?.text).toContain('Persona: Luna is cheerful and encouraging, a warm teammate.')
   const ui = await $.ui.mount({ ...PANE, surface: 'terminal' })
-  expect(await ui.find({ type: 'Text', text: /^Luna · Alegre/ })).toBeDefined()
+  expect(await ui.find({ type: 'Text', text: /^Luna · Cheerful/ })).toBeDefined()
   await ui.press({ key: 'edit' })
-  expect(await ui.find({ type: 'Text', text: /^Luna · Alegre · personalizar$/ })).toBeDefined()
+  expect(await ui.find({ type: 'Text', text: /^Luna · Cheerful · customize$/ })).toBeDefined()
   await ui.unmount()
 })
 
@@ -191,7 +191,7 @@ for (const [name, env, isOn] of PALETTE_CASES) {
       const fitted = accents.map(c => '#' + fit256(parseInt(c.slice(1), 16)).toString(16).padStart(6, '0'))
       expect((isOn ? fitted : accents).includes(pip)).toBe(true)
       expect((await ui.find({ type: 'Text', text: /^Nova / }))?.props.color).toBe('claude')
-      expect((await ui.find({ key: 'edit' }))?.text).toBe(' Editar ')
+      expect((await ui.find({ key: 'edit' }))?.text).toBe(' Edit ')
     } finally {
       await ui.unmount()
       setPalette256(false)

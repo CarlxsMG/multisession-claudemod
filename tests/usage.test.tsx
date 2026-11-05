@@ -36,7 +36,7 @@ test("the desktop app's session asks for the usage once the app attaches, of the
   const ui = await $.ui.mount({ ...PANE, surface: 'desktop' })
   await ui.redraw()
   expect(probes).toEqual(['claude', exe])
-  expect(await ui.find({ type: 'Text', text: /^sem\s+61%$/ })).toBeDefined()
+  expect(await ui.find({ type: 'Text', text: /^week\s+61%$/ })).toBeDefined()
   expect(await ui.find({ type: 'Text', text: /^fable\s+30%$/ })).toBeDefined()
   await ui.unmount()
 })
@@ -65,10 +65,10 @@ test('the account\'s usage sits beside the delegation switch and follows each me
   await $.session.start({ cwd: '/work/main', surface: 'terminal', isInteractive: true })
   const ui = await $.ui.mount({ ...PANE, surface: 'terminal' })
   const shown = async () =>
-    (await ui.findAll({ type: 'Text', text: /^(5h|sem|fable)\s+\d+%$/ })).map(t => t.text.replace(/\s+/g, ' '))
+    (await ui.findAll({ type: 'Text', text: /^(5h|week|fable)\s+\d+%$/ })).map(t => t.text.replace(/\s+/g, ' '))
   // The session's window first, then the week's, then Fable's week below.
   await ui.redraw()
-  expect(await shown()).toEqual(['5h 13%', 'sem 41%', 'fable 8%'])
+  expect(await shown()).toEqual(['5h 13%', 'week 41%', 'fable 8%'])
   // Fable's comes from a headless claude asked for /usage, which loads no plugins.
   expect(probes).toHaveLength(1)
   expect(probes[0]!.argv.join(' ')).toMatch(/^claude -p --setting-sources local .*--no-session-persistence/)
@@ -78,7 +78,7 @@ test('the account\'s usage sits beside the delegation switch and follows each me
     $.session.measure({ context: { window: 200_000 }, rateLimits, changed: ['rateLimits'] })
   await measure([{ kind: 'five_hour', percentUsed: 86 }, { kind: 'seven_day', percentUsed: 42 }])
   await ui.redraw()
-  expect(await shown()).toEqual(['5h 86%', 'sem 42%', 'fable 8%'])
+  expect(await shown()).toEqual(['5h 86%', 'week 42%', 'fable 8%'])
   expect((await ui.find({ type: 'Text', text: /^\s*86%$/ }))?.props.color).toBe('error')
   // It asks again only once a few minutes have passed.
   expect(probes).toHaveLength(1)
@@ -86,7 +86,7 @@ test('the account\'s usage sits beside the delegation switch and follows each me
   await measure([{ kind: 'five_hour', percentUsed: 87 }, { kind: 'seven_day', percentUsed: 42 }])
   await ui.redraw()
   expect(probes).toHaveLength(2)
-  expect(await shown()).toEqual(['5h 87%', 'sem 42%', 'fable 9%'])
+  expect(await shown()).toEqual(['5h 87%', 'week 42%', 'fable 9%'])
   await ui.unmount()
 })
 
@@ -112,7 +112,7 @@ test('off a subscription the usage says nothing, and a headless session never as
   await $.session.start({ cwd: '/work/main', surface: 'terminal', isInteractive: false })
   await $.session.measure({ context: { window: 200_000 }, rateLimits: [], changed: ['rateLimits'] })
   const ui = await $.ui.mount({ ...PANE, surface: 'terminal' })
-  expect(await ui.find({ type: 'Text', text: /^(5h|sem|fable)\s+\d+%$/ })).toBeUndefined()
+  expect(await ui.find({ type: 'Text', text: /^(5h|week|fable)\s+\d+%$/ })).toBeUndefined()
   expect(probes).toBe(0)
   await ui.unmount()
 })

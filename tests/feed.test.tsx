@@ -50,11 +50,11 @@ test('the person\'s own messages are one quiet line, not a bubble', async ($, on
   await clock.advance(1000)
 
   const ui = await $.ui.mount({ ...PANE, surface: 'terminal' })
-  // A dash first, so `tú` lines up with the names in the bubbles' borders.
-  expect((await ui.find({ type: 'Text', text: /^ ─ tú → Nova · / }))?.text).toMatch(/“Arregla los tests del login, porfa”$/)
-  expect((await ui.find({ type: 'Text', text: /^tú$/ }))?.props.color).toBe('suggestion')
+  // A dash first, so `you` lines up with the names in the bubbles' borders.
+  expect((await ui.find({ type: 'Text', text: /^ ─ you → Nova · / }))?.text).toMatch(/“Arregla los tests del login, porfa”$/)
+  expect((await ui.find({ type: 'Text', text: /^you$/ }))?.props.color).toBe('suggestion')
   expect((await ui.find({ type: 'Text', text: /^ → $/ }))?.props.color).toBe('suggestion')
-  expect(await ui.find({ type: 'Text', text: /^╭─ Tú/ })).toBeUndefined()
+  expect(await ui.find({ type: 'Text', text: /^╭─ You/ })).toBeUndefined()
   await ui.unmount()
 })
 
@@ -67,8 +67,8 @@ test('what the person pasted in the desktop app is marked as pasted, not shown i
   await clock.advance(1000)
 
   const ui = await $.ui.mount({ ...PANE, surface: 'desktop' })
-  const line = (await ui.find({ type: 'Text', text: /^ ─ tú → Nova · / }))?.text
-  expect(line).toMatch(/“Mira esto: \[pegado\] Zod can exhaust memory y arréglalo”$/)
+  const line = (await ui.find({ type: 'Text', text: /^ ─ you → Nova · / }))?.text
+  expect(line).toMatch(/“Mira esto: \[pasted\] Zod can exhaust memory y arréglalo”$/)
   expect(line).not.toMatch(/pasted_content/)
   await ui.unmount()
 })
@@ -93,7 +93,7 @@ test('the two newest messages are bubbles and older ones one line each', SLOW, a
   expect(bubbles[0]).toMatch(/^╭─ Bolt → Nova/)
   expect(bubbles[1]).toMatch(/^╭─ Mika → Nova/)
   const lines = (await ui.findAll({ type: 'Text', text: /^ ─ \S+ → / })).map(x => x.text)
-  expect(lines[0]).toMatch(/^ ─ tú → Nova · .*“Repartid el trabajo”$/)
+  expect(lines[0]).toMatch(/^ ─ you → Nova · .*“Repartid el trabajo”$/)
   expect(lines.filter(x => /^ ─ Nova → /.test(x))).toHaveLength(3)
   expect(lines.filter(x => /^ ─ Pip → Nova · .*“Informe 1”$/.test(x))).toHaveLength(1)
   expect(bubbles.length + lines.length).toBeGreaterThanOrEqual(6)

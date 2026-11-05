@@ -7,17 +7,12 @@ import type { Anim } from '../../src/figure/anim'
 import { DIAMOND_W } from '../../src/figure/diamond'
 import { DEFAULT_LOOK } from '../../src/figure/look'
 import { DEFAULT_COLOR } from '../../src/figure/raster'
-import { setLocale } from '../../src/i18n/locale'
 import { JUST_ENDED_MS } from '../../src/progress/runs'
 
-// The crew's tests read its Spanish UI: the plugin under test speaks it by
-// its `language` option, and what a test imports from src by this.
-setLocale('es')
-
-/** The kit's `test`, with the plugin under test speaking Spanish. */
+/** The kit's `test`, with the plugin under test speaking English unless a test asks for another language. */
 export function test(name: string, ...rest: TestRest) {
   const [options, body] = rest.length === 1 ? [{}, rest[0]] : rest
-  kitTest(name, { ...options, options: { language: 'es', ...options.options } }, body)
+  kitTest(name, { ...options, options: { language: 'en', ...options.options } }, body)
 }
 
 export const PANE = {
@@ -467,7 +462,7 @@ export const progress = async ($: Parameters<TestBody>[0], agentId: string | und
 
 // The texts of the team view, as the pane draws it.
 export const teamTexts = async ($: Parameters<TestBody>[0]) => {
-  await crewCommand($, 'equipo')
+  await crewCommand($, 'team')
   const ui = await $.ui.mount({ ...PANE, surface: 'terminal' })
   const texts = (await ui.findAll({ type: 'Text' })).map(t => t.text)
   await ui.unmount()

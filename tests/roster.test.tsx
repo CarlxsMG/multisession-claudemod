@@ -55,7 +55,7 @@ test('workers the user clears or the list lets go stay off until they wake, and 
   expect(kept).not.toMatch(/repo \/work\/main/)
   expect(kept).not.toMatch(/0 tokens/)
 
-  await crewCommand($, 'limpiar')
+  await crewCommand($, 'clear')
   await clock.advance(10_000)
   expect(await roster()).toBe("Nova's crew is empty.")
 

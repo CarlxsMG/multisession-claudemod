@@ -65,7 +65,7 @@ for (const isOn of [true, false]) {
   const mode = isOn ? 'on' : 'off'
   test(`the "[crew]" note that tells the model delegation turned ${isOn ? 'ON' : 'OFF'}`, async ($, on) => {
     const { contexts, submit } = await startTold($, on, {}, !isOn)
-    await crewCommand($, `modo ${mode}`)
+    await crewCommand($, `mode ${mode}`)
     await submit('Hello')
     expectText(`note.${mode}`, contexts[0]?.join('\n'))
   })
@@ -259,7 +259,9 @@ test('the answer to a send that failed on its way', async ($, on) => {
   expectText('send.failed', await message('pip', 'Bolt: the lock is free', 'agent-2').catch((err: unknown) => String(err)))
 })
 
-test('what Haiku is asked for the mood lines', SLOW, async ($, on) => {
+// The one text here that follows the UI's language: it names the language and
+// the catchphrase, and the golden holds it as a crew in Spanish asks it.
+test('what Haiku is asked for the mood lines', { ...SLOW, options: { language: 'es' } }, async ($, on) => {
   const clock = engine(on)
   const prompts: string[] = []
   on('model.complete', (_, e) => {
