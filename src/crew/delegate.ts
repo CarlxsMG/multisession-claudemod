@@ -24,7 +24,6 @@ import {
 import { modelAlias } from '../model-label'
 import { heldTasks, taskClose } from '../prompts/worker'
 import {
-  readDropped,
   readLook,
   readParents,
   readTakeovers,
@@ -38,7 +37,7 @@ import { oneLine } from '../util/text'
 import { deliver } from './deliver'
 import { ORCH_ID, markCall, setOrch } from './feed'
 import { release } from './takeover'
-import { ACTIVE, REUSABLE, findWorker, nextName } from './workers'
+import { ACTIVE, REUSABLE, claimName, findWorker, takenNow, unclaimNames } from './workers'
 
 // The heads-up of the tool's result, from the workers busy in the
 // repository; one in a worktree of its own edits apart.
@@ -61,14 +60,6 @@ function readDelegateInput(input: object) {
     worker: rawStringArg(input, 'worker'),
     isFresh: fieldOf(input, 'fresh') === true,
   }
-}
-
-/**
- * The name a new worker takes: one on the shelf is still that worker's
- * address, and one handed to the orchestrator to start is taken.
- */
-export async function freeName($: Engine, list: readonly Worker[]): Promise<string> {
-  return nextName([...list, ...(await readDropped($))], intended.keys())
 }
 
 // `callId`: the main conversation's call, which its row names the worker of.
@@ -162,7 +153,7 @@ async function delegate($: Engine, input: object, callId?: string): Promise<stri
     if (isNamed) return unreachable(chosen.name, sent.reason)
   }
 
-  const name = await freeName($, list)
+  const { name } = claimName(await takenNow($, list))
   const address = name.toLowerCase()
   intended.set(address, { cwd, type })
   const spawned = await $.agent.spawn({
@@ -183,6 +174,7 @@ async function delegate($: Engine, input: object, callId?: string): Promise<stri
       return autoModeHandoff(name, address, title, type, model, cwd)
     }
     intended.delete(address)
+    unclaimNames(name)
     return notStarted(spawned.deny)
   }
   await setOrch($, 'delegating', `${title} → ${name}`)

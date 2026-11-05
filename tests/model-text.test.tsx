@@ -137,6 +137,17 @@ test('a refused spawn, said as the engine said it', async ($, on) => {
   expectText('result.notStarted', await delegate($, { task: 'Clean up', repo: '/work/api' }))
 })
 
+test("what an Agent call hears when the crew names its agent otherwise", async ($, on) => {
+  let spawned = 0
+  engine(on, { nextId: () => `agent-${++spawned}` })
+  await start($)
+  await delegate($, { task: 'Map the auth flow', repo: '/work/api' })
+  const agent = { prompt: 'Read the auth module', description: 'Scout auth', subagentType: 'Explore', name: 'researcher-auth', parentAgentId: 'agent-1' }
+  await spawnAgent($, { ...agent, tool_use_id: 'toolu_7' })
+  const done = await $.tool.call({ tool: 'Agent', tool_use_id: 'toolu_7', agentId: 'agent-1', ...agent } as never)
+  expectText('result.renamedAgent', (done as { context?: string[] }).context?.[0])
+})
+
 test('the answer to a delegate call that failed on its way', async ($, on) => {
   const seen: Seen = { ...recording(), failSends: true }
   let spawned = 0

@@ -3,10 +3,9 @@ import type { Worker } from '../../types'
 import { quiet } from '../engine'
 import type { Engine } from '../engine'
 import { readDropped, readWorkers, updateDropped, updateWorkers } from '../state/atoms'
-import { cap } from '../util/text'
 import { enlist } from './feed'
 import { release } from './takeover'
-import { ACTIVE, FINISHED, STATUS_OF, makeWorker, nextName, prune, shelve } from './workers'
+import { ACTIVE, FINISHED, STATUS_OF, claimName, makeWorker, prune, shelve, takenNames, takenNow } from './workers'
 
 /** Takes the workers that finished off the list, onto the shelf. */
 export async function clearFinished($: Engine) {
@@ -31,6 +30,11 @@ export async function syncAgents($: Engine) {
     return !shelf.has(info.id) || ACTIVE.has(STATUS_OF[info.status] ?? 'working')
   })
   if (changed.length === 0) return
+  // A stranger takes a name no other member has, the engine's when that
+  // fits, which stays its address unless another member has it.
+  const strangers = changed.filter(info => !list.some(w => w.id === info.id) && !shelf.has(info.id))
+  const taken = strangers.length > 0 ? await takenNow($, list) : new Set<string>()
+  const named = new Map(strangers.map(info => [info.id, nameOf(taken, info)] as const))
   const now = await $.clock.now()
   const cwd = await $.session.cwd()
   const back = new Set<string>()
@@ -49,13 +53,13 @@ export async function syncAgents($: Engine) {
         back.add(info.id)
         next.push({ ...kept, status, updatedAt: now })
       } else {
-        const name = info.name ? cap(info.name) : nextName([...next, ...shelf.values()])
+        const { name, address } = named.get(info.id) ?? nameOf(takenNames([...next, ...shelf.values()]), info)
         next.push(
           makeWorker(
             {
               id: info.id,
               name,
-              address: info.name ?? info.id,
+              address,
               task: info.description,
               type: info.type,
               cwd,
@@ -73,6 +77,12 @@ export async function syncAgents($: Engine) {
   if (back.size > 0) await updateDropped($, list => list.filter(w => !back.has(w.id)))
   await shelve($, out)
   await enlist($, saved)
+}
+
+// The name and address an agent the crew did not start takes.
+function nameOf(taken: ReadonlySet<string>, info: { id: string; name?: string }): { name: string; address: string } {
+  const claim = claimName(taken, info.name || undefined)
+  return { name: claim.name, address: info.name && claim.isWantedFree ? info.name : info.id }
 }
 
 /** The engine's statuses, then the marks they lift. */

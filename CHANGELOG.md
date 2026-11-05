@@ -20,6 +20,11 @@ All notable changes to crew are written here. The format follows
 
 ### Fixed
 
+- No two workers share a name any more: two forks started in one response, an agent a worker
+  starts, and a worker cleared with `/crew clear` each keep a name of their own. Names are 2 to
+  4 characters, so a card shows them whole; a name an Agent call gives that is longer, shorter
+  or taken is replaced, and the call is told the name and the address. Past the last name of the
+  pool, workers take a letter and a number (`A1`).
 - A full model id given to `delegate` (`claude-sonnet-4-5`) starts the worker on its family's
   alias, and reuses one asked for that alias, instead of failing the spawn; a model that names
   no family is turned down with the aliases it takes.
