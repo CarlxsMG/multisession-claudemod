@@ -25,6 +25,12 @@ All notable changes to crew are written here. The format follows
 
 ### Fixed
 
+- A reload of the plugin (`/reload-plugins`, an update) no longer loses what calls under way
+  had told the crew: an agent the orchestrator starts for `delegate` after auto mode refused the
+  spawn is still taken as that worker, in its repository; an Agent call that asked for a
+  worktree still starts its agent there; a worker's todo list stays its plan; a message between
+  workers is still told by its summary; and a worker's end in the conversation keeps the task
+  and time it first showed.
 - The orchestrator greets a new session awake, and naps after three idle minutes of it, instead
   of sleeping from the start until its first turn.
 - A worker or fork the engine ends a while after its last turn no longer shows as working for
