@@ -44,6 +44,8 @@ export async function watchCall($: Engine, e: Parameters<WatchCallHook>[1], next
   if (e.tool === 'Agent') {
     // Its spawn ran inside: a name the crew gave in place of the call's is said here.
     const done = await next(e)
+    // A denied call spawned nothing: no agent will ask for its worktree.
+    if (done.deny !== undefined) isolated.delete(String(call.tool_use_id))
     const note = takeRenamed(e.tool_use_id)
     return note === undefined || done.deny !== undefined ? done : { ...done, context: [...(done.context ?? []), note] }
   }

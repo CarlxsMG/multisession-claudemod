@@ -164,6 +164,18 @@ test('an agent in a worktree is told to stay in it', async ($, on) => {
   expect(seen.prompts[1]).toMatch(/Your repository is \/work\/main\. Your shell may start elsewhere: cd there or use absolute paths/)
 })
 
+test('an Agent call that was denied leaves no worktree for a later spawn', async ($, on) => {
+  const seen = { prompts: [] as string[], sends: [] as string[] }
+  on('tool.call', { tool: 'Agent' }, () => ({ deny: 'The user said no' }))
+  engine(on, { nextId: () => 'agent-9', seen })
+  await $.session.start({ cwd: '/work/main', surface: 'terminal', isInteractive: true })
+  await $.tool.call({ tool: 'Agent', tool_use_id: 'toolu_1', isolation: 'worktree', prompt: 'Fix it', description: 'Fix' })
+  // A spawn under that id (none can follow a denied call) starts where any does.
+  await spawnAgent($, { prompt: 'Fix it', description: 'Fix', subagentType: 'general-purpose', tool_use_id: 'toolu_1' })
+  expect(seen.prompts[0]).toMatch(/Your repository is \/work\/main\. Your shell may start elsewhere: cd there or use absolute paths/)
+  expect(seen.prompts[0]).not.toMatch(/You work in your own git worktree/)
+})
+
 test('an agent a worktree worker starts works in that worktree too', async ($, on) => {
   let spawned = 0
   const seen = { prompts: [] as string[], sends: [] as string[] }
