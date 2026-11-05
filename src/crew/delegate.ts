@@ -2,7 +2,7 @@
 // free one of its kind in that repository, or a new one), the send or the
 // spawn, and a task held for a worker another one woke.
 import type { Takeover, Worker } from '../../types'
-import { quiet } from '../engine'
+import { quiet, unrecognized } from '../engine'
 import type { Engine } from '../engine'
 import {
   FORK_REFUSED,
@@ -182,6 +182,9 @@ async function delegate($: Engine, input: object, callId?: string): Promise<stri
       intended.set(address, { cwd, type, task })
       return autoModeHandoff(name, address, title, type, model, cwd)
     }
+    // Any other refusal is said as it came; one in auto mode's words may be
+    // the unreviewed one, worded anew.
+    if (AUTO_MODE.test(spawned.deny)) unrecognized($, 'auto-mode spawn refusal', spawned.deny)
     intended.delete(address)
     unclaimNames(name)
     return notStarted(spawned.deny)
@@ -242,6 +245,8 @@ export const intended = new Map<string, { cwd: string; type: string; task?: stri
 // The refusal of a spawn auto mode had no verdict for: it reviews the calls
 // in a model's response, and a plugin's call is in none.
 const UNREVIEWED = /\bgave no verdict for\b/
+// A refusal in auto mode's words.
+const AUTO_MODE = /\bauto[- ]mode\b/i
 
 // Delegate calls in one message may run at once: each waits for the one
 // before, so two never read the same crew and take one name or worker.
