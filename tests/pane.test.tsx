@@ -274,13 +274,29 @@ test('a napping worker comes back to the row when a teammate wakes it', async ($
   await ui.unmount()
 })
 
-test('a failed worker never leaves the row', async ($, on) => {
-  const { clock, states, roster, ui, card } = await napCrew($, on, 1)
-  await $.turn.complete({ answer: 'No pude', durationMs: 1000, isAborted: false, turnId: 't1', agentId: 'agent-1', reason: 'error' })
-  states.set('agent-1', 'failed')
-  expect(await roster()).toMatch(/^- Pip: address "pip", failed, /m)
-  await clock.advance(60_000)
-  expect(await card('agent-1')).toBeDefined()
+test('a worker that ends done, failed or stopped leaves the row once its end stops standing out, and stays in the crew', async ($, on) => {
+  const { clock, states, roster, ui, card } = await napCrew($, on, 3)
+  await $.turn.complete({ answer: 'Hecho', durationMs: 1000, isAborted: false, turnId: 't1', agentId: 'agent-1', reason: 'answer' })
+  await $.turn.complete({ answer: 'No pude', durationMs: 1000, isAborted: false, turnId: 't2', agentId: 'agent-2', reason: 'error' })
+  await $.turn.complete({ answer: '', durationMs: 1000, isAborted: true, turnId: 't3', agentId: 'agent-3', reason: 'aborted' })
+  states.set('agent-1', 'completed')
+  states.set('agent-2', 'failed')
+  states.set('agent-3', 'killed')
+  const ended = await roster()
+  for (const row of [/^- Pip: address "pip", done, /m, /^- Bolt: address "bolt", failed, /m, /^- \S+: address "\S+", stopped, /m]) expect(ended).toMatch(row)
+
+  // Each end stands out for half a minute, then the row lets them go.
+  await clock.advance(JUST_ENDED_MS - 100)
+  for (const id of ['agent-1', 'agent-2', 'agent-3']) expect(await card(id)).toBeDefined()
+  await clock.advance(100)
+  for (const id of ['agent-1', 'agent-2', 'agent-3']) expect(await card(id)).toBeUndefined()
+  expect(await ui.find({ type: 'Text', text: /^3 workers · 0 activos$/ })).toBeDefined()
+
+  // Still in the crew: the roster and the team view have them as they ended.
+  expect(await roster()).toMatch(/^- Bolt: address "bolt", failed, /m)
+  await crewCommand($, 'equipo')
+  for (const id of ['agent-1', 'agent-2', 'agent-3']) expect(await card(id)).toBeDefined()
+  expect(await ui.find({ type: 'Text', text: /^falló$/ })).toBeDefined()
   await ui.unmount()
 })
 

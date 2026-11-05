@@ -18,9 +18,10 @@ happens.
   signs. A mark in the corner says what it is doing (`+` starting, `|/-\` working, `?` waiting,
   `.oO` thinking, `>` delegating, `*` cheering, `✓` done, `zZ` asleep, `!` failed, `x` stopped).
   Under its name: its plan's step (`3/5`), or how long its run has taken, or a four-letter word
-  (`init`, `wait`, `done`, `fail`, `stop`). A free worker naps off the row after a few seconds and
-  stays in the team view (`/crew team`), which lists every worker with its status, repository,
-  task, what it is doing and its run's time and calls.
+  (`init`, `wait`, `done`, `fail`, `stop`). A worker that is free or has finished (done, failed
+  or stopped) leaves the row a few seconds later, once its end has stood out, and stays in the
+  team view (`/crew team`), which lists every worker with its status, repository, task, what it is
+  doing and its run's time and calls.
 - **A feed of the crew's messages**: the two newest as chat bubbles that type out, older ones as
   one quiet line each.
 - **Delegation by default.** With Delegate ON, the orchestrator's system prompt and the
