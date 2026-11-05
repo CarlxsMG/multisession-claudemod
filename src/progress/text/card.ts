@@ -1,6 +1,6 @@
 // The line under a worker's figure, as wide as its card.
 import type { Run, WorkerStatus } from '../../../types'
-import { CARD_LABEL } from '../../ui/labels'
+import { cardLabel } from '../../ui/labels'
 import { cut } from '../../util/text'
 import { cardTime } from '../../util/time'
 import { stepText } from '../plan'
@@ -29,5 +29,5 @@ export function cardLine(run: Run, now: number, width: number): string {
 export function cardText(status: WorkerStatus, run: Run | undefined, now: number, width: number): string {
   const isRunning = run !== undefined && isOpen(run)
   if (isRunning && (status === 'working' || (status === 'starting' && run.plan !== undefined))) return cardLine(run, now, width)
-  return cut(CARD_LABEL[status], width)
+  return cut(cardLabel(status), width)
 }

@@ -5,7 +5,8 @@ import { STICK_MS, isTestRun, nextPhase, phaseLabel, phaseOf } from '../src/prog
 import { declarePlan, hasGrown, stepBar, stepShare, stepsLeft, todoPlan } from '../src/progress/plan'
 import { JUST_ENDED_MS } from '../src/progress/runs'
 import { cardLine, cardText } from '../src/progress/text/card'
-import { CARD_LABEL } from '../src/ui/labels'
+import { en } from '../src/i18n/en'
+import { es } from '../src/i18n/es'
 import { endNotice } from '../src/progress/text/ended'
 import { notePieces } from '../src/progress/text/note'
 import { statusText } from '../src/progress/text/status-line'
@@ -751,7 +752,7 @@ test("a card's word for a status fits its four columns: wait, done, fail, stop, 
   // A worker starting says so until it declares a plan.
   expect([at('starting'), at('starting', { ...run, plan: declarePlan(undefined, 0, 6, 'x') })]).toEqual(['init', '0/6'])
   expect([at('done', ended), at('failed', ended), at('stopped', ended), at('idle', ended)]).toEqual(['done', 'fail', 'stop', ''])
-  for (const word of Object.values(CARD_LABEL)) expect(word.length).toBeLessThanOrEqual(DIAMOND_W)
+  for (const words of [en, es]) for (const word of Object.values(words.pane.card)) expect(word.length).toBeLessThanOrEqual(DIAMOND_W)
 })
 
 for (const columns of [48, 34]) {

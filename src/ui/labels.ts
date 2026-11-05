@@ -13,15 +13,7 @@ export const statusLabel = (status: WorkerStatus): string => t().status[status]
  * A worker's status on its card, in its four columns, where the words above
  * do not fit; a free worker's card says nothing.
  */
-export const CARD_LABEL: Record<WorkerStatus, string> = {
-  starting: 'init',
-  working: 'work',
-  waiting: 'wait',
-  idle: '',
-  done: 'done',
-  failed: 'fail',
-  stopped: 'stop',
-}
+export const cardLabel = (status: WorkerStatus): string => t().pane.card[status]
 
 /**
  * How a run ended: its mark and its color. Each end has a mark of its own,

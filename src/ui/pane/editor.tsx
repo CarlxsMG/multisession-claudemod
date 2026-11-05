@@ -186,7 +186,7 @@ export async function drawEditor($: Engine, ui: PaneUi, sprite: Sprite, look: Lo
             ))}
           </Box>
           <Text dimColor italic wrap="truncate-end">
-            {`“${vibe.lines.delegating?.[0]?.replace('{w}', 'Pip') ?? ''}” · “${vibe.lines.happy?.[0] ?? ''}”`}
+            {`“${vibe.lines.delegating?.[0]?.replace('{w}', t().editor.sampleWorker) ?? ''}” · “${vibe.lines.happy?.[0] ?? ''}”`}
           </Text>
         </Box>
       </Box>
