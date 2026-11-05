@@ -37,7 +37,7 @@ export const delegateSpec = (brief: string) => ({
       },
       model: {
         type: 'string',
-        description: 'Model alias for a new worker. Leave it unset: the worker then runs on the session\'s model, whatever its type. Name one ("sonnet" or above) only when the user asks; haiku is never used, and asking for it gives the session\'s model. Set, only a worker started with that model is reused; unset, only one started on the session\'s.',
+        description: 'Model alias for a new worker. Leave it unset: the worker then runs on the session\'s model, whatever its type. Name one ("sonnet", "opus" or "fable") only when the user asks; asking for haiku gives the session\'s model. Set, only a worker started with that model is reused; unset, only one started on the session\'s.',
       },
     },
     required: ['task'],

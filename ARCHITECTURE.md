@@ -145,7 +145,8 @@ dropped, missing or invalid ones take the default's value.
 5. Without a worker, it takes a free name (see Names below), records the **intent**, and calls `$.agent.spawn`. A model asked for is passed only when it is
    not haiku. With none, the spawn hook gives the worker the session's model, as the alias the
    Agent tool takes (`modelAlias`: `claude-opus-5-5` is `opus`); an id that names no family sets
-   none, and the agent's own definition decides.
+   none, and the agent's own definition decides. So a haiku request gets the session's model,
+   and workers run on haiku only in a session on haiku.
 6. If auto mode refuses the spawn with no verdict (it reviews only calls a model writes), the
    result tells the orchestrator to start the worker itself with the Agent tool; the spawn hook
    recognizes that agent by its name or task through `intended`.

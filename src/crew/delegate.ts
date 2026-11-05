@@ -78,8 +78,9 @@ async function delegate($: Engine, input: object, callId?: string): Promise<stri
   }
   // The Agent tool's `model` takes an alias only, so a full id goes as its
   // family, for the spawn and for the reuse that compares it with what a
-  // worker was asked. Workers run on sonnet at the least: a haiku request
-  // takes the session's model.
+  // worker was asked. A haiku request takes the session's model: a worker
+  // runs on the model the user put the session on unless it is asked for
+  // another, so on haiku only in a session on haiku.
   const alias = asked === '' ? '' : modelAlias(asked)
   if (alias === undefined) return noModel(asked)
   const model = alias === 'haiku' ? '' : alias
