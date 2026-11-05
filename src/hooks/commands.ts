@@ -39,10 +39,12 @@ export async function runCrewCommand($: Engine, e: Parameters<RunCrewCommandHook
       await openPane($)
       return { text: words.teamOpened(look.name) }
     case 'msg': {
-      const [who = '', ...said] = rest.split(/\s+/)
+      // Only the worker is split off: the message keeps its lines and spacing.
+      const who = rest.split(/\s+/)[0] ?? ''
+      const said = rest.slice(who.length).trim()
       const worker = findWorker(await readWorkers($), who)
-      if (worker === undefined || said.length === 0) return { text: words.msgUsage }
-      await messageWorker($, worker, said.join(' '))
+      if (worker === undefined || said === '') return { text: words.msgUsage }
+      await messageWorker($, worker, said)
       return { text: words.sent(worker.name) }
     }
     case 'code': {
