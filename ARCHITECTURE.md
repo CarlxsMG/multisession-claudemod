@@ -122,7 +122,7 @@ dropped, missing or invalid ones take the default's value.
 | Pane tick (`tick`) | `TICK_MS`, 400 ms | Advances the figures' frame and blits each changed raster in place. Every 12 frames (4.8 s) redraws the pane for its ages, when it is mounted or shown as a page. Redraws when a nap or an end highlight is due. Sends due relays. Every 8 frames (3.2 s) syncs the crew with the engine's agent list and lifts takeovers; between those, lifts takeovers a turn end asked for. Every 25 frames (10 s) looks for a batch of mood lines to ask Haiku for. |
 | Typing tick (`typeTick`) | 90 ms, 180 ms on Terminal.app | Types out the newest bubbles in the feed. |
 | Progress tick (`progressTick`) | 1 s | Closes runs whose end was missed, writes the status line, brings the round's newest check-in up to date (`followCheckIn`, even while the main turn runs), places the rows that waited for the main turn, and places check-ins and the round's summary. |
-| Usage probe (`probeUsage`) | At most every 3 min | Runs a headless `claude -p` for Fable's weekly window; started at session start, when the engine measures new windows, and when an app attaches. |
+| Usage probe (`probeUsage`) | At most every 3 min | Runs a headless `claude -p` for Fable's weekly window; started at session start, when the engine measures new windows, and when an app attaches; never with the `usageProbe` option `off`. |
 
 ## Main flows
 

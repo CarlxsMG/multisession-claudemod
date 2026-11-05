@@ -14,6 +14,7 @@ import { drawPane, onClose } from '../src/ui/pane/index'
 import { drawPlaced } from '../src/ui/transcript/placed'
 import { drawToolResult, drawToolUse } from '../src/ui/transcript/tool-use'
 import { drawUserMessage } from '../src/ui/transcript/user-message'
+import { chooseUsageProbe } from '../src/usage/limits'
 
 // The tools whose calls the crew draws as its rows in the conversation.
 const CREW_TOOLS = ['mcp__crew__delegate', 'SendMessage', 'TaskStop']
@@ -23,6 +24,7 @@ const CREW_TOOLS = ['mcp__crew__delegate', 'SendMessage', 'TaskStop']
 // file that registers the hook, not through an import.
 export const register: Register = (on, options) => {
   chooseLocale(options.language)
+  chooseUsageProbe(options.usageProbe)
 
   on('session.start', ($, e, next) => onSessionStart($, e, next))
 

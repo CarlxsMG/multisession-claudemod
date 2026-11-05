@@ -90,6 +90,22 @@ test('the account\'s usage sits beside the delegation switch and follows each me
   await ui.unmount()
 })
 
+test("with the usage probe off, no session asks for the usage and the pane shows the engine's windows", { options: { usageProbe: 'off' } }, async ($, on) => {
+  let probes = 0
+  engine(on, { rateLimits: [{ kind: 'five_hour', percentUsed: 12 }], probe: () => (probes++, usageReply(30)) })
+  on('session.attach', (_, e) => ({ clientId: e.clientId }))
+  // Interactive, then measured, then with the app attached: each would ask.
+  await $.session.start({ cwd: '/work/main', surface: 'terminal', isInteractive: true })
+  await $.session.measure({ context: { window: 200_000 }, rateLimits: [{ kind: 'five_hour', percentUsed: 13 }], changed: ['rateLimits'] })
+  await $.session.attach({ surface: 'desktop', clientId: 'desktop:default' })
+  const ui = await $.ui.mount({ ...PANE, surface: 'terminal' })
+  await ui.redraw()
+  expect(probes).toBe(0)
+  expect(await ui.find({ type: 'Text', text: /^5h\s+13%$/ })).toBeDefined()
+  expect(await ui.find({ type: 'Text', text: /^fable\s+\d+%$/ })).toBeUndefined()
+  await ui.unmount()
+})
+
 test('off a subscription the usage says nothing, and a headless session never asks', async ($, on) => {
   let probes = 0
   engine(on, { rateLimits: [], probe: () => (probes++, '') })

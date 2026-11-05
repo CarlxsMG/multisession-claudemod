@@ -6,6 +6,11 @@ All notable changes to crew are written here. The format follows
 
 ## [Unreleased]
 
+### Added
+
+- A `usageProbe` option (`on` or `off`, `on` by default) that turns off the headless `claude -p`
+  the crew runs for Fable's weekly window; with `off` the pane shows the engine's windows only.
+
 ### Changed
 
 - Finished workers (done, failed or stopped) leave the pane's row a few seconds after their end

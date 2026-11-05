@@ -15,6 +15,13 @@
       "description": "The language of the crew's panel and rows: auto follows Claude Code's language setting, English when it names no other the crew speaks.",
       "default": "auto",
       "options": ["auto", "en", "es"]
+    },
+    "usageProbe": {
+      "type": "string",
+      "title": "Usage probe",
+      "description": "Whether the crew asks a headless claude -p for Fable's weekly window, which only /usage has, at most every 3 minutes: off shows the engine's usage windows only.",
+      "default": "on",
+      "options": ["on", "off"]
     }
   }
 }

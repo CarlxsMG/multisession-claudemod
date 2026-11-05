@@ -45,9 +45,15 @@ const USAGE_REQUEST = `${JSON.stringify({ type: 'control_request', request_id: '
 const PROBE_MS = 3 * 60_000
 /**
  * Whether this session may ask for the usage, and when it last did. The
- * hooks set `isAllowed`: only the person's own session asks.
+ * hooks set `isAllowed`: only the person's own session asks, and only
+ * while the crew's `usageProbe` option is not `off` (`isOff`).
  */
-export const probe = { isAllowed: false, at: -Infinity }
+export const probe = { isAllowed: false, isOff: false, at: -Infinity }
+
+/** Takes the crew's `usageProbe` option as the plugin loads: `off` turns the probe off, anything else leaves it on. */
+export function chooseUsageProbe(option: unknown) {
+  probe.isOff = option === 'off'
+}
 
 /** The model windows in a get_usage reply, or undefined when it holds none. */
 export function parseModelLimits(stdout: string): Limit[] | undefined {
@@ -77,7 +83,7 @@ export function parseModelLimits(stdout: string): Limit[] | undefined {
  */
 export async function probeUsage($: Engine) {
   const now = await $.clock.now()
-  if (!probe.isAllowed || now - probe.at < PROBE_MS) return
+  if (probe.isOff || !probe.isAllowed || now - probe.at < PROBE_MS) return
   probe.at = now
   const run = (exe: string) =>
     quiet($, $.process.run([exe, ...USAGE_PROBE], { stdin: USAGE_REQUEST, timeoutMs: PROBE_TIMEOUT_MS }), `usage probe ${exe}`)
