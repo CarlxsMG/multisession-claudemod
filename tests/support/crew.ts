@@ -306,6 +306,23 @@ export async function napCrew($: Parameters<TestBody>[0], on: On, n: number) {
   return { clock, states, roster, nap, ui, card, figures }
 }
 
+// Pip alone, done this moment: its end stands out from here.
+export async function doneCrew($: Parameters<TestBody>[0], on: On) {
+  const crew = await napCrew($, on, 1)
+  await $.turn.complete({ answer: 'Hecho', durationMs: 1000, isAborted: false, turnId: 't1', agentId: 'agent-1', reason: 'answer' })
+  crew.states.set('agent-1', 'completed')
+  return crew
+}
+
+// Pip alone, free this moment and its end over, so that only the time a free
+// worker is given keeps it in the row.
+export async function freeCrew($: Parameters<TestBody>[0], on: On) {
+  const crew = await doneCrew($, on)
+  await crew.clock.advance(JUST_ENDED_MS)
+  await crew.nap('agent-1')
+  return crew
+}
+
 // How long a worker the engine has free takes to leave the row when the end
 // of its turn never reached the crew: the end is seen five seconds after its
 // last sign of life, and then stands out for half a minute.

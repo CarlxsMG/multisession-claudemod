@@ -2,7 +2,7 @@
 // messages.
 import type { Look, Msg, Orch } from '../../../types'
 import { ORCH_ID, USER_ID, isOrchIn } from '../../crew/feed'
-import { ACTIVE, NAP_SHOWN_MS, napsAway } from '../../crew/workers'
+import { ACTIVE, napLeavesAt, napsAway } from '../../crew/workers'
 import type { Engine } from '../../engine'
 import { accentOf, nameColorOf } from '../../figure/accent'
 import type { Anim } from '../../figure/anim'
@@ -159,8 +159,9 @@ export async function drawMain($: Engine, ui: PaneUi, sprite: Sprite, kit: Worke
   // or an end that stops standing out.
   const dues = inRow.flatMap(w => {
     const r = lastRun.get(w.id)
+    const leavesAt = napLeavesAt(w)
     return [
-      ...(!ACTIVE.has(w.status) ? [w.updatedAt + NAP_SHOWN_MS] : []),
+      ...(leavesAt !== undefined ? [leavesAt] : []),
       ...(r !== undefined && justEnded(w) !== undefined ? [r.endedAt + JUST_ENDED_MS] : []),
     ].filter(at => at > now)
   })

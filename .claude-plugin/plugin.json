@@ -22,6 +22,13 @@
       "description": "Whether the crew asks a headless claude -p for Fable's weekly window, which only /usage has, at most every 3 minutes: off shows the engine's usage windows only.",
       "default": "on",
       "options": ["on", "off"]
+    },
+    "napAfter": {
+      "type": "string",
+      "title": "Nap after",
+      "description": "How long a free or finished worker stays in the panel's row once its status changes, a finished one at least while its end stands out (30 seconds): never keeps it there. The team view and the roster always have it.",
+      "default": "5s",
+      "options": ["5s", "30s", "2m", "never"]
     }
   }
 }

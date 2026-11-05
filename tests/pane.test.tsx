@@ -6,7 +6,7 @@ import { DEFAULT_LOOK, defaultLook } from '../src/figure/look'
 import { enVibes as VIBES_EN } from '../src/i18n/en-vibes'
 import { VIBES, vibeOf } from '../src/persona/vibes'
 import { JUST_ENDED_MS } from '../src/progress/runs'
-import { AWAY_MS, DELEGATE, PANE, SLOW, cellText, crewCommand, engine, napCrew, switchTo, test, workerSend } from './support/crew'
+import { AWAY_MS, DELEGATE, PANE, SLOW, cellText, crewCommand, doneCrew, engine, freeCrew, napCrew, switchTo, test, workerSend } from './support/crew'
 
 test('the figures are cells on the terminal and SVG on the desktop, the editor and the phone', async ($, on) => {
   engine(on)
@@ -368,6 +368,73 @@ test('the row and its +N count only the workers that have not napped away', asyn
   await crewCommand($, 'team')
   await ui.redraw()
   expect(await figures()).toHaveLength(12)
+  await ui.unmount()
+})
+
+for (const [name, options, ms] of [
+  ['no napAfter set', {}, 5000],
+  ['napAfter 5s', { napAfter: '5s' }, 5000],
+  ['napAfter 30s', { napAfter: '30s' }, 30_000],
+  ['napAfter 2m', { napAfter: '2m' }, 120_000],
+] as const) {
+  test(`with ${name}, a free worker leaves the row ${ms / 1000} s after it went free`, { ...SLOW, options }, async ($, on) => {
+    const { clock, ui, card } = await freeCrew($, on)
+    await clock.advance(ms - 100)
+    expect(await card('agent-1')).toBeDefined()
+    await clock.advance(100)
+    expect(await card('agent-1')).toBeUndefined()
+    await ui.unmount()
+  })
+
+  // However short its time, a finished worker stays while its end stands out.
+  const away = Math.max(ms, JUST_ENDED_MS)
+  test(`with ${name}, a finished worker leaves the row ${away / 1000} s after it ended`, { ...SLOW, options }, async ($, on) => {
+    const { clock, ui, card } = await doneCrew($, on)
+    await clock.advance(away - 100)
+    expect(await card('agent-1')).toBeDefined()
+    await clock.advance(100)
+    expect(await card('agent-1')).toBeUndefined()
+    await ui.unmount()
+  })
+}
+
+test('with napAfter never, free and finished workers stay in the row long after their ends stopped standing out', { ...SLOW, options: { napAfter: 'never' } }, async ($, on) => {
+  const { clock, states, nap, ui, card } = await napCrew($, on, 2)
+  await $.turn.complete({ answer: 'Hecho', durationMs: 1000, isAborted: false, turnId: 't1', agentId: 'agent-1', reason: 'answer' })
+  states.set('agent-1', 'completed')
+  await nap('agent-2')
+  await clock.advance(5 * 60_000)
+  expect(await card('agent-1')).toBeDefined()
+  expect(await card('agent-2')).toBeDefined()
+  const word = await ui.find({ type: 'Text', text: /^done$/ })
+  expect(word).toBeDefined()
+  expect(word?.props.inverse).not.toBe(true)
+  await ui.unmount()
+})
+
+test('a longer napAfter moves the redraw that takes a worker off the row with it', { ...SLOW, options: { napAfter: '30s' } }, async ($, on) => {
+  const { clock, ui, card } = await freeCrew($, on)
+  await clock.advance(30_000 - 100)
+  expect(await card('agent-1')).toBeDefined()
+  // No redraw from the test: the pane's timer draws it away by itself.
+  await clock.advance(400)
+  expect(await ui.find({ type: 'Raster', key: 'w-agent-1' })).toBeUndefined()
+  await ui.unmount()
+})
+
+test('a worker that left the row at its napAfter is still in the team view and the roster, and comes back when woken', { ...SLOW, options: { napAfter: '30s' } }, async ($, on) => {
+  const { clock, states, roster, ui, card } = await freeCrew($, on)
+  await clock.advance(30_000)
+  expect(await card('agent-1')).toBeUndefined()
+  expect(await roster()).toMatch(/^- Pip: address "pip", idle, /m)
+  await crewCommand($, 'team')
+  expect(await card('agent-1')).toBeDefined()
+  await ui.press({ key: 'crew-back' })
+
+  const given = await $.tool.call({ tool: DELEGATE, task: 'Fix the flaky test', repo: '/work/r1' })
+  expect(String(given.result)).toMatch(/^Given to Pip /)
+  states.set('agent-1', 'running')
+  expect(await card('agent-1')).toBeDefined()
   await ui.unmount()
 })
 

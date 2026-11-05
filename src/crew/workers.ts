@@ -152,16 +152,29 @@ export async function unshelve($: Engine, id: string) {
   )
 }
 
-// A worker that is not busy, free or finished, leaves the panel's row five
-// seconds after its status changed, which `updatedAt` holds: an idle or
-// finished worker is touched again only by a message to it or by what wakes
-// it (a task, a resume). It leaves the row but not the crew: the team view,
-// the roster and delegate still have it, and whatever wakes it puts it back.
-// One whose run just ended stays while its end stands out, failed included:
-// the toast, the team view and the roster still say so once it is gone.
-export const NAP_SHOWN_MS = 5000
+// A worker that is not busy, free or finished, leaves the panel's row a time
+// after its status changed, which `updatedAt` holds: an idle or finished
+// worker is touched again only by a message to it or by what wakes it (a
+// task, a resume). It leaves the row but not the crew: the team view, the
+// roster and delegate still have it, and whatever wakes it puts it back. One
+// whose run just ended stays while its end stands out, failed included,
+// whatever the time: the toast, the team view and the roster still say so
+// once it is gone.
+const NAP_SHOWN_MS = 5000
+// The crew's `napAfter` option as that time; undefined for `never`.
+let napShownMs: number | undefined = NAP_SHOWN_MS
+
+/** Takes the crew's `napAfter` option as the plugin loads: `30s`, `2m` or `never`; anything else is the default, `5s`. */
+export function chooseNapAfter(option: unknown) {
+  napShownMs = option === '30s' ? 30_000 : option === '2m' ? 120_000 : option === 'never' ? undefined : NAP_SHOWN_MS
+}
+
+/** When a worker that is not busy leaves the pane's row; undefined for a busy one, and with `napAfter` at `never`. */
+export const napLeavesAt = (w: Worker): number | undefined =>
+  ACTIVE.has(w.status) || napShownMs === undefined ? undefined : w.updatedAt + napShownMs
+
 /** Whether a worker that is not busy has rested long enough to leave the pane's row. */
-export const napsAway = (w: Worker, now: number): boolean => !ACTIVE.has(w.status) && now - w.updatedAt >= NAP_SHOWN_MS
+export const napsAway = (w: Worker, now: number): boolean => (napLeavesAt(w) ?? Infinity) <= now
 
 /** Changes a worker's fields and touches it; one the list no longer has is left alone. */
 export async function patchWorker(

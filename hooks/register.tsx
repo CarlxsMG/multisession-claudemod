@@ -2,6 +2,7 @@ import type { Register } from 'claude-code'
 
 import { onSend } from '../src/crew/sends'
 import { onSpawn } from '../src/crew/spawn'
+import { chooseNapAfter } from '../src/crew/workers'
 import { runCrewCommand } from '../src/hooks/commands'
 import { composePrompt, onSubmit } from '../src/hooks/prompt'
 import { onAttach, onMeasure, onModelSwitch, onSessionStart } from '../src/hooks/session'
@@ -25,6 +26,7 @@ const CREW_TOOLS = ['mcp__crew__delegate', 'SendMessage', 'TaskStop']
 export const register: Register = (on, options) => {
   chooseLocale(options.language)
   chooseUsageProbe(options.usageProbe)
+  chooseNapAfter(options.napAfter)
 
   on('session.start', ($, e, next) => onSessionStart($, e, next))
 
