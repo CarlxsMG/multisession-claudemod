@@ -17,6 +17,9 @@ All notable changes to crew are written here. The format follows
   stops standing out, as free ones do; the team view and the roster still list them.
 - The newest check-in in the conversation follows the round in place, its steps and phases as
   they change and its times once a minute, instead of keeping what it showed when it was placed.
+- A worker's tool calls no longer draw the pane again one by one: what it does, its call count
+  and its phase are written once per frame of the pane (400 ms), so a card and the team view
+  can trail its last call by that much.
 
 ### Fixed
 

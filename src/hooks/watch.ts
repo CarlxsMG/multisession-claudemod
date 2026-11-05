@@ -6,7 +6,7 @@ import { DELEGATE, PROGRESS } from '../config'
 import { gistOf, markCrewCall, setJob, setOrch } from '../crew/feed'
 import { noteSendGist } from '../crew/sends'
 import { isolated, takeRenamed } from '../crew/spawn'
-import { findWorker, patchWorker } from '../crew/workers'
+import { findWorker } from '../crew/workers'
 import type { Engine } from '../engine'
 import { t } from '../i18n'
 import { describe } from '../progress/phase'
@@ -31,11 +31,6 @@ export async function watchCall($: Engine, e: Parameters<WatchCallHook>[1], next
     if (e.agentId !== undefined) noteSendGist(e.agentId, call.summary, call.message)
   }
   if (e.agentId !== undefined) {
-    await patchWorker($, e.agentId, w => ({
-      status: 'working',
-      activity: describe(call),
-      tools: w.tools + 1,
-    }))
     await noteCall($, e.agentId, call)
   } else if (e.tool === 'Agent') {
     await setOrch($, 'delegating', t().delegatingTo(oneLine(String(call.description ?? ''), 40)))

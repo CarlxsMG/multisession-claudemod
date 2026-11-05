@@ -119,7 +119,7 @@ dropped, missing or invalid ones take the default's value.
 
 | Timer | Period | What it does |
 | --- | --- | --- |
-| Pane tick (`tick`) | `TICK_MS`, 400 ms | Advances the figures' frame and blits each changed raster in place. Every 12 frames (4.8 s) redraws the pane for its ages, when it is mounted or shown as a page. Redraws when a nap or an end highlight is due. Sends due relays. Every 8 frames (3.2 s) syncs the crew with the engine's agent list and lifts takeovers; between those, lifts takeovers a turn end asked for. Every 25 frames (10 s) looks for a batch of mood lines to ask Haiku for. |
+| Pane tick (`tick`) | `TICK_MS`, 400 ms | Advances the figures' frame and blits each changed raster in place. Every 12 frames (4.8 s) redraws the pane for its ages, when it is mounted or shown as a page. Redraws when a nap or an end highlight is due. Writes the workers' tool calls held since the last frame. Sends due relays. Every 8 frames (3.2 s) syncs the crew with the engine's agent list and lifts takeovers; between those, lifts takeovers a turn end asked for. Every 25 frames (10 s) looks for a batch of mood lines to ask Haiku for. |
 | Typing tick (`typeTick`) | 90 ms, 180 ms on Terminal.app | Types out the newest bubbles in the feed. |
 | Progress tick (`progressTick`) | 1 s | Closes runs whose end was missed, writes the status line, brings the round's newest check-in up to date (`followCheckIn`, even while the main turn runs), places the rows that waited for the main turn, and places check-ins and the round's summary. |
 | Usage probe (`probeUsage`) | At most every 3 min | Runs a headless `claude -p` for Fable's weekly window; started at session start, when the engine measures new windows, and when an app attaches; never with the `usageProbe` option `off`. |
@@ -204,8 +204,11 @@ agents.
 
 - A **run** opens when a worker starts working: its first turn, a task or a message that wakes it
   (`beginRun`). A reused worker's time starts again.
-- Each tool call is counted (`noteCall`): the call count, the **phase** its tool says, and the
-  last sign of life. A worker's plan comes from the progress tool (`setPlan`), or from its todo
+- Each tool call is counted (`noteCall`): the call count, what the worker does, the **phase** its
+  tool says, and the last sign of life. A call that sets the worker working shows at once; the
+  rest are held (`src/progress/calls.ts`) and written at the pane's next frame, in one write of
+  the workers and one of the runs: the pane draws both, so a write per call would draw it whole
+  for each call. `endRun` writes them first, so a run ends with all its calls. A worker's plan comes from the progress tool (`setPlan`), or from its todo
   list (`noteTodos`) when it declared none.
 - `turn.complete` ends the run (`endRun`) as done, failed or stopped, puts the report's first
   line in the feed, shows an end toast, and, for a worker whose report goes to another worker,
