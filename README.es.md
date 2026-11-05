@@ -56,6 +56,15 @@ falla en tiempo real.
 
   Es solo dibujo: lo que se guarda y lo que lee cualquier modelo no cambia. Con ctrl+o cada una se
   ve entera.
+
+  El crew no guarda nada de una conversación en disco, así que tras reiniciar Claude Code las
+  burbujas anteriores de una conversación reanudada se dibujan con lo que lleva cada fila: el
+  nombre del worker en las llamadas del orquestador y en lo que mandan los workers, el título de
+  la tarea en su burbuja de delegate, y cómo terminó una ejecución y cuánto tardó cuando su aviso
+  de fin lo dice. El color de un worker vuelve donde la fila lleva su id (una llamada que lo
+  arrancó o lo despertó, una parada, un aviso de fin); en las demás la burbuja sale en gris. Un
+  aviso de fin no nombra worker ni título (`crew → Nova · ✓ listo · 2m 5s`), y el paso en que
+  quedó una ejecución fallida y los tiempos que midió el propio crew no vuelven.
 - **Progreso que no lee ningún modelo.** Una línea de estado bajo el prompt
   (`crew · Pip 3/5 6m Arreglar tests · Bolt leyendo 4m`), un aviso flotante cuando termina una
   ejecución, una línea en la conversación por cada mensaje entre workers y un aviso cada 3 minutos

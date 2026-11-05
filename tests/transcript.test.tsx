@@ -1,5 +1,6 @@
 import { expect } from 'claude-code/testing'
 import type { AgentSpawnInput } from 'claude-code'
+import { given, headsUp, heldFor, started } from '../src/prompts/results'
 import { CLICKS, DELEGATE, PANE, engine, frameRows, isBlank, mountResult, mountRow, mountSaid, spawnAgent, test, toolRow } from './support/crew'
 import type { Said } from './support/crew'
 
@@ -149,10 +150,17 @@ test('the orchestrator\'s SendMessage and TaskStop to a worker are drawn in its 
   // A message to someone outside the crew.
   const away = { to: 'otra-sesion', message: 'Hola' }
   await $.tool.call({ tool: 'SendMessage', tool_use_id: 'toolu_s3', ...away })
+  // Answered, too: the crew saw those calls, so neither is drawn from what it says.
+  const delivered = { success: true, message: 'Message sent' }
   for (const [id, input] of [['toolu_s2', aside], ['toolu_s3', away]] as const) {
     const ui = await mountRow($, toolRow('SendMessage', id, input))
     expect((await ui.drawn()).type).toBe('engine')
+    await ui.redraw(toolRow('SendMessage', id, input, { output: delivered }))
+    expect((await ui.drawn()).type).toBe('engine')
     await ui.unmount()
+    const answer = await mountResult($, { tool: 'SendMessage', tool_use_id: id, output: delivered, isErrored: false })
+    expect((await answer.drawn()).type).toBe('engine')
+    await answer.unmount()
   }
 
   await $.tool.call({ tool: 'TaskStop', tool_use_id: 'toolu_t1', task_id: 'agent-2' })
@@ -389,4 +397,131 @@ test('a cut bubble opens whole on a click and closes on another; where nothing r
   const open = await mountSaid($, 'c-note-2', note, { columns: 50, rows: 30 })
   expect((await frameRows(open)).length).toBeGreaterThan(3)
   expect((await frameRows(open)).join('')).not.toMatch(/…/)
+})
+
+test("a resumed conversation's crew calls, which no state of this session knows, draw as the crew's from what each row says", async ($, on) => {
+  // As after Claude Code restarts: the session knows no worker and no call.
+  engine(on, { nextId: () => 'agent-7' })
+  await $.session.start({ cwd: '/work/main', surface: 'terminal', isInteractive: true })
+  const colorOf = async (ui: Awaited<ReturnType<typeof mountRow>>, name: RegExp) => (await ui.find({ type: 'Text', text: name }))?.props.color
+  const blankResult = async (tool: string, id: string, output: unknown) => {
+    const ui = await mountResult($, { tool, tool_use_id: id, output, isErrored: false })
+    const isIt = await isBlank(ui)
+    await ui.unmount()
+    return isIt
+  }
+
+  // A new worker: delegate's result gives its name, address and id, and the
+  // id its color.
+  const task = { task: 'Run the tests and fix what fails.', title: 'Arreglar tests', repo: '/work/api' }
+  const output = started('Pip', 'pip', 'agent-7', '/work/api', headsUp(['Bolt']))
+  const fresh = await mountRow($, toolRow(DELEGATE, 'toolu_r1', task, { output }))
+  expect(await frameRows(fresh)).toEqual([
+    expect.stringMatching(/^╭─ Nova → Pip · Arreglar tests ─+╮$/),
+    expect.stringMatching(/^│ Run the tests and fix what fails\. +│$/),
+    expect.stringMatching(/^╰─ new · ! Bolt works here ─+╯$/),
+  ])
+  const pipColor = await colorOf(fresh, /^Pip$/)
+  expect(pipColor).not.toBe('inactive')
+  expect(await colorOf(fresh, /^╭─ $/)).toBe(pipColor)
+  // Bolt, whom the result names only, has no color of its own.
+  expect(await colorOf(fresh, /^Bolt$/)).toBeUndefined()
+  expect(await blankResult(DELEGATE, 'toolu_r1', output)).toBe(true)
+
+  // A reused worker and a held task: their results name the worker, not its
+  // id, so it takes the plain color.
+  const reused = await mountRow($, toolRow(DELEGATE, 'toolu_r2', { task: 'Y el registro', title: 'Registro' }, { output: given({ name: 'Bolt', address: 'bolt' }, '/work/web', '') }))
+  expect(await frameRows(reused)).toEqual([
+    expect.stringMatching(/^╭─ Nova → Bolt · Registro ─+╮$/),
+    expect.stringMatching(/^│ Y el registro +│$/),
+    expect.stringMatching(/^╰─ reused · keeps its context ─+╯$/),
+  ])
+  expect(await colorOf(reused, /^Bolt$/)).toBe('inactive')
+  expect(await colorOf(reused, /^╭─ $/)).toBe('inactive')
+  const held = await mountRow($, toolRow(DELEGATE, 'toolu_r3', { task: 'Los tickets' }, { output: heldFor({ name: 'Kiko', address: 'kiko' }, 'Pip', 1) }))
+  expect((await frameRows(held))[0]).toMatch(/^╭─ Nova → Kiko · Los tickets ─+╮$/)
+  expect(await held.find({ type: 'Text', text: /^╰─ waiting · answers to Pip ─+╯$/ })).toBeDefined()
+
+  // A SendMessage names its worker by the address it went to; one that woke
+  // it gives its id, and so its color.
+  const ask = { to: 'pip [3fa9c1]', summary: 'Amplía el login', message: 'Añade también el caso de la contraseña caducada.' }
+  const inbox = { success: true, message: "Message sent to pip's inbox" }
+  const sent = await mountRow($, toolRow('SendMessage', 'toolu_r4', ask, { output: inbox }))
+  expect(await frameRows(sent)).toEqual([
+    expect.stringMatching(/^╭─ Nova → Pip · Amplía el login ─+╮$/),
+    expect.stringMatching(/^│ Añade también el caso de la contraseña caducada\. │$/),
+    expect.stringMatching(/^╰─ delivered ─+╯$/),
+  ])
+  expect(await colorOf(sent, /^Pip$/)).toBe('inactive')
+  expect(await blankResult('SendMessage', 'toolu_r4', inbox)).toBe(true)
+  await sent.redraw(toolRow('SendMessage', 'toolu_r4', ask, { output: { success: true, message: 'Resuming agent pip', resumedAgentId: 'agent-7' } }))
+  expect(await sent.find({ type: 'Text', text: /^╰─ wakes Pip ─+╯$/ })).toBeDefined()
+  expect(await colorOf(sent, /^Pip$/)).toBe(pipColor)
+  // An address no worker's name fits shows as it was written.
+  const byId = await mountRow($, toolRow('SendMessage', 'toolu_r5', { to: 'agent-7', message: 'Sigue' }, { output: inbox }))
+  expect((await frameRows(byId))[0]).toMatch(/^╭─ Nova → agent-7 ─+╮$/)
+
+  // A TaskStop of a subagent says which; one of a shell keeps the engine's row.
+  const stopped = { message: 'Successfully stopped task: agent-7 (Arreglar tests)', task_id: 'agent-7', task_type: 'local_agent', command: 'Arreglar tests' }
+  const stop = await mountRow($, toolRow('TaskStop', 'toolu_r6', { task_id: 'pip' }, { output: stopped }))
+  expect(await stop.find({ type: 'Text', text: /^● Nova × Pip$/ })).toBeDefined()
+  expect(await colorOf(stop, /^Pip$/)).toBe(pipColor)
+  expect(await blankResult('TaskStop', 'toolu_r6', stopped)).toBe(true)
+  const shell = { message: 'Successfully stopped task: b1x2 (npm test)', task_id: 'b1x2', task_type: 'local_bash', command: 'npm test' }
+  const kill = await mountRow($, toolRow('TaskStop', 'toolu_r7', { task_id: 'b1x2' }, { output: shell }))
+  expect((await kill.drawn()).type).toBe('engine')
+  expect(await blankResult('TaskStop', 'toolu_r7', shell)).toBe(false)
+
+  // A delegate that reached no one, and a call still running, keep the engine's.
+  const none = await mountRow($, toolRow(DELEGATE, 'toolu_r8', { task: 'Más', worker: 'nadie' }, { output: 'crew: no worker "nadie". Workers: none.' }))
+  expect((await none.drawn()).type).toBe('engine')
+  const running = await mountRow($, toolRow('SendMessage', 'toolu_r9', ask, { isRunning: true }))
+  expect((await running.drawn()).type).toBe('engine')
+
+  // The color the rows gave Pip is the one its id gives a worker of this
+  // session, and a row from before keeps what it said once one is known.
+  const live = String((await $.tool.call({ tool: DELEGATE, tool_use_id: 'toolu_r10', ...task })).result)
+  const now = await mountRow($, toolRow(DELEGATE, 'toolu_r10', task, { output: live }))
+  expect(await colorOf(now, /^Pip$/)).toBe(pipColor)
+  await sent.redraw(toolRow('SendMessage', 'toolu_r4', ask, { output: inbox }))
+  expect(await colorOf(sent, /^Pip$/)).toBe('inactive')
+})
+
+test("a resumed conversation's reports and end notices draw as the crew's from what each row says", async ($, on) => {
+  engine(on)
+  await $.session.start({ cwd: '/work/main', surface: 'terminal', isInteractive: true })
+  // A worker's message names it by its address, its name in lowercase; the
+  // id that would color it is not in the row.
+  const back = await mountSaid($, 'r-m1', { text: 'Tests verdes: 42 ok.', origin: { kind: 'unclassified' }, isExpanded: false, from: { name: 'pip' } })
+  expect(await frameRows(back)).toEqual([
+    expect.stringMatching(/^╭─ Pip → Nova ─+╮$/),
+    expect.stringMatching(/^│ Tests verdes: 42 ok\. +│$/),
+    expect.stringMatching(/^╰─+╯$/),
+  ])
+  expect((await back.find({ type: 'Text', text: /^Pip$/ }))?.props.color).toBe('inactive')
+
+  // An end notice gives the agent's id, so its color, how it ended and how
+  // long it ran. Not its name, nor its title: the engine's is the task the
+  // agent was started with, not the one it ended.
+  const note = await mountSaid($, 'r-m2', {
+    text: 'Agent "Arreglar tests" completed',
+    origin: { kind: 'task-notification' },
+    isExpanded: false,
+    task: { id: 'agent-7', status: 'completed', durationMs: 125_000 },
+  })
+  expect(await frameRows(note)).toEqual([expect.stringMatching(/^╭─ crew → Nova · ✓ done · 2m 5s ─+╮$/), expect.stringMatching(/^╰─+╯$/)])
+  expect((await note.find({ type: 'Text', text: /^╭─ $/ }))?.props.color).not.toBe('inactive')
+  expect(await note.find({ type: 'Text', text: /Arreglar/ })).toBeUndefined()
+
+  // A sender no worker could be, another session's message and a shell's
+  // end keep the engine's row.
+  for (const props of [
+    { text: 'Hola', origin: { kind: 'unclassified' }, isExpanded: false, from: { name: 'otra-sesion' } },
+    { text: 'Hola', origin: { kind: 'peer' }, isExpanded: false, from: { name: 'api' } },
+    { text: 'Background command "npm test" completed', origin: { kind: 'task-notification' }, isExpanded: false, task: { id: 'b1x2', status: 'completed' } },
+  ] as const) {
+    const ui = await mountSaid($, 'r-m3', props)
+    expect((await ui.drawn()).type).toBe('engine')
+    await ui.unmount()
+  }
 })

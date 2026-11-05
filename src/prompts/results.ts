@@ -110,6 +110,22 @@ export function readDelegate(text: string): DelegateOutcome | undefined {
   return { kind: isReused ? 'reused' : 'new', busy }
 }
 
+// The worker each of delegate's results names first, with its address, and
+// the id a new one's adds.
+const DELEGATED = /^(?:Given to|Started|Held for) (\S+) \(address "([^"]*)"(?:, id ([^)\s]+))?\)/
+
+/**
+ * The worker a delegate result says it reached, read back for a row the
+ * session has no record of: its name, address and id ('' where the result
+ * gives none, as a reused worker's and a held task's do).
+ */
+export function delegatedTo(text: string): Pick<Worker, 'id' | 'name' | 'address'> | undefined {
+  const found = DELEGATED.exec(text)
+  if (found === null) return undefined
+  const id = found[3] ?? ''
+  return { id: id === '?' ? '' : id, name: found[1]!, address: found[2]! }
+}
+
 // ---- progress ----
 
 export const PROGRESS_NOT_FOR_MAIN = 'crew: progress is for workers; nothing changed.'

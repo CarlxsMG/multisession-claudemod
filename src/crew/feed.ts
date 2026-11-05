@@ -1,6 +1,6 @@
 // What the pane and the conversation's crew rows are drawn from: the
 // messages said, the orchestrator's mood, everyone the crew has had, the
-// main conversation's crew calls, and what each worker was given to do.
+// calls of the crew's tools, and what each worker was given to do.
 import type { LastJob, Member, Msg, MsgTone, OrchMood } from '../../types'
 import type { Engine } from '../engine'
 import { readMembers, readOrch, updateCalls, updateJobs, updateMembers, updateMessages, updateOrch } from '../state/atoms'
@@ -9,11 +9,11 @@ import { oneLine } from '../util/text'
 import { findWorker } from './workers'
 
 // The newest of each the crew keeps: the messages the pane's feed shows,
-// the members and jobs its rows name, the main conversation's crew calls,
-// and the routes of the workers' messages.
+// the members and jobs its rows name, the calls of the crew's tools (the
+// workers' own among them), and the routes of the workers' messages.
 const MESSAGES_KEEP = 60
 const CAST_KEEP = 120
-const CALLS_KEEP = 200
+const CALLS_KEEP = 400
 /** The routes of workers' messages kept, the newest. */
 export const ROUTES_KEEP = 60
 
@@ -49,8 +49,11 @@ export async function enlist($: Engine, list: readonly Member[]) {
 }
 
 /**
- * Marks a crew call of the main conversation (`id`, its tool_use_id) with
- * the worker it reached (`to`, '' until known).
+ * Marks a call of a crew tool (`id`, its tool_use_id) with the worker the
+ * main conversation's reached (`to`): '' until known, and for one that
+ * reached no one of the crew or is a worker's own, whose row stays the
+ * engine's. A call with no mark is drawn from what its row says, as one
+ * from before Claude Code restarted is.
  */
 export async function markCall($: Engine, id: string | undefined, to = '') {
   if (!id) return
@@ -73,13 +76,12 @@ export const gistOf = (summary: unknown, message: unknown): string =>
   (typeof summary === 'string' && summary.trim() !== '' ? summary : String(message ?? '').split('\n').find(x => x.trim() !== '') ?? '')
 
 /**
- * A SendMessage or TaskStop of the main conversation, marked when it reaches
- * someone of the crew.
+ * A SendMessage or TaskStop of the main conversation, marked with the member
+ * it reaches, or with none.
  */
 export async function markCrewCall($: Engine, id: string | undefined, key: unknown) {
-  if (typeof key !== 'string' || key.trim() === '') return
-  const w = findWorker(await readMembers($), key)
-  if (w !== undefined) await markCall($, id, w.id)
+  const w = typeof key === 'string' && key.trim() !== '' ? findWorker(await readMembers($), key) : undefined
+  await markCall($, id, w?.id ?? '')
 }
 
 /** What a transcript row and a send are matched by. */

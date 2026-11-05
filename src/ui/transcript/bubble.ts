@@ -26,8 +26,14 @@ export const isMarkedEnd = (status: string): boolean => Object.hasOwn(ENDS, stat
 export const endSeg = (status: string | undefined): Seg | undefined =>
   status === undefined || status.trim() === '' ? undefined : isMarkedEnd(status) ? ENDS[status]!() : { text: oneLine(status, 20), dim: true }
 
-/** Someone of the crew's color in the conversation, from its id. */
-export const colorOfMember = (m: Member, look: Look): string => accentOf({ seed: hash(m.id) }, look)
+/** The color of a row's worker whose id the row does not give: none of its own. */
+export const PLAIN = 'inactive'
+
+/** Someone of the crew's color in the conversation, from its id; with none (''), the plain one. */
+export const colorOfMember = (m: Member, look: Look): string => (m.id === '' ? PLAIN : accentOf({ seed: hash(m.id) }, look))
+
+/** Who a row names when it does not say which worker: the crew. */
+export const anyWorker = (): Seg => ({ text: 'crew', dim: true })
 
 // A row takes at least this many columns; one at least `WIDE_COLUMNS` wide
 // gives a bubble `BUBBLE_SHARE` of it.

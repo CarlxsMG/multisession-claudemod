@@ -3,7 +3,7 @@
 import type { HookFor } from 'claude-code'
 
 import { DELEGATE, PROGRESS } from '../config'
-import { gistOf, markCrewCall, setJob, setOrch } from '../crew/feed'
+import { gistOf, markCall, markCrewCall, setJob, setOrch } from '../crew/feed'
 import { noteSendGist } from '../crew/sends'
 import { isolated, takeRenamed } from '../crew/spawn'
 import { findWorker } from '../crew/workers'
@@ -31,6 +31,7 @@ export async function watchCall($: Engine, e: Parameters<WatchCallHook>[1], next
     if (e.agentId !== undefined) noteSendGist(e.agentId, call.summary, call.message)
   }
   if (e.agentId !== undefined) {
+    if (e.tool === 'SendMessage' || e.tool === 'TaskStop') await markCall($, e.tool_use_id)
     await noteCall($, e.agentId, call)
   } else if (e.tool === 'Agent') {
     await setOrch($, 'delegating', t().delegatingTo(oneLine(String(call.description ?? ''), 40)))
