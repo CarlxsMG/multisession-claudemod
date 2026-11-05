@@ -6,7 +6,7 @@ import { DEFAULT_LOOK } from '../src/figure/look'
 import { esVibes as VIBES_ES } from '../src/i18n/es-vibes'
 import { VIBES, vibeOf } from '../src/persona/vibes'
 import { JUST_ENDED_MS } from '../src/progress/runs'
-import { AWAY_MS, DELEGATE, PANE, cellText, crewCommand, engine, napCrew, switchTo, test, workerSend } from './support/crew'
+import { AWAY_MS, DELEGATE, PANE, SLOW, cellText, crewCommand, engine, napCrew, switchTo, test, workerSend } from './support/crew'
 
 test('the figures are cells on the terminal and SVG on the desktop, the editor and the phone', async ($, on) => {
   engine(on)
@@ -159,7 +159,7 @@ test('the crew takes one row, and the rest wait in the team view', async ($, on)
   await ui.unmount()
 })
 
-test('the orchestrator cheers when its turn ends, idles, and naps after three minutes, as before its first turn', async ($, on) => {
+test('the orchestrator cheers when its turn ends, idles, and naps after three minutes, as before its first turn', SLOW, async ($, on) => {
   const clock = engine(on)
   await $.session.start({ cwd: '/work/main', surface: 'terminal', isInteractive: true })
   const lines = VIBES_ES.cheerful.lines
