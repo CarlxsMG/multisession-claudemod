@@ -52,7 +52,7 @@ export async function drawPlaced($: Engine, e: Parameters<DrawPlacedHook>[1], ne
   const { Box, Text } = $.ui.resolve(e)
   return (
     <Box flexDirection="column">
-      {checkInRows(row, width, isWhole).map(pieces => (
+      {checkInRows(isWhole && row.shown !== undefined ? { ...row, ...row.shown } : row, width, isWhole).map(pieces => (
         <Text wrap="truncate-end">
           {pieces.map(p => (
             <Text {...pieceStyle(p, look)}>{p.text}</Text>

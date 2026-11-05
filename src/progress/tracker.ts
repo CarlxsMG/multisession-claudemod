@@ -11,6 +11,7 @@ import {
   readMembers,
   readJobs,
   readOrch,
+  readCheckins,
   readParents,
   readRound,
   readRuns,
@@ -33,6 +34,9 @@ import { endNotice } from './text/ended'
 import { statusText } from './text/status-line'
 
 const PROGRESS_MS = 1000
+// How often the newest check-in reads its times again when nothing else in
+// it changed: each write draws again every row that reads the list.
+const CHECKIN_TIMES_MS = 60_000
 const RUNS_KEEP = 80
 const CHECKINS_KEEP = 60
 // A run whose worker the engine has free or gone ends this long after its
@@ -260,6 +264,27 @@ export async function placeCheckIn($: Engine, isAsked: boolean) {
   if (isRound) await updateRound($, x => ({ ...x, lastAt: now, seen: seenOf(x, all, id => who(id).status) }))
 }
 
+// What a check-in's lines say but their times: what it is drawn again for.
+const linesSaid = (lines: readonly CheckLine[]): string =>
+  JSON.stringify(lines.map(x => [x.id, x.name, x.phase, x.end, x.doing, x.plan?.step, x.plan?.total]))
+
+/**
+ * The round's newest check-in follows the round in place: its lines are read
+ * again from the runs, so it never gives an older step or phase than the
+ * pane and the status line. Written when what it says changes, and its
+ * times once a minute; the rows before it keep what they showed.
+ */
+async function followCheckIn($: Engine, round: Round, now: number) {
+  if (round.startedAt === 0) return
+  const newest = (await readCheckins($)).findLast(c => c.kind === 'checkin' || c.kind === 'summary')
+  if (newest === undefined || newest.kind !== 'checkin' || newest.at < round.startedAt) return
+  const lines = checkLines(round, await readRuns($), await crewLookup($), now)
+  const was = newest.shown ?? newest
+  if (linesSaid(lines) === linesSaid(was.lines) && now - was.at < CHECKIN_TIMES_MS) return
+  const roundMs = (round.closedAt || now) - round.startedAt
+  await updateCheckins($, list => list.map(c => (c.id === newest.id ? { ...c, shown: { at: now, roundMs, lines } } : c)))
+}
+
 async function placeSummary($: Engine, round: Round) {
   const now = await $.clock.now()
   const lines = checkLines(round, await readRuns($), await crewLookup($), now)
@@ -306,6 +331,8 @@ async function progressTick($: Engine) {
       .sort((a, b) => a.endedAt - b.endedAt)
       .map(r => ({ name: list.find(w => w.id === r.id)!.name, end: r.end as Exclude<RunEnd, ''> }))
     showStatus($, statusText(entries, Math.max(STATUS_MIN_COLUMNS, (rowColumns || commandColumns) - 2), ended))
+    // A row that stands is drawn again, so it follows even while the main turn runs.
+    await followCheckIn($, await readRound($), now)
 
     if (isMainBusy(await readOrch($))) return
     // The lines that wait, before any summary of their round.
