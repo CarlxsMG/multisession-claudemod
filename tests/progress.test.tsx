@@ -111,6 +111,17 @@ test('the status line gives up the titles first, then the ends, then the workers
   expect(statusText([{ ...pip, title: 'Una tarea con un título bastante largo' }], 200)).toBe('crew · Pip editing 6m Una tarea con un título…')
 })
 
+test('an idle progress tick writes nothing when no line waits', async ($, on) => {
+  let writes = 0
+  on('state.set', { plugin: 'crew', key: 'due' }, (_, e, next) => {
+    writes += 1
+    return next(e)
+  })
+  const { clock } = await progressCrew($, on)
+  await clock.advance(10_000)
+  expect(writes).toBe(0)
+})
+
 test("a check-in row comes every 3 minutes of work when something changed, and waits for the orchestrator's turn to end", SLOW, async ($, on) => {
   const { clock, placed, mainTurn, delegate, lines } = await progressCrew($, on)
   await delegate('Run the tests', '/work/api', 'Arreglar tests')
