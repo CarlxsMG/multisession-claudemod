@@ -337,3 +337,28 @@ test('a worker never runs on haiku', async ($, on) => {
   await $.tool.call({ tool: 'mcp__crew__delegate', task: 'Review the login', repo: '/work/web', model: 'sonnet' })
   expect(seen.models).toEqual([undefined, 'sonnet'])
 })
+
+test('a full model id goes as the alias the Agent tool takes, to start a worker and to reuse one', async ($, on) => {
+  const seen = { prompts: [] as string[], sends: [] as string[], models: [] as (string | undefined)[] }
+  let spawned = 0
+  engine(on, { nextId: () => `agent-${++spawned}`, seen })
+  await $.session.start({ cwd: '/work/main', surface: 'terminal', isInteractive: true })
+  const delegate = async (ask: Ask) => String((await $.tool.call({ tool: 'mcp__crew__delegate', ...ask })).result)
+  const done = (agentId: string) =>
+    $.turn.complete({ answer: 'Hecho', durationMs: 1000, isAborted: false, turnId: `t-${agentId}-${seen.models.length}`, agentId, reason: 'answer' })
+
+  expect(await delegate({ task: 'List the routes', repo: '/work/api', model: 'claude-sonnet-4-5' })).toMatch(/^Started Pip/)
+  await done('agent-1')
+  expect(await delegate({ task: 'Check the queries', repo: '/work/api', model: 'sonnet' })).toMatch(/^Given to Pip/)
+  expect(await delegate({ task: 'Review the login', repo: '/work/web', model: 'sonnet' })).toMatch(/^Started Bolt/)
+  await done('agent-2')
+  expect(await delegate({ task: 'Polish it', repo: '/work/web', model: 'us.anthropic.claude-sonnet-4-5-20250929-v1:0' })).toMatch(/^Given to Bolt/)
+  expect(await delegate({ task: 'Count the lines', repo: '/work/docs', model: 'claude-haiku-4-5' })).toMatch(/^Started Mika/)
+  expect(seen.models).toEqual(['sonnet', 'sonnet', undefined])
+
+  // One that names no family starts nothing, and says which it takes.
+  expect(await delegate({ task: 'Count the words', repo: '/work/docs', model: 'gpt-5' })).toBe(
+    `crew: no model "gpt-5"; nothing started. Models: sonnet, opus, fable, or none for the session's.`,
+  )
+  expect(seen.models).toHaveLength(3)
+})

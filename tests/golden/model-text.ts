@@ -280,6 +280,7 @@ export const GOLDEN: Record<string, string> = {
   "result.noWorker": "crew: no worker \"nobody\". Workers: pip, bolt.",
   "result.fork": "crew: a fork starts from the Agent tool (`subagent_type: \"fork\"`), not delegate.",
   "result.noRepo": "crew: /work/missing does not exist.",
+  "result.noModel": "crew: no model \"gpt-5\"; nothing started. Models: sonnet, opus, fable, or none for the session's.",
   "result.notForWorkers": "crew: delegate is Nova's tool, not a worker's; nothing started. To split your task, fork yourself once per part (Agent tool, `subagent_type: \"fork\"`) and report the whole; for work beyond it, ask Nova in your report.",
   "result.unreachable": "crew: could not reach Bolt: the agent is gone",
   "result.autoMode": "crew: nothing started: auto mode reviews only calls you write, not the one delegate makes. Start Pip yourself now: Agent tool with name \"pip\", description \"Login\", subagent_type \"general-purpose\", and as prompt the task exactly as you gave delegate. The crew takes that agent as Pip, working in /work/api.",
