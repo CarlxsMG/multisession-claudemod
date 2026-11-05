@@ -13,8 +13,8 @@ import { DELEGATE_FAILED, SEND_UNSURE } from '../src/prompts/results'
 import { chooseLocale } from '../src/i18n/locale'
 import { drawPane, onClose, onDetach } from '../src/ui/pane/index'
 import { drawPlaced } from '../src/ui/transcript/placed'
-import { drawToolResult, drawToolUse } from '../src/ui/transcript/tool-use'
-import { drawUserMessage } from '../src/ui/transcript/user-message'
+import { drawToolCard, drawToolResult, drawToolUse } from '../src/ui/transcript/tool-use'
+import { drawUserCard, drawUserMessage } from '../src/ui/transcript/user-message'
 import { chooseUsageProbe } from '../src/usage/limits'
 
 // The tools whose calls the crew draws as its rows in the conversation.
@@ -77,14 +77,23 @@ export const register: Register = (on, options) => {
   // ---- the conversation's crew rows ----
   // Drawn only: the stored transcript, and what any model reads, stay as they
   // were. Anything the crew cannot place and an error keep the engine's own
-  // drawing; ctrl+o's full view shows each bubble whole (see crewBubble).
+  // drawing; ctrl+o's full view shows each bubble whole (see crewBubble). The
+  // terminal draws bubbles, the desktop app and VS Code one-line cards a press
+  // opens (see crewCard), and every other surface, the phone's among them, the
+  // engine's own rows: a matcher selects only the surfaces it names.
   on('ui.render', { component: 'ToolUse', surface: 'terminal', props: { tool: CREW_TOOLS } }, ($, e, next) =>
     drawToolUse($, e, next),
   ).catch(($, e, next) => next(e))
-  on('ui.render', { component: 'ToolResult', surface: 'terminal', props: { tool: CREW_TOOLS } }, ($, e, next) =>
+  on('ui.render', { component: 'ToolUse', surface: ['desktop', 'vscode'], props: { tool: CREW_TOOLS } }, ($, e, next) =>
+    drawToolCard($, e, next),
+  ).catch(($, e, next) => next(e))
+  on('ui.render', { component: 'ToolResult', surface: ['terminal', 'desktop', 'vscode'], props: { tool: CREW_TOOLS } }, ($, e, next) =>
     drawToolResult($, e, next),
   ).catch(($, e, next) => next(e))
   on('ui.render', { component: 'UserMessage', surface: 'terminal' }, ($, e, next) => drawUserMessage($, e, next)).catch(
+    ($, e, next) => next(e),
+  )
+  on('ui.render', { component: 'UserMessage', surface: ['desktop', 'vscode'] }, ($, e, next) => drawUserCard($, e, next)).catch(
     ($, e, next) => next(e),
   )
   on('ui.render', { component: 'Placed' }, ($, e, next) => drawPlaced($, e, next)).catch(($, e, next) => next(e))

@@ -5,11 +5,8 @@ import { findWorker } from '../../crew/workers'
 import { t } from '../../i18n'
 import { readDelegate } from '../../prompts/results'
 import { textOf } from '../../util/text'
-import { colorOfMember } from './bubble'
+import { colorOfMember, dim } from './bubble'
 import type { Seg } from './bubble'
-
-/** A dim piece of text. */
-export const dim = (text: string): Seg => ({ text, dim: true })
 
 /**
  * What a crew call's result says, for the bottom border of its bubble, in

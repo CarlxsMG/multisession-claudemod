@@ -1,5 +1,5 @@
-// A bubble's rows drawn on the terminal, with the press that opens a cut
-// one whole or closes it.
+// A bubble's rows drawn on the terminal, and the press that opens a crew row
+// whole or closes it, on whichever surface draws it.
 import type { Elements } from 'claude-code'
 
 import type { Engine } from '../../engine'
@@ -10,16 +10,21 @@ import type { Seg } from './bubble'
 
 type Press = { key: string; label: string; onPress: () => void }
 
+/** A segment of a crew row, with the Text of the surface that draws it. */
+export function drawSeg(Text: Elements['terminal']['Text'], x: Seg) {
+  return (
+    <Text {...(x.color !== undefined ? { color: x.color } : {})} bold={x.bold === true} dimColor={x.dim === true}>
+      {x.text}
+    </Text>
+  )
+}
+
 // Every bubble sits on the left, whoever speaks. With `press`, its marked
 // glyph is a plain Button that runs it: the pointer inverts that one cell,
 // as it does any Button, and nothing else of the bubble.
 function drawBubble(ui: Elements['terminal'], rows: readonly Seg[][], press?: Press) {
   const { Box, Text, Button } = ui
-  const piece = (x: Seg) => (
-    <Text {...(x.color !== undefined ? { color: x.color } : {})} bold={x.bold === true} dimColor={x.dim === true}>
-      {x.text}
-    </Text>
-  )
+  const piece = (x: Seg) => drawSeg(Text, x)
   return (
     <Box flexDirection="column">
       {rows.map(row => {
@@ -45,6 +50,15 @@ async function toggleOpened($: Engine, id: string) {
   await updateOpened($, list => (list.includes(id) ? list.filter(x => x !== id) : appendKept(list, [id], OPENED_KEEP)))
 }
 
+/** The press that opens crew row `id` whole, or closes it when `isWhole`. */
+export function openPress($: Engine, id: string, isWhole: boolean): Press {
+  return {
+    key: `${id}:${isWhole ? 'less' : 'more'}`,
+    label: isWhole ? t().transcript.showLess : t().transcript.showAll,
+    onPress: () => void toggleOpened($, id),
+  }
+}
+
 /**
  * A crew row's bubble, built by `build` with as many text rows as it shows.
  * Where the surface reports clicks (the fullscreen terminal) a long text is
@@ -65,9 +79,5 @@ export async function crewBubble(
   const isWhole = canClick && (await readOpened($)).includes(e.requestId)
   const drawn = !canClick ? build(Infinity) : isWhole ? build(Infinity, 'less') : build(max, 'more')
   if (!drawn.rows.some(row => row.some(x => x.press === true))) return drawBubble(ui, drawn.rows)
-  return drawBubble(ui, drawn.rows, {
-    key: `${e.requestId}:${isWhole ? 'less' : 'more'}`,
-    label: isWhole ? t().transcript.showLess : t().transcript.showAll,
-    onPress: () => void toggleOpened($, e.requestId),
-  })
+  return drawBubble(ui, drawn.rows, openPress($, e.requestId, isWhole))
 }

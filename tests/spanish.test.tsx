@@ -320,6 +320,20 @@ test("a run's end and a message between agents in Spanish: their lines, the end 
 
 // ---- the crew's bubbles in the conversation ----
 
+test('a card in the desktop app in Spanish: its foot and its press', ES, async ($, on) => {
+  engine(on)
+  await $.session.start({ cwd: '/work/main', surface: 'desktop', isInteractive: true })
+  const input = { task: 'Línea uno.\nLínea dos.', title: 'Login', repo: '/work/api' }
+  const output = String((await $.tool.call({ tool: DELEGATE, tool_use_id: 'toolu_c1', ...input })).result)
+  const props = toolRow(DELEGATE, 'toolu_c1', input, { output })
+  const row = await $.ui.mount({ plugin: 'crew', surface: 'desktop', component: 'ToolUse', requestId: 'toolu_c1', props, viewport: { columns: 100, rows: 40 } })
+  expect(await row.find({ type: 'Text', text: /^Nova → Pip · Login · nuevo$/ })).toBeDefined()
+  expect((await row.findAll({ type: 'Button' })).map(b => b.props.label)).toEqual(['Ver todo'])
+  await row.press({ key: 'toolu_c1:more' })
+  await row.redraw()
+  expect((await row.findAll({ type: 'Button' })).map(b => b.props.label)).toEqual(['Ver menos'])
+})
+
 test('a delegate bubble in Spanish: new or reused, who else works there, and its press', ES, async ($, on) => {
   let spawned = 0
   engine(on, { nextId: () => `agent-${++spawned}` })
