@@ -1,0 +1,52 @@
+// Every tool call of the session, watched: what the orchestrator and each
+// worker are doing, for the pane, the rows and the check-ins.
+import type { HookFor } from 'claude-code'
+
+import { DELEGATE, PROGRESS } from '../config'
+import { gistOf, markCrewCall, setJob, setOrch } from '../crew/feed'
+import { noteSendGist } from '../crew/sends'
+import { isolated } from '../crew/spawn'
+import { findWorker, patchWorker } from '../crew/workers'
+import type { Engine } from '../engine'
+import { t } from '../i18n'
+import { describe } from '../progress/phase'
+import { TODO_TOOLS, noteCall, noteTodos } from '../progress/tracker'
+import { readMembers } from '../state/atoms'
+import type { ToolCall } from '../util/input'
+import { oneLine } from '../util/text'
+
+type WatchCallHook = HookFor<'tool.call'>
+/**
+ * Follows every tool call but the progress tool's: a spawn into a worktree,
+ * who a SendMessage reaches, and a worker's activity, phase and plan.
+ */
+export async function watchCall($: Engine, e: Parameters<WatchCallHook>[1], next: Parameters<WatchCallHook>[2]) {
+  if ((e.tool as string) === PROGRESS) return next(e)
+  const call: ToolCall = e
+  if (call.tool === 'Agent' && call.isolation === 'worktree') isolated.add(String(call.tool_use_id))
+  if (e.tool === 'SendMessage' && typeof call.to === 'string') {
+    const target = findWorker(await readMembers($), call.to)
+    if (target !== undefined) await setJob($, target.id, gistOf(call.summary, call.message))
+    if (e.agentId !== undefined) noteSendGist(e.agentId, call.summary, call.message)
+  }
+  if (e.agentId !== undefined) {
+    await patchWorker($, e.agentId, w => ({
+      status: 'working',
+      activity: describe(call),
+      tools: w.tools + 1,
+    }))
+    await noteCall($, e.agentId, call)
+  } else if (e.tool === 'Agent') {
+    await setOrch($, 'delegating', t().delegatingTo(oneLine(String(call.description ?? ''), 40)))
+  } else if (e.tool === 'SendMessage') {
+    await setOrch($, 'delegating', t().talkingTo(String(call.to ?? '?')))
+    await markCrewCall($, e.tool_use_id, call.to)
+  } else if (e.tool !== DELEGATE) {
+    await setOrch($, 'working', describe(call))
+    if (e.tool === 'TaskStop') await markCrewCall($, e.tool_use_id, call.task_id ?? call.shell_id)
+  }
+  if (e.agentId === undefined || !TODO_TOOLS.has(e.tool)) return next(e)
+  const done = await next(e)
+  if (done.result !== undefined) await noteTodos($, e.agentId, call, done.result)
+  return done
+}

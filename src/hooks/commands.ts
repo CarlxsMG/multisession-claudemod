@@ -1,0 +1,96 @@
+// The `/crew` command and its verbs.
+import type { MatchedHook } from 'claude-code'
+
+import { messageWorker } from '../crew/message'
+import { clearFinished } from '../crew/sync'
+import { findWorker } from '../crew/workers'
+import type { Engine } from '../engine'
+import { randomLookFor } from '../figure/look'
+import { lookCode, parseLookCode } from '../figure/share-code'
+import { t } from '../i18n'
+import { parseEvery } from '../progress/check-in'
+import { placeCheckIn, seeCommandColumns, setEvery } from '../progress/tracker'
+import { changeLook } from '../settings/look'
+import { setMode } from '../settings/notes'
+import { readIsOn, readLook, readWorkers, updateView } from '../state/atoms'
+import { openPane } from '../ui/pane/index'
+
+type RunCrewCommandHook = MatchedHook<'command.run', { command: 'crew' }>
+/** Runs `/crew` and its subcommands. */
+export async function runCrewCommand($: Engine, e: Parameters<RunCrewCommandHook>[1]) {
+  const args = e.args.trim()
+  const verb = (args.split(/\s+/)[0] ?? '').toLowerCase()
+  const rest = args.slice(verb.length).trim()
+  const look = await readLook($)
+  const words = t().command
+  seeCommandColumns(e.presentation.columns)
+
+  switch (verb) {
+    case '':
+      await updateView($, () => 'main')
+      await openPane($)
+      return { text: words.opened(look.name) }
+    case 'editar':
+    case 'edit':
+      await updateView($, () => 'edit')
+      await openPane($, true)
+      return { text: words.editing(look.name) }
+    case 'equipo':
+    case 'team':
+      await updateView($, () => 'crew')
+      await openPane($)
+      return { text: words.teamOpened(look.name) }
+    case 'msg': {
+      const [who = '', ...said] = rest.split(/\s+/)
+      const worker = findWorker(await readWorkers($), who)
+      if (worker === undefined || said.length === 0) return { text: words.msgUsage }
+      await messageWorker($, worker, said.join(' '))
+      return { text: words.sent(worker.name) }
+    }
+    case 'codigo':
+    case 'código':
+    case 'code': {
+      const code = lookCode(look)
+      const copied = await $.ui.copy({ text: code })
+      return { text: words.code(look.name, copied.isCopied, code) }
+    }
+    case 'importar':
+    case 'import': {
+      const parsed = parseLookCode(rest)
+      if (parsed === undefined) return { text: words.badCode }
+      const saved = await changeLook($, parsed)
+      return { text: words.imported(saved.name) }
+    }
+    case 'aleatorio':
+    case 'random': {
+      const saved = await changeLook($, current => randomLookFor(current))
+      return { text: words.newLook(saved.name) }
+    }
+    case 'modo':
+    case 'mode': {
+      const value = rest === 'on' ? true : rest === 'off' ? false : !(await readIsOn($))
+      await setMode($, value)
+      return { text: value ? words.modeOn(look.name) : words.modeOff(look.name) }
+    }
+    case 'limpiar':
+    case 'clear': {
+      await clearFinished($)
+      return { text: words.cleared }
+    }
+    case 'progreso':
+    case 'progress': {
+      if (rest !== '') {
+        const every = parseEvery(rest)
+        if (every === undefined) return { text: words.progressUsage }
+        await setEvery($, every)
+      }
+      // A command's text is stored where the model reads it, so it says
+      // nothing: the row placed in the conversation, which no model reads,
+      // says how the crew is doing and the interval.
+      await placeCheckIn($, true)
+      return {}
+    }
+    default:
+      return { text: words.help }
+  }
+}

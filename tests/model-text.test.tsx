@@ -1,0 +1,268 @@
+// Every text a model reads, exactly: the brief, the tool specs, the notes,
+// what workers and forks hear, the tools' results and the Haiku prompt. A
+// refactor keeps them byte for byte; a change in wording is a deliberate
+// change to tests/golden/model-text.ts, in a commit of its own.
+import { expect } from 'claude-code/testing'
+import type { TestBody } from 'claude-code/testing'
+import type { On } from 'claude-code'
+
+import { DEFAULT_LOOK } from '../src/figure/look'
+import { VIBES } from '../src/persona/vibes'
+import { GOLDEN } from './golden/model-text'
+import { DELEGATE, NO_VERDICT, SLOW, composeBrief, crewCommand, engine, progress, spawnAgent, startTold, test, wokenCrew, workerSend } from './support/crew'
+import type { Seen } from './support/crew'
+
+type Dollar = Parameters<TestBody>[0]
+
+function expectText(name: string, actual: unknown) {
+  const text = typeof actual === 'string' ? actual : JSON.stringify(actual, null, 2)
+  expect(name in GOLDEN).toBe(true)
+  expect(text).toBe(GOLDEN[name])
+}
+
+const start = ($: Dollar) => $.session.start({ cwd: '/work/main', surface: 'terminal', isInteractive: true })
+const call = async ($: Dollar, input: Record<string, unknown>) => (await $.tool.call({ tool: DELEGATE, ...input } as never)) as { result?: unknown; deny?: string }
+const delegate = async ($: Dollar, input: Record<string, unknown>) => String((await call($, input)).result)
+const roster = async ($: Dollar, input: Record<string, unknown> = {}) =>
+  String((await $.tool.call({ tool: 'mcp__crew__roster', ...input } as never)).result)
+const finish = (_$: Dollar, agentId: string, answer = 'Done: 3 files changed, tests green.') =>
+  _$.turn.complete({ answer, durationMs: 1, isAborted: false, turnId: `t-${agentId}-${answer.length}`, agentId, reason: 'answer' })
+
+const recording = (): Seen => ({ prompts: [], sends: [], specs: [] })
+
+const composed = (on: On) =>
+  on('prompt.compose', () => ({ sections: [{ id: 'intro', text: 'You are Claude Code.', scope: 'shared' as const }] }))
+
+for (const isOn of [true, false]) {
+  const mode = isOn ? 'on' : 'off'
+  test(`the orchestrator's brief, the delegate description and the tool specs, with delegation ${isOn ? 'ON' : 'OFF'}`, async ($, on) => {
+    const seen = recording()
+    engine(on, { seen, stored: { isOn } })
+    composed(on)
+    await start($)
+    expectText(`brief.${mode}`, (await composeBrief($))?.text)
+    const spec = (name: string) => seen.specs!.find(s => s.name === name)!
+    expectText(`spec.delegate.description.${mode}`, spec('delegate').description)
+    if (isOn) {
+      expectText('spec.delegate.inputSchema', spec('delegate').inputSchema)
+      expectText('spec.roster', spec('roster'))
+      expectText('spec.progress', spec('progress'))
+    }
+  })
+}
+
+for (const vibe of Object.keys(VIBES)) {
+  test(`the persona line of the ${vibe} personality`, async ($, on) => {
+    engine(on, { stored: { look: { ...DEFAULT_LOOK, vibe } } })
+    composed(on)
+    await start($)
+    const brief = (await composeBrief($))?.text ?? ''
+    expectText(`persona.${vibe}`, brief.split('\n').pop())
+  })
+}
+
+for (const isOn of [true, false]) {
+  const mode = isOn ? 'on' : 'off'
+  test(`the "[crew]" note that tells the model delegation turned ${isOn ? 'ON' : 'OFF'}`, async ($, on) => {
+    const { contexts, submit } = await startTold($, on, {}, !isOn)
+    await crewCommand($, `modo ${mode}`)
+    await submit('Hello')
+    expectText(`note.${mode}`, contexts[0]?.join('\n'))
+  })
+}
+
+test('what a worker hears when it starts: in its repository, beside teammates, and to a worker that started it', async ($, on) => {
+  let spawned = 0
+  const seen = recording()
+  engine(on, { nextId: () => `agent-${++spawned}`, seen })
+  await start($)
+  await delegate($, { task: 'Fix the login', title: 'Login', repo: '/work/api' })
+  expectText('preamble.repo', seen.prompts[0])
+  await delegate($, { task: 'Fix the styles', title: 'Styles', repo: '/work/api', fresh: true })
+  expectText('preamble.teammates', seen.prompts[1])
+  await spawnAgent($, { prompt: 'File the tickets', description: 'Tickets', subagentType: 'general-purpose', parentAgentId: 'agent-1' })
+  expectText('preamble.childOfWorker', seen.prompts[2])
+  await spawnAgent($, { prompt: 'Do the frontend', description: 'Frontend', subagentType: 'fork', fork: true, parentAgentId: 'agent-1' })
+  expectText('fork.ofWorker', seen.prompts[3])
+  await spawnAgent($, { prompt: 'Draft the migration plan', description: 'Plan', subagentType: 'fork', fork: true })
+  expectText('fork.ofMain', seen.prompts[4])
+})
+
+test('what a worker hears in a worktree of its own, and an agent it starts there', async ($, on) => {
+  let spawned = 0
+  const seen = recording()
+  engine(on, { nextId: () => `agent-${++spawned}`, seen })
+  await start($)
+  await $.tool.call({ tool: 'Agent', tool_use_id: 'toolu_1', isolation: 'worktree', prompt: 'Fix it', description: 'Fix' })
+  await spawnAgent($, { prompt: 'Fix it', description: 'Fix', subagentType: 'general-purpose', tool_use_id: 'toolu_1' })
+  expectText('preamble.ownWorktree', seen.prompts[0])
+  await spawnAgent($, { prompt: 'Write the tests', description: 'Tests', subagentType: 'general-purpose', parentAgentId: 'agent-1' })
+  expectText('preamble.parentWorktree', seen.prompts[1])
+  await finish($, 'agent-1')
+  expectText('result.givenInWorktree', await delegate($, { task: 'Also fix the logout', title: 'Logout', worker: 'pip' }))
+  expectText('task.notFromDelegate', seen.sends[seen.sends.length - 1])
+})
+
+test("delegate's results: started, given, busy repositories, and what it turns down", async ($, on) => {
+  let spawned = 0
+  const seen = recording()
+  engine(on, { nextId: () => `agent-${++spawned}`, seen, host: { exists: path => !path.includes('missing') } })
+  await start($)
+  expectText('result.started', await delegate($, { task: 'Fix the login', title: 'Login', repo: '/work/api' }))
+  expectText('result.startedBesideBusy', await delegate($, { task: 'Fix the styles', title: 'Styles', repo: '/work/api', fresh: true }))
+  await finish($, 'agent-1')
+  expectText('result.givenBesideBusy', await delegate($, { task: 'Add the tests', title: 'Tests', repo: '/work/api' }))
+  expectText('task.reused', seen.sends[seen.sends.length - 1])
+  expectText('result.noTask', await delegate($, { task: '  ' }))
+  expectText('result.noWorker', await delegate($, { task: 'Review it', worker: 'nobody' }))
+  expectText('result.fork', await delegate($, { task: 'Review it', subagent_type: 'fork' }))
+  expectText('result.noRepo', await delegate($, { task: 'Review it', repo: '/work/missing' }))
+  expectText('result.notForWorkers', await delegate($, { task: 'Split this', agentId: 'agent-1' }))
+  await finish($, 'agent-2')
+  seen.undelivered = 'the agent is gone'
+  expectText('result.unreachable', await delegate($, { task: 'Polish it', worker: 'bolt' }))
+})
+
+test("delegate's results when a spawn is refused, by auto mode's missing verdict or otherwise", async ($, on) => {
+  engine(on, { seen: { ...recording(), refuse: NO_VERDICT } })
+  await start($)
+  expectText('result.autoMode', await delegate($, { task: 'Fix the login', title: 'Login', repo: '/work/api' }))
+  expectText('result.autoModeWithModel', await delegate($, { task: 'Fix the styles', title: 'Styles', repo: '/work/api', model: 'sonnet' }))
+})
+
+test('a refused spawn, said as the engine said it', async ($, on) => {
+  engine(on, { seen: { ...recording(), refuse: 'Auto mode blocked this action: it deletes the repository.' } })
+  await start($)
+  expectText('result.notStarted', await delegate($, { task: 'Clean up', repo: '/work/api' }))
+})
+
+test('the answer to a delegate call that failed on its way', async ($, on) => {
+  const seen: Seen = { ...recording(), failSends: true }
+  let spawned = 0
+  engine(on, { nextId: () => `agent-${++spawned}`, seen })
+  await start($)
+  await delegate($, { task: 'Fix the login', title: 'Login', repo: '/work/api' })
+  await finish($, 'agent-1')
+  expectText('result.failed', await call($, { task: 'Polish it', worker: 'pip' }))
+})
+
+test('tasks held for an agent its worker woke, and how they go once its run ends', SLOW, async ($, on) => {
+  const { seen, clock, delegate: give, done } = await wokenCrew($, on)
+  await $.tool.call({ tool: 'Read', file_path: '/work/api/src/bus.ts', agentId: 'agent-2' })
+  expectText('result.held', await give({ task: 'Record the event.', title: 'Session bus', worker: 'bolt' }))
+  expectText('result.heldMore', await give({ task: 'Update the doc.', title: 'Docs', worker: 'bolt' }))
+  const sends = seen.sends.length
+  await done('agent-2')
+  await clock.advance(400)
+  expectText('task.heldTogether', seen.sends[sends])
+})
+
+test('one held task goes alone', SLOW, async ($, on) => {
+  const { seen, clock, delegate: give, done } = await wokenCrew($, on)
+  await $.tool.call({ tool: 'Read', file_path: '/work/api/src/bus.ts', agentId: 'agent-2' })
+  await give({ task: 'Record the event.', title: 'Session bus', worker: 'bolt' })
+  const sends = seen.sends.length
+  await done('agent-2')
+  await clock.advance(400)
+  expectText('task.heldAlone', seen.sends[sends])
+})
+
+test('held tasks that did not reach their worker: the next delegate result, the user message note, and the task that takes them along', SLOW, async ($, on) => {
+  const contexts: (readonly string[] | undefined)[] = []
+  on('prompt.submit', (_, e) => {
+    contexts.push(e.context)
+    return { text: e.text }
+  })
+  const { seen, clock, delegate: give, done } = await wokenCrew($, on)
+  await $.tool.call({ tool: 'Read', file_path: '/work/api/src/bus.ts', agentId: 'agent-2' })
+  await give({ task: 'Record the event.', title: 'Session bus', worker: 'bolt' })
+  await give({ task: 'Update the doc.', title: 'Docs', worker: 'bolt' })
+  seen.undelivered = 'the agent is gone'
+  await done('agent-2')
+  await clock.advance(400)
+  await $.prompt.submit({ text: 'How is it going?', wait: false, origin: { kind: 'composer' } })
+  expectText('note.heldMissed', contexts[0]?.join('\n'))
+  expectText('result.heldMissed', await give({ task: 'Write the changelog.', title: 'Changelog', worker: 'bolt' }))
+  seen.undelivered = undefined
+  expectText('result.heldWentFirst', await give({ task: 'Tag the release.', title: 'Release', worker: 'bolt' }))
+})
+
+test("a worker's message to a free teammate, as the teammate reads it", async ($, on) => {
+  let spawned = 0
+  const seen = recording()
+  const clock = engine(on, { nextId: () => `agent-${++spawned}`, seen })
+  await start($)
+  await delegate($, { task: 'Build the session bus step', title: 'Session bus', repo: '/work/api' })
+  await delegate($, { task: 'Build the remote channel', title: 'Remote channel', repo: '/work/api', fresh: true })
+  await finish($, 'agent-1')
+  await workerSend($, 'pip', 'Bolt: both fixed', 'agent-2', { kind: 'plugin', name: 'crew' })
+  const sends = seen.sends.length
+  await clock.advance(400)
+  expectText('relay', seen.sends[sends])
+})
+
+test("the user's message to a worker from /crew msg", async ($, on) => {
+  const seen = recording()
+  engine(on, { seen })
+  await start($)
+  await delegate($, { task: 'Fix the login', title: 'Login', repo: '/work/api' })
+  await crewCommand($, 'msg pip mira también el logout')
+  expectText('message.fromUser', seen.sends[seen.sends.length - 1])
+})
+
+test('the roster: empty, the whole crew, one worker, and a name it does not know', async ($, on) => {
+  let spawned = 0
+  const seen = recording()
+  const clock = engine(on, { nextId: () => `agent-${++spawned}`, seen })
+  await start($)
+  expectText('roster.empty', await roster($))
+  await delegate($, { task: 'Fix the login', title: 'Login', repo: '/work/api' })
+  await delegate($, { task: 'Fix the styles', title: 'Styles', repo: '/work/web', model: 'sonnet' })
+  await $.tool.call({ tool: 'Edit', file_path: '/work/web/src/app.css', agentId: 'agent-2' } as never)
+  await progress($, 'agent-2', 2, 4, 'Restyle the header')
+  await clock.advance(30_000)
+  await finish($, 'agent-1', 'Login fixed: the token now refreshes.\nTests: 42 pass.')
+  await spawnAgent($, { prompt: 'Do the frontend', description: 'Frontend', subagentType: 'fork', fork: true, parentAgentId: 'agent-2' })
+  expectText('roster.crew', await roster($))
+  expectText('roster.one', await roster($, { worker: 'pip' }))
+  expectText('roster.unknown', await roster($, { worker: 'nobody' }))
+})
+
+test("the progress tool's answers", async ($, on) => {
+  const seen = recording()
+  engine(on, { seen })
+  await start($)
+  await delegate($, { task: 'Fix the login', title: 'Login', repo: '/work/api' })
+  expectText('progress.declared', await progress($, 'agent-1', 0, 3, 'Plan'))
+  expectText('progress.step', await progress($, 'agent-1', 1, 3, 'Read the code'))
+  expectText('progress.last', await progress($, 'agent-1', 3, 3, 'Test'))
+  expectText('progress.orchestrator', await progress($, undefined, 1, 3, 'Read'))
+  expectText('progress.invalid', await progress($, 'agent-1', -1, 0, 'Read'))
+  expectText('progress.noRun', await progress($, 'agent-9', 1, 3, 'Read'))
+})
+
+test('the answer to a send that failed on its way', async ($, on) => {
+  const { seen, message } = await wokenCrew($, on)
+  seen.failSends = true
+  expectText('send.failed', await message('pip', 'Bolt: the lock is free', 'agent-2').catch((err: unknown) => String(err)))
+})
+
+test('what Haiku is asked for the mood lines', SLOW, async ($, on) => {
+  const clock = engine(on)
+  const prompts: string[] = []
+  on('model.complete', (_, e) => {
+    prompts.push(e.prompt)
+    return { value: { isAnswered: true as const, text: '{}', usage: { input_tokens: 1, output_tokens: 1, cache_read_input_tokens: 0, cache_creation_input_tokens: 0 } } }
+  })
+  await start($)
+  await clock.advance(12_000)
+  expectText('haiku.prompt', prompts[0])
+})
+
+test('the usage probe: the command it runs and what it writes to it', async ($, on) => {
+  const runs: { argv: readonly string[]; stdin: string }[] = []
+  engine(on, { probe: (argv, stdin) => (runs.push({ argv, stdin }), '') })
+  await start($)
+  expectText('usage.argv', runs[0]?.argv)
+  expectText('usage.stdin', runs[0]?.stdin)
+})

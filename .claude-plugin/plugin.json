@@ -1,0 +1,20 @@
+{
+  "name": "crew",
+  "version": "0.1.0",
+  "description": "Your orchestrator companion, a pixel-art mascot you talk to, hands the work to a crew of background workers and coordinates them, with a pane, a status line and rows in the conversation that show who is doing what.",
+  "author": { "name": "CarlxsMG" },
+  "homepage": "https://github.com/CarlxsMG/multisession-claudemod",
+  "repository": "https://github.com/CarlxsMG/multisession-claudemod",
+  "license": "MIT",
+  "keywords": ["orchestration", "multi-agent", "subagents", "delegation", "pane", "status-line", "mascot"],
+  "types": "./types/index.d.ts",
+  "userConfig": {
+    "language": {
+      "type": "string",
+      "title": "Language",
+      "description": "The language of the crew's panel and rows: auto follows Claude Code's language setting, English when it names no other the crew speaks.",
+      "default": "auto",
+      "options": ["auto", "en", "es"]
+    }
+  }
+}

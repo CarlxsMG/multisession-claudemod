@@ -1,0 +1,98 @@
+// What the pane and the conversation's crew rows are drawn from: the
+// messages said, the orchestrator's mood, everyone the crew has had, the
+// main conversation's crew calls, and what each worker was given to do.
+import type { LastJob, Member, Msg, MsgTone, OrchMood } from '../../types'
+import type { Engine } from '../engine'
+import { readMembers, readOrch, updateCalls, updateJobs, updateMembers, updateMessages, updateOrch } from '../state/atoms'
+import { appendKept } from '../util/bounded'
+import { oneLine } from '../util/text'
+import { findWorker } from './workers'
+
+// The newest of each the crew keeps: the messages the pane's feed shows,
+// the members and jobs its rows name, the main conversation's crew calls,
+// and the routes of the workers' messages.
+const MESSAGES_KEEP = 60
+const CAST_KEEP = 120
+const CALLS_KEEP = 200
+/** The routes of workers' messages kept, the newest. */
+export const ROUTES_KEEP = 60
+
+/** The orchestrator's id in the feed's lines, as the main conversation's address. */
+export const ORCH_ID = 'main'
+/** The person's id in the feed's lines: no agent's id or address can be it. */
+export const USER_ID = 'user'
+
+/**
+ * Someone in a feed line: the name it shows, and the id it is told apart by
+ * (`USER_ID` for the person, '' for someone outside the crew).
+ */
+export type Party = { name: string; id: string }
+
+/** Adds a line to the pane's feed, cut to one line of at most 400 characters. */
+export async function say($: Engine, from: Party, to: Party, text: string, tone: MsgTone) {
+  const at = await $.clock.now()
+  const msg: Msg = { at, from: from.name, to: to.name, fromId: from.id, toId: to.id, text: oneLine(text, 400), tone }
+  await updateMessages($, list => appendKept(list, [msg], MESSAGES_KEEP))
+}
+
+/** Whether a line's sender (`from`) or recipient is the orchestrator. */
+export const isOrchIn = (msg: Msg, side: 'from' | 'to'): boolean => (side === 'from' ? msg.fromId : msg.toId) === ORCH_ID
+
+/** Adds the workers the members list does not know yet, or knows by another name. */
+export async function enlist($: Engine, list: readonly Member[]) {
+  const known = await readMembers($)
+  const fresh = list
+    .filter(w => !known.some(m => m.id === w.id && m.name === w.name && m.address === w.address))
+    .map(({ id, name, address }) => ({ id, name, address }))
+  if (fresh.length === 0) return
+  await updateMembers($, ms => appendKept(ms, fresh, CAST_KEEP, m => m.id))
+}
+
+/**
+ * Marks a crew call of the main conversation (`id`, its tool_use_id) with
+ * the worker it reached (`to`, '' until known).
+ */
+export async function markCall($: Engine, id: string | undefined, to = '') {
+  if (!id) return
+  await updateCalls($, list => appendKept(list, [{ id, to }], CALLS_KEEP, c => c.id))
+}
+
+/** What a worker was last given: a task's title, a message's summary. */
+export async function setJob($: Engine, id: string, title: string) {
+  const job: LastJob = { id, title: oneLine(title, 400) }
+  if (job.title === '') return
+  await updateJobs($, list => appendKept(list, [job], CAST_KEEP, j => j.id))
+}
+
+/** What the crew calls agent `id`: its worker's name, else the name the members list keeps, else the id. */
+export const nameOf = (id: string, worker: { name: string } | undefined, members: readonly Member[]): string =>
+  worker?.name ?? members.find(m => m.id === id)?.name ?? id
+
+/** A message's summary, else its first line. */
+export const gistOf = (summary: unknown, message: unknown): string =>
+  (typeof summary === 'string' && summary.trim() !== '' ? summary : String(message ?? '').split('\n').find(x => x.trim() !== '') ?? '')
+
+/**
+ * A SendMessage or TaskStop of the main conversation, marked when it reaches
+ * someone of the crew.
+ */
+export async function markCrewCall($: Engine, id: string | undefined, key: unknown) {
+  if (typeof key !== 'string' || key.trim() === '') return
+  const w = findWorker(await readMembers($), key)
+  if (w !== undefined) await markCall($, id, w.id)
+}
+
+/** What a transcript row and a send are matched by. */
+export const headOf = (text: string): string => oneLine(text, 160)
+
+/**
+ * Sets the orchestrator's mood and what it is doing. A new mood starts now;
+ * the same one keeps its start, so its line stays up its while. When
+ * neither changes nothing is written, and the pane does not draw again.
+ */
+export async function setOrch($: Engine, mood: OrchMood, activity: string) {
+  const orch = await readOrch($)
+  if (orch.mood === mood && orch.activity === activity) return
+  const now = await $.clock.now()
+  await updateOrch($, o => (o.mood === mood ? { ...o, activity } : { mood, activity, since: now }))
+}

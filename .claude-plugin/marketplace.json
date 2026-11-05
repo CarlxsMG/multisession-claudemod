@@ -1,0 +1,13 @@
+{
+  "name": "multisession-claudemod",
+  "description": "The crew plugin for Claude Code: an orchestrator you talk to hands the work to background workers and coordinates them, with a pane, a status line and rows in the conversation.",
+  "owner": {
+    "name": "CarlxsMG"
+  },
+  "plugins": [
+    {
+      "name": "crew",
+      "source": "./"
+    }
+  ]
+}

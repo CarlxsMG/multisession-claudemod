@@ -1,0 +1,78 @@
+// The crew's tools as the models see them: names, descriptions and input
+// schemas. tests/golden/model-text.ts holds each spec as it is.
+import { ROSTER_FULL_REPORT_CUT, ROSTER_REPORT_CUT, ROSTER_REPORTS, ROSTER_ROWS } from '../config'
+
+const DELEGATE_ABOUT = `Hand a task to a crew worker: a named background subagent, general-purpose unless \`subagent_type\` says otherwise, that reports back when done. Goes to the worker you name; else to the most recent free worker this tool started in that repository, of that type and model (the session's unless you ask for one), which keeps its context; else to a new one. Returns at once: the worker's address, and who else is busy where it works.`
+
+/** The delegate tool's spec as the model reads it. */
+export const delegateSpec = (brief: string) => ({
+  name: 'delegate',
+  description: `${DELEGATE_ABOUT}\n\n${brief}`,
+  inputSchema: {
+    type: 'object',
+    properties: {
+      task: {
+        type: 'string',
+        description: 'The brief, from one model to another: goal, facts, constraints, files it owns, what the report must answer. Complete in facts, as a new worker has not seen this conversation; terse in form. To a worker that keeps its context, only what is new.',
+      },
+      title: {
+        type: 'string',
+        description: "A 3-6 word label naming the area of work, shown in the panel and as the worker's last task in the roster.",
+      },
+      repo: {
+        type: 'string',
+        description: 'Directory a new worker works in: absolute, relative to the session, or starting with ~; it must exist. Defaults to the session directory. A worker you name stays in its own.',
+      },
+      worker: {
+        type: 'string',
+        description: "Name or address of a worker in the roster to give this to, forks and the Agent tool's agents included; it keeps its context and its agent type. A busy worker gets the task as a message in the middle of its current one, so prefer a free worker; one answering another worker gets it once that ends.",
+      },
+      fresh: {
+        type: 'boolean',
+        description: 'Start a new worker instead of reusing a free one: for unrelated work, or parts that run in parallel.',
+      },
+      subagent_type: {
+        type: 'string',
+        description: "Agent type for a new worker, as the Agent tool lists them: `Explore` for read-only searches, `Plan`, the project's own agents. General-purpose when unset. Only a worker of the same type is reused; a fork starts from the Agent tool instead.",
+      },
+      model: {
+        type: 'string',
+        description: 'Model alias for a new worker. Leave it unset: the worker then runs on the session\'s model, whatever its type. Name one ("sonnet" or above) only when the user asks; haiku is never used, and asking for it gives the session\'s model. Set, only a worker started with that model is reused; unset, only one started on the session\'s.',
+      },
+    },
+    required: ['task'],
+  },
+  isDeferred: false,
+})
+
+/** The roster tool's spec. */
+export const ROSTER_SPEC = {
+  name: 'roster',
+  description: `List the crew, busy workers first, then the most recent, at most ${ROSTER_ROWS} rows. Each row: name, SendMessage address, status (starting, working or waiting while busy; idle, done or stopped when free to take a task; failed), "fork of" or "started by" the worker that started it, repository or "worktree of" it for a worker in a git worktree, agent type when not general-purpose, model, tasks, tokens and last task; a busy worker also shows what it is doing, and an agent the worker that started it woke with a message shows "answering <name>" and how many of your tasks wait for it; "not delivered: <why>" means they did not reach it, and go with the next task you give it. The ${ROSTER_REPORTS} latest workers not busy (failed included) show their last report cut to ${ROSTER_REPORT_CUT} characters; pass \`worker\` for one worker with its last report at more length (up to ${ROSTER_FULL_REPORT_CUT} characters). A worker taken off the list comes back when it works again. Use it to pick the worker that should continue earlier work, to find an address for SendMessage or TaskStop, or to see who is busy where.`,
+  inputSchema: {
+    type: 'object',
+    properties: {
+      worker: {
+        type: 'string',
+        description: 'Name or address of one worker to show alone, with its last report at more length (up to 1200 characters), instead of the list.',
+      },
+    },
+  },
+  isDeferred: false,
+} as const
+
+/**
+ * A worker's own tool: what it declares shows on the user's surfaces, and
+ * only its step reaches a model, the orchestrator's, in the roster. The
+ * orchestrator has it in its list too, so it stays short.
+ */
+export const PROGRESS_SPEC = {
+  name: 'progress',
+  description: "A crew worker's progress, shown to the user: step 0 of N declares the plan, then each step 1 to N is called as it starts, with what it is. Workers only.",
+  inputSchema: {
+    type: 'object',
+    properties: { step: { type: 'integer' }, total: { type: 'integer' }, doing: { type: 'string' } },
+    required: ['step', 'total', 'doing'],
+  },
+  isDeferred: false,
+} as const

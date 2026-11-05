@@ -1,0 +1,150 @@
+# Contributing to crew
+
+Thank you for helping. This file covers how to set up, the checks a change must pass, and the
+rules the code follows. [ARCHITECTURE.md](ARCHITECTURE.md) explains how the plugin works and
+defines its vocabulary; read it before changing more than one file.
+
+## Setup
+
+You need Claude Code 2.1.318 or later (the release CI pins, `CLAUDE_CODE_VERSION` in
+`.github/workflows/ci.yml`) and Node.js for `npx`.
+
+1. Clone the repository.
+2. Load the plugin from the clone, for a session that reloads it on every save:
+
+   ```
+   cd <a project to try it in>
+   claude --plugin-dir <path to the clone>
+   ```
+
+   If you also have crew installed from a marketplace, disable that one first (`/plugin`), so it
+   does not load twice.
+
+   Or install the clone as a local marketplace, for every session of your user:
+
+   ```
+   claude plugin marketplace add <path to the clone>
+   claude plugin install crew@<the name in .claude-plugin/marketplace.json> --scope user
+   ```
+
+   The plugin is always read from the clone. After an edit, run `/reload-plugins` in an open
+   session.
+
+Loading the plugin once also writes `.claude-plugin/types/`: the engine's type declarations
+(about 1 MB), which `tsc` needs. The folder is gitignored, because Claude Code generates it and
+it lists the MCP tools connected on your machine.
+
+## Checks
+
+Every change passes all three:
+
+```
+claude plugin validate .
+claude plugin test .
+npx -p typescript tsc -p .
+```
+
+- `validate` checks the manifest, the marketplace and the hooks module, including which state
+  each hook reads and writes. CI runs it with `--strict --profile directory`.
+- `test` runs every `*.test.ts` and `*.test.tsx` under `tests/`, each file in a child of
+  Claude Code, against the engine's test kit (`claude-code/testing`). It takes under a minute.
+- `tsc` needs `.claude-plugin/types/`, so it does **not** run on a fresh clone: load the plugin
+  once first (see Setup). `validate` and `test` need no generated types, which is why CI runs only
+  those two.
+
+## How the code is written
+
+- **English** for code, identifiers and comments. The UI's text lives in the locale tables (see
+  [docs/i18n.md](docs/i18n.md)), never in a component.
+- **A comment says why the code is as it is now**, never its history: not what changed, what it
+  used to be, who or when. No commented-out code. Every module opens with a `//` header saying
+  what it is for, and every export has a JSDoc comment.
+- **Style:** no semicolons, single quotes, two-space indent, lines up to about 160 columns, named
+  imports in ASCII order.
+- **The runtime strips types only:** no `enum`, no parameter properties, nothing else in
+  TypeScript that emits code.
+- **A module's `let` cannot be assigned from another module.** State shared between modules lives
+  in an object (`pane`, `probe`) or behind a setter.
+- **Engine calls that must not break a turn or a timer** go through `quiet()` (`src/engine.ts`),
+  which logs the failure to the debug log.
+
+## What the validator forces
+
+`claude plugin validate` reads the code statically, and that shapes it:
+
+- **Every atom is read and updated only in `src/state/atoms.ts`**, through its `readX`/`updateX`
+  pair. The validator finds the state a hook touches only where the atom is declared.
+- **Hook matchers are written inline in `hooks/register.tsx`**, the plugin's one hooks module
+  (`CREW_TOOLS` included). The validator reads a matcher's value only from the file that registers
+  the hook, not through an import.
+- **Hook bodies are `function` declarations.** The validator follows `$` across an import only
+  into function declarations.
+
+## What must never change
+
+Users keep data across sessions and plugin versions, and pass share codes to each other. So these
+are frozen (see ARCHITECTURE.md, State and persistence):
+
+- the store keys (`STORE_KEYS`: `look`, `isOn`, `lines`, `toldBy`, `progress`);
+- the state keys in `types/index.d.ts` (`PluginState.crew`), including the ones whose code name
+  differs (`members` is `cast`, `pendingRows` is `due`, `paneTick` is `beat`, `pendingNote` is
+  `note`, `editTab` is `tab`, `moodLines` is `lines`, `mainModel` is `model`);
+- the `CREW1.` prefix of share codes, and the field names of `Look` (`skin`, `hair`, `facial`,
+  `shirt`, `pants`, `shoes` keep the names of the time the figures were people);
+- the part keys of the catalog and the positions in its colour tables, which a look stores;
+- the tool names `mcp__crew__delegate`, `mcp__crew__roster`, `mcp__crew__progress`, and the plugin
+  name `crew`.
+
+When the fields of a stored value change incompatibly, give its atom a new **shape tag**
+(`messages-1` to `messages-2`): the tag declines what an earlier version stored. An added
+optional field keeps the tag.
+
+## Text a model reads
+
+Every text a model reads is in `src/prompts/`: the orchestrator's brief, the workers' preamble,
+the tool specs, the tool results, the roster and the `[crew]` note. It is model behaviour, so:
+
+- it stays in English whatever the UI's language;
+- `tests/golden/model-text.ts` holds each text exactly, one line per element. A wording change
+  fails `tests/model-text.test.tsx`; update the golden file by hand in the same commit, and say in
+  the commit message why the model should read the new text;
+- the `delegate` tool's description must stay under 3950 characters (Claude Code cuts a tool
+  description at 4096), even with the longest name and personality. A test checks it.
+
+Progress never reaches a model, apart from the progress tool's reply and an active worker's step
+in the roster. Keep it that way: the status line, the pane, the toasts and the placed rows are
+drawn only.
+
+## Text people read
+
+UI text goes in both locale tables, `src/i18n/en.ts` and `src/i18n/es.ts`, in the same commit.
+[docs/i18n.md](docs/i18n.md) has the details. If you do not speak Spanish, say so in the pull
+request and someone will translate it.
+
+## Tests
+
+- `tests/support/crew.ts` is the shared kit: an `engine(on)` that answers beneath the plugin,
+  fixtures and helpers. A test that loads the plugin imports `test` from it rather than from
+  `claude-code/testing`, because its `test` passes the plugin under test its options.
+- **Most tests read the Spanish UI**: the kit passes `language: 'es'` to the plugin and calls
+  `setLocale('es')` for what a test imports from `src` (the plugin under test and the test file do
+  not share module instances). English is covered by `tests/locale.test.tsx`, the English width
+  test in `tests/progress.test.tsx` and `tests/unit/i18n.test.ts`. A test that needs English passes
+  `{ options: { language: 'en' } }`.
+- `tests/unit/` tests pure modules; `tests/golden/` holds the model-facing texts.
+- Every bug fix comes with a test that fails without it.
+
+## Commits and pull requests
+
+- One logical change per commit. The subject says what the change achieves, in English, at most
+  about 65 characters, without a period or a Conventional Commits prefix. The body says why, in
+  prose, with code in backticks.
+- Stage explicit paths. Never `git add -A`, `git add .` or `git commit -a`.
+- Work on a branch, never on `main`. Open a pull request against `main`; fill in the template, and
+  link the issue it closes.
+- Pull requests are merged when CI is green and the checklist holds.
+
+## Reporting
+
+Bugs and ideas go to the issue tracker, questions to Discussions, and vulnerabilities to the
+private report described in [SECURITY.md](SECURITY.md).

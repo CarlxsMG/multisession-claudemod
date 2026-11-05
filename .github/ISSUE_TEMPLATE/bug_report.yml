@@ -1,0 +1,84 @@
+name: Bug report
+description: crew does something wrong, shows the wrong thing, or breaks or slows down a session.
+labels: [bug]
+body:
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened, and what you expected
+      description: A screenshot of the pane, the status line or the conversation helps.
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      description: From a new session, what you did or asked, one step per line.
+      placeholder: |
+        1. claude, in a git repository
+        2. Asked the orchestrator to fix two files in parallel
+        3. The second worker's card stayed on `init`
+    validations:
+      required: true
+  - type: input
+    id: claude-code
+    attributes:
+      label: Claude Code version
+      description: What `claude --version` prints.
+      placeholder: 2.1.318 (Claude Code)
+    validations:
+      required: true
+  - type: input
+    id: crew
+    attributes:
+      label: crew version
+      description: The version `/plugin` shows for crew, or the commit if you run it from a clone.
+      placeholder: 0.1.0
+    validations:
+      required: true
+  - type: dropdown
+    id: surface
+    attributes:
+      label: Surface
+      description: Where you saw it. Pick every one where it happens.
+      multiple: true
+      options:
+        - CLI (terminal)
+        - Desktop app
+        - IDE (VS Code, JetBrains)
+        - Other
+    validations:
+      required: true
+  - type: dropdown
+    id: os
+    attributes:
+      label: Operating system
+      options:
+        - Windows
+        - macOS
+        - Linux
+    validations:
+      required: true
+  - type: input
+    id: terminal
+    attributes:
+      label: Terminal and its width
+      description: For the CLI. The pane and the cards depend on both.
+      placeholder: Windows Terminal, 160 columns
+  - type: textarea
+    id: log
+    attributes:
+      label: Log
+      description: >-
+        Start Claude Code with `claude --debug`, reproduce the problem, and paste the lines that
+        mention crew from the debug log. Remove tokens, private paths and anything you would not
+        post in public.
+      render: text
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Checks
+      options:
+        - label: I searched the open and closed issues for this problem.
+          required: true
+        - label: It does not happen with crew turned off (`/plugin`), or I could not check.

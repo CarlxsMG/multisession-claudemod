@@ -1,0 +1,11 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Question
+    url: https://github.com/CarlxsMG/multisession-claudemod/discussions/categories/q-a
+    about: How to do something with crew, or why it behaves as it does. Ask in Discussions.
+  - name: Security vulnerability
+    url: https://github.com/CarlxsMG/multisession-claudemod/security/advisories/new
+    about: Report it privately, not in a public issue.
+  - name: A problem in Claude Code itself
+    url: https://github.com/anthropics/claude-code/issues
+    about: When it also happens with crew turned off, report it to Claude Code.

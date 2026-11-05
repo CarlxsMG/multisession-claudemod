@@ -1,0 +1,62 @@
+// The roster tool's answer as a model reads it: a row per worker and the
+// lines around them. src/crew/roster.ts gathers what the rows say.
+import type { ParentLink, Plan, Takeover, Worker } from '../../types'
+import { ROSTER_FULL_REPORT_CUT, ROSTER_REPORT_CUT, ROSTER_ROWS } from '../config'
+import { ACTIVE } from '../crew/workers'
+import { stepText } from '../progress/plan'
+import { oneLine } from '../util/text'
+
+/** What a worker's row says besides the worker itself. */
+export type RowFacts = {
+  /** Its takeover mark: who woke it, the tasks waiting for it, or why they did not arrive. */
+  takeover?: Takeover
+  /** The worker that started it, for one started from another worker's turn. */
+  parent?: ParentLink
+  isInWorktree: boolean
+  /** The plan of its open run, for a busy worker. */
+  plan?: Plan
+  now: number
+}
+
+/**
+ * How much of a worker's last task and report a row cuts to: an active
+ * worker's task says more than a free one's, a free one's report shows only
+ * among the latest few (`report` 0 for the rest), and one worker asked for
+ * alone has its own row in full.
+ */
+export type RowCut = { task: number; report: number }
+export const rowCut = (w: Worker, isReported: boolean): RowCut => ({
+  task: ACTIVE.has(w.status) ? 80 : 60,
+  report: isReported ? ROSTER_REPORT_CUT : 0,
+})
+export const FULL_ROW_CUT: RowCut = { task: 400, report: ROSTER_FULL_REPORT_CUT }
+
+const plural = (n: number, word: string): string => `${n} ${word}${n === 1 ? '' : 's'}`
+
+const tokensText = (n: number): string => (n < 1000 ? `${n} tokens` : `~${Math.round(n / 1000)}k tokens`)
+
+/** One worker's row: who it is, where, what it did, and what it is doing now. */
+export function rosterRow(worker: Worker, facts: RowFacts, cut: RowCut): string {
+  const { takeover, parent } = facts
+  const kind = worker.type && worker.type !== 'general-purpose' ? `${worker.type}, ` : ''
+  const history = `${kind}${worker.model ? `model ${worker.model}, ` : ''}${plural(worker.tasks, 'task')}, ${tokensText(worker.tokens)}`
+  const held = takeover !== undefined && takeover.held.length > 0 ? `, ${plural(takeover.held.length, 'task')} waiting` : ''
+  const head = `- ${worker.name}: address "${worker.address}", ${worker.status}`
+  const mark = takeover === undefined ? '' : takeover.missed !== undefined ? `${held}, not delivered: ${takeover.missed}` : `, answering ${takeover.by}${held}`
+  const where = `${parent ? `${parent.fork ? 'fork of' : 'started by'} ${parent.parent}, ` : ''}${facts.isInWorktree ? 'worktree of' : 'repo'} ${worker.cwd}`
+  const task = `last task "${oneLine(worker.task, cut.task)}"`
+  const report = cut.report > 0 && worker.answer ? `\n  last report: ${oneLine(worker.answer, cut.report)}` : ''
+  if (!ACTIVE.has(worker.status)) return `${head}${mark}, ${where}, ${history}, ${task}${report}`
+  const doing = worker.activity ? ` (${worker.activity})` : ''
+  const step = facts.plan === undefined ? '' : `, step ${stepText(facts.plan)}`
+  const age = Math.round((facts.now - worker.updatedAt) / 1000)
+  return `${head}${doing}${mark}${step}, ${where}, ${history}, ${task}, ${worker.tools} tool calls, updated ${age}s ago${report}`
+}
+
+export const emptyCrew = (orchName: string): string => `${orchName}'s crew is empty.`
+
+/** The rows under a head that counts the whole crew, and how many did not fit. */
+export function rosterList(orchName: string, count: number, rows: readonly string[]): string {
+  const more = count > ROSTER_ROWS ? `\n+${count - ROSTER_ROWS} more` : ''
+  return `${orchName}'s crew (${count}):\n${rows.join('\n')}${more}`
+}

@@ -1,0 +1,227 @@
+// The pane's main view: the orchestrator, its crew's cards and their
+// messages.
+import type { Look, Msg, Orch } from '../../../types'
+import { ORCH_ID, USER_ID, isOrchIn } from '../../crew/feed'
+import { ACTIVE, NAP_SHOWN_MS, napsAway } from '../../crew/workers'
+import type { Engine } from '../../engine'
+import { accentOf, nameColorOf } from '../../figure/accent'
+import type { Anim } from '../../figure/anim'
+import { W as FIGURE_W, pictureRows } from '../../figure/catalog'
+import { picture } from '../../figure/critter'
+import { DIAMOND_ROWS, DIAMOND_W } from '../../figure/diamond'
+import { t } from '../../i18n'
+import { fitModel, modelLabel } from '../../model-label'
+import { pickLine } from '../../persona/lines'
+import { vibeOf } from '../../persona/vibes'
+import { JUST_ENDED_MS, isOpen } from '../../progress/runs'
+import { cardText } from '../../progress/text/card'
+import { setMode } from '../../settings/notes'
+import {
+  readIsOn,
+  readLimits,
+  readMainModel,
+  readMessages,
+  readModelLimits,
+  readMoodLines,
+  readOrch,
+  updateView,
+} from '../../state/atoms'
+import { LIMITS_SHOWN, limitColor, limitLabel } from '../../usage/limits'
+import { wrapText } from '../../util/text'
+import { CARD_LABEL, END, statusLabel } from '../labels'
+import { pane } from './animation'
+import { drawFeed } from './feed'
+import { MAIL_SHOWN_MS, ORCH_SEED, toggle } from './widgets'
+import type { PaneUi, Sprite, WorkerKit } from './widgets'
+
+// How long the orchestrator cheers when its turn ends, and how long it
+// waits idle before it naps.
+const ORCH_CHEER_MS = 6000
+const ORCH_NAP_MS = 180_000
+
+// A turn ends happy, then idles: the nap counts from the end of the cheer.
+function orchAnim(orch: Orch, now: number): Anim {
+  const idleFor = orch.mood === 'happy' ? now - orch.since - ORCH_CHEER_MS : orch.mood === 'idle' ? now - orch.since : undefined
+  if (idleFor === undefined) return orch.mood
+  return idleFor < 0 ? 'happy' : idleFor > ORCH_NAP_MS ? 'sleep' : 'idle'
+}
+
+/**
+ * The orchestrator, the model it runs on and its two controls; under them a
+ * row of cards for the crew, then their messages.
+ */
+export async function drawMain($: Engine, ui: PaneUi, sprite: Sprite, kit: WorkerKit, look: Look, now: number, width: number, height: number) {
+  const { Box, Text, Button } = ui
+  const { list, active, ordered, statusColor, lastRun, justEnded, figure, nameButton } = kit
+  const orch = await readOrch($)
+  const msgs = await readMessages($)
+  const isOn = await readIsOn($)
+  const extra = await readMoodLines($)
+  // The session's window, the week's, and below them each model's week.
+  const usage = [...(await readLimits($)), ...(await readModelLimits($))].slice(0, LIMITS_SHOWN)
+
+  const anim = orchAnim(orch, now)
+  const latest = [...list].sort((a, b) => b.updatedAt - a.updatedAt)[0]
+  const lastMsg = msgs[msgs.length - 1]
+  const orchMail =
+    lastMsg !== undefined && now - lastMsg.at < MAIL_SHOWN_MS && (isOrchIn(lastMsg, 'from') || isOrchIn(lastMsg, 'to'))
+      ? isOrchIn(lastMsg, 'to') ? 'in' : 'out'
+      : undefined
+
+  // A line's sender or recipient in its color: the person's, the
+  // orchestrator's or its worker's, found by id.
+  const colorOf = (msg: Msg, side: 'from' | 'to'): string => {
+    const id = side === 'from' ? msg.fromId : msg.toId
+    if (id === USER_ID) return 'suggestion'
+    if (id === ORCH_ID) return nameColorOf(look)
+    const w = list.find(x => x.id === id)
+    return w ? accentOf(w, look) : 'text'
+  }
+
+  // What the orchestrator runs takes up to two lines beside its figure. The
+  // figure's top row is room for a hop and the marks, so the bubble starts
+  // above its head, and the controls go below, flush right: level with the
+  // podium when nothing else is said, a few rows lower when the column runs
+  // past the figure.
+  const doing =
+    orch.activity !== '' && anim !== 'idle' && anim !== 'sleep' ? wrapText(orch.activity, Math.max(10, width - FIGURE_W - 2), 2) : []
+  // The bubble and the controls take three rows each.
+  const headRows = Math.max(pictureRows(true), 6 + doing.length + (list.length > 0 ? 1 : 0))
+
+  // The orchestrator's name on top, its personality and the model the main
+  // session runs; below, the figure and what it says, with its two controls
+  // under it, flush right.
+  const persona = vibeOf(look).label
+  const modelName = fitModel(modelLabel(await readMainModel($)), width - look.name.length - persona.length - 6)
+  const header = (
+    <Box flexDirection="column">
+      <Text bold color={nameColorOf(look)} wrap="truncate-end">
+        {look.name} <Text color="text">· {persona}</Text>
+        {modelName !== '' && <Text dimColor>{` · ${modelName}`}</Text>}
+      </Text>
+      <Box flexDirection="row" gap={2}>
+        {sprite(
+          'orch',
+          f => picture(look, { anim, frame: f, seed: ORCH_SEED, podium: true, ...(orchMail ? { mail: orchMail } : {}) }),
+          1,
+          t().pane.orchAlt(look.name),
+        )}
+        <Box flexDirection="column" flexGrow={1} flexShrink={1} justifyContent="space-between">
+          <Box flexDirection="column">
+            <Box borderStyle="round" borderColor={nameColorOf(look)} paddingX={1} alignSelf="flex-start">
+              <Text italic>{pickLine(look, anim, orch.since, now, latest?.name ?? t().pane.anyWorker, extra.moods)}</Text>
+            </Box>
+            {doing.map(line => (
+              <Text dimColor wrap="truncate-end">{line}</Text>
+            ))}
+            {list.length > 0 && (
+              <Text dimColor wrap="truncate-end">{t().pane.count(list.length, active.length)}</Text>
+            )}
+          </Box>
+          <Box flexDirection="row" justifyContent="flex-end" columnGap={1}>
+            {usage.length > 0 && (
+              <Box flexDirection="column" justifyContent="center">
+                {usage.map(x => (
+                  <Text>
+                    <Text dimColor>{(limitLabel(x.kind) ?? x.kind.toLowerCase().slice(0, 5)).padEnd(5)}</Text>
+                    <Text color={limitColor(x.percent)}>{`${x.percent}%`.padStart(4)}</Text>
+                  </Text>
+                ))}
+              </Box>
+            )}
+            {toggle(ui, 'mode', t().pane.delegate, isOn, () => void setMode($, !isOn))}
+            <Box key="edit-frame" borderStyle="round" borderColor="inactive" hover={{ borderColor: 'claude' }}>
+              <Button key="edit" plain label={t().pane.customize} onPress={() => void updateView($, () => 'edit')}>
+                <Text bold> {t().pane.edit} </Text>
+              </Button>
+            </Box>
+          </Box>
+        </Box>
+      </Box>
+    </Box>
+  )
+
+  // One row of cards as wide as their figures, a column apart, as many as
+  // the width takes (nine in 46 columns), for every worker but those that
+  // napped away; when they do not all fit, the last place says how many
+  // more there are, framed as tall as a diamond and a name and as wide as
+  // that count needs, and opens the whole team.
+  const inRow = ordered.filter(w => justEnded(w) !== undefined || !napsAway(w, now))
+  // Under its name a working worker's card gives its plan's step, else its
+  // run's time, and any other a word of four letters: what it is doing and
+  // the pane's own words for its status do not fit, and the team view and
+  // the check-ins say them whole. A run that just ended has its word stand
+  // out, in the color of how it ended, so an end is seen at a glance.
+  const openRuns = new Map([...lastRun.values()].filter(isOpen).map(r => [r.id, r]))
+  // The next redraw the clock owes: a nap that takes a worker off the row,
+  // or an end that stops standing out.
+  const dues = inRow.flatMap(w => {
+    const r = lastRun.get(w.id)
+    return [
+      ...(w.status === 'idle' ? [w.updatedAt + NAP_SHOWN_MS] : []),
+      ...(r !== undefined && justEnded(w) !== undefined ? [r.endedAt + JUST_ENDED_MS] : []),
+    ].filter(at => at > now)
+  })
+  pane.napDue = dues.length > 0 ? Math.min(...dues) : 0
+  const perRow = Math.max(1, Math.floor((width + 1) / (DIAMOND_W + 1)))
+  const moreWidth = (k: number) => Math.max(DIAMOND_W, `+${inRow.length - k}`.length + 2)
+  let fits = perRow - 1
+  while (fits > 0 && fits * (DIAMOND_W + 1) + moreWidth(fits) > width) fits--
+  const shown = inRow.length > perRow ? inRow.slice(0, fits) : inRow
+  const hidden = inRow.length - shown.length
+  const crew = inRow.length > 0 && (
+    <Box flexDirection="row" columnGap={1}>
+      {shown.map(worker => {
+        const status = ACTIVE.has(worker.status) && worker.activity ? worker.activity : statusLabel(worker.status)
+        const ended = justEnded(worker)
+        return (
+          <Box flexDirection="column" width={DIAMOND_W}>
+            {figure(worker, status)}
+            {nameButton(worker)}
+            {ended !== undefined ? (
+              <Text wrap="truncate-end" bold inverse color={END[ended].color}>
+                {CARD_LABEL[ended]}
+              </Text>
+            ) : (
+              worker.status !== 'idle' && (
+                <Text wrap="truncate-end" color={statusColor(worker)} dimColor={!ACTIVE.has(worker.status)}>
+                  {cardText(worker.status, openRuns.get(worker.id), now, DIAMOND_W)}
+                </Text>
+              )
+            )}
+          </Box>
+        )
+      })}
+      {hidden > 0 && (
+        <Box
+          key="crew-all-frame"
+          width={moreWidth(shown.length)}
+          height={DIAMOND_ROWS + 1}
+          borderStyle="round"
+          borderColor="inactive"
+          hover={{ borderColor: 'claude' }}
+          justifyContent="center"
+          alignItems="center"
+        >
+          <Button key="crew-all" plain label={t().pane.showAll(hidden)} onPress={() => void updateView($, () => 'crew')}>
+            <Text bold>{`+${hidden}`}</Text>
+          </Button>
+        </Box>
+      )}
+    </Box>
+  )
+
+  // Bubbles fill the rows the orchestrator and the crew leave, newest last:
+  // a card is its figure, the name and the line under it, then a gap.
+  const crewRows = inRow.length === 0 ? 0 : DIAMOND_ROWS + 3
+  const feedRows = height - 1 - headRows - crewRows - 1
+  const feed = drawFeed(ui, msgs, now, width, feedRows, colorOf)
+
+  return (
+    <Box flexDirection="column" gap={1}>
+      {header}
+      {crew}
+      {feed}
+    </Box>
+  )
+}

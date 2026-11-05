@@ -1,0 +1,57 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+env:
+  # The Claude Code release crew's tests and validation are known to pass on. Raise it once
+  # they pass on the new one locally.
+  CLAUDE_CODE_VERSION: 2.1.318
+  # No auto-update, telemetry or error reporting from a runner.
+  CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC: "1"
+
+defaults:
+  run:
+    # The same shell on every runner, so the steps read the same on Windows.
+    shell: bash
+
+jobs:
+  validate:
+    name: Plugin validates
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: "22"
+      - name: Install Claude Code
+        run: npm install -g "@anthropic-ai/claude-code@${CLAUDE_CODE_VERSION}"
+      # --profile directory also fails on what the plugin directory refuses, such as a missing
+      # LICENSE or README.
+      - name: Manifest, marketplace and hooks module
+        run: claude plugin validate --strict --profile directory .
+
+  test:
+    # crew runs on macOS, Linux and Windows, and its paths and rendering differ on each.
+    name: Plugin tests (${{ matrix.os }})
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: "22"
+      - name: Install Claude Code
+        run: npm install -g "@anthropic-ai/claude-code@${CLAUDE_CODE_VERSION}"
+      - name: claude plugin test
+        run: claude plugin test .

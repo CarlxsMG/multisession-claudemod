@@ -1,0 +1,5 @@
+.DS_Store
+node_modules/
+*.log
+# Written by Claude Code when it loads the plugin; it lists the MCP tools of the machine.
+.claude-plugin/types/

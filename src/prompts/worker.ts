@@ -1,0 +1,90 @@
+// What a worker's model reads from the crew: the preamble of its first task,
+// a fork's, how each new task ends, the tasks that waited for it, and the
+// messages the crew passes on. tests/golden/model-text.ts holds each text as
+// it is.
+import type { Relay, Worker } from '../../types'
+import { MATES, PROGRESS, ROSTER } from '../config'
+import { ACTIVE, byActivity } from '../crew/workers'
+import { basename, samePath } from '../util/path'
+
+/** What the woken teammate reads: who wrote, and where its report goes. */
+export const relayText = (r: Relay, orchName: string): string =>
+  `[crew] From ${r.by} ("${r.address}"), passed on by the crew: your report goes to ${orchName}; what ${r.by} needs back, SendMessage it.\n\n${r.text}`
+
+// Whoever reads a report wrote the task: it needs the outcome and the facts
+// it lacks, not the task told back.
+const REPORT_RULE =
+  "report the outcome first, then only facts: branch and commits or files changed, check results, blockers, decisions needed. Don't restate the task or narrate your steps; no pleasantries, headings or diffs; quote a line only when a decision depends on it."
+
+// What closes a new task for a worker that heard the preamble: its plan
+// starts again with the task, so it is declared again.
+const AGAIN = `Report as before. 3+ steps: ${PROGRESS} again from step 0.`
+
+/**
+ * How a new task for a worker ends: one the crew started heard the preamble
+ * and reports as before; another agent (`asked` null) is told how.
+ */
+export const taskClose = (asked: string | null | undefined): string => (asked !== null ? AGAIN : `When done, ${REPORT_RULE}`)
+
+/** The tasks that waited for a woken worker, sent as one once its run ends. */
+export const heldTasks = (held: readonly { task: string; title: string }[]): string =>
+  held.length === 1
+    ? held[0]!.task
+    : `${held.length} tasks, in order:\n\n${held.map((h, i) => `## ${i + 1}. ${h.title}\n${h.task}`).join('\n\n')}`
+
+/** What a worker reads of a message the user wrote to it in the pane. */
+export const fromUser = (body: string): string => `[crew] Message from the user, via the crew panel:\n${body}`
+
+/**
+ * How a worker, and a fork of the main session, work with git and write
+ * comments. `you` is its lowercase name.
+ */
+export const gitRules = (cwd: string, you: string): string =>
+  `- In a git repository: start with \`git status\`, leave changes you did not make alone, and read \`git log\`/\`git blame\` before changing code. The user wants you to commit your own work as you go: one logical change per commit, a message saying why, only your own paths (never \`add -A\`, \`.\` or \`commit -a\`). Push only when your task says the user asked, and the same goes for committing or merging on the main branch (\`origin/HEAD\`'s, else main, master, trunk or develop): otherwise work in a worktree of your own, \`git worktree add ../${basename(cwd)}-${you} -b crew/${you}-<topic>\`, and ask in your report to merge it.
+- A comment says why the code is as it is now, never its history: not what changed or what it was, who or when ("now…", "no longer…", "was…", "previously…", "removed…"), and no commented-out code.`
+
+/** `reportsTo` is who it reports to: the orchestrator, or the worker that started it. */
+export function workerPreamble(
+  name: string,
+  orchName: string,
+  reportsTo: string,
+  cwd: string,
+  crew: readonly Worker[],
+  worktree: 'own' | 'parent' | undefined,
+  apart: ReadonlySet<string>,
+) {
+  const mates = crew
+    .filter(w => w.name !== name && (ACTIVE.has(w.status) || samePath(w.cwd, cwd)))
+    .sort(byActivity)
+    .slice(0, MATES)
+    .map(w => `${w.name} ("${w.address}", ${apart.has(w.id) ? 'own worktree of ' : ''}${basename(w.cwd)})`)
+    .join(', ')
+  const where =
+    worktree === 'own'
+      ? `- You work in your own git worktree of ${cwd}, where your shell starts: stay in it, not in ${cwd}. Finish the task there, commit on its branch, and give its path and branch in your report.`
+      : worktree === 'parent'
+        ? `- You work in ${reportsTo}'s git worktree of ${cwd}, where your shell starts: stay in it, not in ${cwd}, and commit your own work there.`
+        : `- Your repository is ${cwd}. Your shell may start elsewhere: cd there or use absolute paths under it. Finish the task end to end there.`
+  return `[crew] You are ${name}, a worker in ${orchName}'s crew. ${orchName} orchestrates and talks with the user; you do the hands-on work. All you send goes to models: terse, facts only, nothing the reader already knows.
+${where}
+- Teammates you can reach with SendMessage: ${mates || 'none yet'}. Coordinate directly when your work touches theirs.
+- A message reaches a busy teammate at its next tool call, and wakes a free one with its context; a woken teammate reports to ${orchName} (your own forks and agents, to you), so ask it to send you what you need.
+- Waiting on someone: do what does not need it, then end your turn with your report: what you have, what you wait for and from whom. Their message wakes you with this context. Never wait inside your turn: no sleep, polling, Monitor, background loops or ${ROSTER} checks for a teammate.
+- Someone waits on you: SendMessage it as soon as you have what it needs.
+- You keep this context after you report: ${reportsTo}'s follow-ups carry only what is new.
+- Parallel parts, once you have read what they need: fork yourself once per part (Agent tool, \`subagent_type: "fork"\`). Each starts from your context, so give it only its part and files; report the whole once they report.
+- 3+ steps: declare your plan with ${PROGRESS}, step 0 of N (the N steps you will actually take), then call it as you start each step, 1 to N, in the same message as that step's first tool call.
+${gitRules(cwd, name.toLowerCase())}
+- Your final message goes back into ${reportsTo}'s conversation, which must stay small: ${REPORT_RULE}
+
+Task:
+`
+}
+
+/**
+ * A fork keeps its parent's context and identity: it hears how to report. A
+ * worker's fork has the git rules from its parent; the main session's hears
+ * them here.
+ */
+export const forkPreamble = (reportsTo: string, git = '') =>
+  `[crew] Your final message goes back into ${reportsTo}'s conversation, which must stay small: ${REPORT_RULE}\n${git ? `${git}\n` : ''}\n`
