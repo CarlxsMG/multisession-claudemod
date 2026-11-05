@@ -40,6 +40,9 @@ All notable changes to crew are written here. The format follows
   no family is turned down with the aliases it takes.
 - A worker's message to a free teammate that failed on its way no longer loses the messages
   queued after it: each is sent on by itself.
+- The orchestrator no longer cheers for a turn that was stopped or failed; `/crew msg` sends the
+  message with its lines and spacing as typed; and once the desktop app or an editor leaves the
+  session, the pane is no longer drawn again every few seconds for it.
 
 ## [0.1.0] - 2026-11-05
 
