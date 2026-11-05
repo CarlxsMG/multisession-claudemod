@@ -32,12 +32,14 @@ export async function onTurnStart($: Engine, e: Parameters<OnTurnStartHook>[1], 
 
 type OnTurnCompleteHook = HookFor<'turn.complete'>
 /**
- * Ends the orchestrator's turn happy, and a worker's run with its status,
- * its report in the feed.
+ * Ends the orchestrator's turn happy, or idle when it failed or was stopped,
+ * and a worker's run with its status, its report in the feed.
  */
 export async function onTurnComplete($: Engine, e: Parameters<OnTurnCompleteHook>[1], next: Parameters<OnTurnCompleteHook>[2]) {
   if (e.agentId === undefined) {
-    await setOrch($, 'happy', '')
+    // No cheer for a turn that came to nothing: the figure just rests.
+    const isFailed = e.isAborted || e.reason === 'error' || e.reason === 'refusal'
+    await setOrch($, isFailed ? 'idle' : 'happy', '')
     return next(e)
   }
   const worker = (await readWorkers($)).find(x => x.id === e.agentId)

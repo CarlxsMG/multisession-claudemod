@@ -1,5 +1,5 @@
 import { expect } from 'claude-code/testing'
-import type { AgentInfo } from 'claude-code'
+import type { AgentInfo, TurnCompleteInput } from 'claude-code'
 import { NAME_COLORS, W } from '../src/figure/catalog'
 import { DIAMOND_ROWS, DIAMOND_W } from '../src/figure/diamond'
 import { DEFAULT_LOOK, defaultLook } from '../src/figure/look'
@@ -198,6 +198,31 @@ test('the orchestrator is awake when the session starts, and naps after three mi
   expect(await says(lines.sleep)).toBe(false)
   await clock.advance(2000)
   expect(await says(lines.sleep)).toBe(true)
+})
+
+test('the orchestrator does not cheer for a turn that was stopped or failed', async ($, on) => {
+  const clock = engine(on)
+  on('turn.start', (_, e) => ({ turnId: e.turnId }))
+  await $.session.start({ cwd: '/work/main', surface: 'terminal', isInteractive: true })
+  const lines = VIBES_EN.cheerful.lines
+  const says = async (pool: readonly string[]) => {
+    const ui = await $.ui.mount({ ...PANE, surface: 'terminal' })
+    const isSaid = (await ui.findAll({ type: 'Text' })).some(t => pool.includes(t.text))
+    await ui.unmount()
+    return isSaid
+  }
+  const ends: TurnCompleteInput[] = [
+    { answer: '', durationMs: 1000, turnId: 't1', isAborted: true, reason: 'aborted' },
+    { answer: '', durationMs: 1000, turnId: 't2', isAborted: false, reason: 'error' },
+    { answer: '', durationMs: 1000, turnId: 't3', isAborted: false, reason: 'refusal', refusal: { category: null, explanation: null } },
+  ]
+  for (const end of ends) {
+    await $.turn.start({ text: 'Fix it', turnId: end.turnId })
+    await $.turn.complete(end)
+    await clock.advance(1000)
+    expect(await says(lines.happy)).toBe(false)
+    expect(await says([...lines.idle, defaultLook().phrase])).toBe(true)
+  }
 })
 
 test("the orchestrator's line holds while its mood does, whatever tools it calls", async ($, on) => {
