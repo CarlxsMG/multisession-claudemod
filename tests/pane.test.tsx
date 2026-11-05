@@ -411,6 +411,29 @@ test('a session with no surface opens the pane once one attaches, and only then'
   expect(seen.opens).toEqual([PANE.requestId])
 })
 
+test('once the last app leaves, the pane is no longer drawn again for its page', async ($, on) => {
+  const clock = engine(on)
+  let surfaces: ('terminal' | 'desktop')[] = ['desktop']
+  on('session.surfaces', () => ({ value: surfaces }))
+  on('session.detach', (_, e) => ({ clientId: e.clientId }))
+  let redraws = 0
+  on('state.set', { plugin: 'crew', key: 'beat' }, (_, e, next) => {
+    redraws += 1
+    return next(e)
+  })
+  await $.session.start({ cwd: '/work/main', surface: 'desktop', isInteractive: true })
+  const ui = await $.ui.mount({ ...PANE, surface: 'desktop' })
+  await clock.advance(10_000)
+  expect(redraws).toBeGreaterThan(0)
+
+  surfaces = []
+  await $.session.detach({ surface: 'desktop', clientId: 'desktop:default', reason: 'detach' })
+  redraws = 0
+  await clock.advance(30_000)
+  expect(redraws).toBe(0)
+  await ui.unmount()
+})
+
 test('a session started on a surface opens the pane at once, and not again when another attaches', async ($, on) => {
   const seen = { prompts: [], sends: [], opens: [] as string[] }
   engine(on, { seen })

@@ -5,7 +5,8 @@ import { PANE } from '../../config'
 import type { Engine } from '../../engine'
 import { t } from '../../i18n'
 import { readLook, readPaneTick, readRuns, readView, readWorkers } from '../../state/atoms'
-import { forgetPane } from './animation'
+import { hasApp } from '../../usage/limits'
+import { forgetPane, pane } from './animation'
 import { drawEditor } from './editor'
 import { drawMain } from './main'
 import { drawTeam } from './team'
@@ -60,4 +61,16 @@ type OnCloseHook = HookFor<'ui.close'>
 export function onClose($: Engine, e: Parameters<OnCloseHook>[1], next: Parameters<OnCloseHook>[2]) {
   if (e.id === PANE) forgetPane()
   return next(e)
+}
+
+type OnDetachHook = HookFor<'session.detach'>
+/**
+ * An app that leaves takes the pane's page with it, often with no close of
+ * the pane: once no app draws the session, the timer stops drawing the pane
+ * again for a page.
+ */
+export async function onDetach($: Engine, e: Parameters<OnDetachHook>[1], next: Parameters<OnDetachHook>[2]) {
+  const left = await next(e)
+  if (pane.asPage && !(await hasApp($))) pane.asPage = false
+  return left
 }
