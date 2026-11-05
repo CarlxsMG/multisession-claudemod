@@ -12,6 +12,7 @@ import type { Engine } from '../engine'
 import { t } from '../i18n'
 import { noteMessage } from '../progress/tracker'
 import { relayText } from '../prompts/worker'
+import { runtime } from '../runtime'
 import { readLook, readMembers, readParents, readWorkers, updateRelays } from '../state/atoms'
 import { deliver } from './deliver'
 import { nameOf } from './feed'
@@ -21,17 +22,17 @@ import { ACTIVE } from './workers'
 export const RELAYS_KEEP = 40
 
 // Set when a worker's message waits: the next tick sends it on.
-let relayDue = false
+const due = runtime.due
 
 /** Has the next tick send on the workers' messages that wait. */
 export const relaySoon = () => {
-  relayDue = true
+  due.relay = true
 }
 
-/** Sends on the messages that wait, once a send asked for it. */
+/** Sends on the messages that wait, once a send or the load asked for it. */
 export function relayIfDue($: Engine) {
-  if (!relayDue) return
-  relayDue = false
+  if (!due.relay) return
+  due.relay = false
   void quiet($, relay($), 'relay')
 }
 

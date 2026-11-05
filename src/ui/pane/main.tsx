@@ -29,7 +29,6 @@ import {
 import { LIMITS_SHOWN, limitColor, limitLabel } from '../../usage/limits'
 import { wrapText } from '../../util/text'
 import { END, cardLabel, statusLabel } from '../labels'
-import { pane } from './animation'
 import { drawFeed } from './feed'
 import { MAIL_SHOWN_MS, ORCH_SEED, toggle } from './widgets'
 import type { PaneUi, Sprite, WorkerKit } from './widgets'
@@ -48,7 +47,10 @@ function orchAnim(orch: Orch, now: number): Anim {
 
 /**
  * The orchestrator, the model it runs on and its two controls; under them a
- * row of cards for the crew, then their messages.
+ * row of cards for the crew, then their messages (`view`). With it, the
+ * redraws it owes the clock: when the first worker it shows napping leaves
+ * the row or an end it shows stops standing out (`napDue`), and until when
+ * a bubble types out (`typingUntil`), 0 for none.
  */
 export async function drawMain($: Engine, ui: PaneUi, sprite: Sprite, kit: WorkerKit, look: Look, now: number, width: number, height: number) {
   const { Box, Text, Button } = ui
@@ -162,7 +164,7 @@ export async function drawMain($: Engine, ui: PaneUi, sprite: Sprite, kit: Worke
       ...(r !== undefined && justEnded(w) !== undefined ? [r.endedAt + JUST_ENDED_MS] : []),
     ].filter(at => at > now)
   })
-  pane.napDue = dues.length > 0 ? Math.min(...dues) : 0
+  const napDue = dues.length > 0 ? Math.min(...dues) : 0
   const perRow = Math.max(1, Math.floor((width + 1) / (DIAMOND_W + 1)))
   const moreWidth = (k: number) => Math.max(DIAMOND_W, `+${inRow.length - k}`.length + 2)
   let fits = perRow - 1
@@ -215,13 +217,14 @@ export async function drawMain($: Engine, ui: PaneUi, sprite: Sprite, kit: Worke
   // a card is its figure, the name and the line under it, then a gap.
   const crewRows = inRow.length === 0 ? 0 : DIAMOND_ROWS + 3
   const feedRows = height - 1 - headRows - crewRows - 1
-  const feed = drawFeed(ui, msgs, now, width, feedRows, colorOf)
+  const { feed, typingUntil } = drawFeed(ui, msgs, now, width, feedRows, colorOf)
 
-  return (
+  const view = (
     <Box flexDirection="column" gap={1}>
       {header}
       {crew}
       {feed}
     </Box>
   )
+  return { view, napDue, typingUntil }
 }

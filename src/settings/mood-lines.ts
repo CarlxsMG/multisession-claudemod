@@ -3,6 +3,7 @@
 import { quiet } from '../engine'
 import type { Engine } from '../engine'
 import { linesPrompt, linesSig, parseMoodLines } from '../persona/lines'
+import { runtime } from '../runtime'
 import { STORE_KEYS, readLook, readMoodLines, readView, updateMoodLines } from '../state/atoms'
 
 // A batch is some sixty short lines; one Haiku has not written by then is
@@ -12,8 +13,7 @@ const LINES_TIMEOUT_MS = 30_000
 
 // The personality Haiku is writing lines for now, and one it could not:
 // neither is asked for again in this session.
-let writingSig = ''
-let failedSig = ''
+const asked = runtime.lines
 
 /**
  * Has Haiku write a batch of lines for the current personality, once: the
@@ -24,14 +24,14 @@ export async function ensureLines($: Engine) {
   if ((await readView($)) === 'edit') return
   const look = await readLook($)
   const sig = linesSig(look)
-  if (sig === writingSig || sig === failedSig || (await readMoodLines($)).sig === sig) return
-  writingSig = sig
+  if (sig === asked.writingSig || sig === asked.failedSig || (await readMoodLines($)).sig === sig) return
+  asked.writingSig = sig
   const ask = { model: 'haiku', prompt: linesPrompt(look), maxTokens: LINES_MAX_TOKENS, effort: 'low', timeoutMs: LINES_TIMEOUT_MS } as const
   const reply = await quiet($, $.model.complete(ask), 'mood lines')
-  writingSig = ''
+  asked.writingSig = ''
   const moods = reply?.isAnswered ? parseMoodLines(reply.text) : undefined
   if (moods === undefined) {
-    failedSig = sig
+    asked.failedSig = sig
     return
   }
   // Lines for a personality changed meanwhile are left unused.

@@ -8,23 +8,21 @@ import type { Phase } from '../../types'
 import { ACTIVE } from '../crew/workers'
 import { quiet } from '../engine'
 import type { Engine } from '../engine'
+import { runtime } from '../runtime'
+import type { HeldCalls } from '../runtime'
 import { updateRuns, updateWorkers } from '../state/atoms'
 import { countCall } from './runs'
 
-type Held = { activity: string; calls: { kind: Phase | undefined; at: number }[] }
-
-const held = new Map<string, Held>()
-// Writes go one after another: one that closes a run waits for the frame's.
-let writing: Promise<void> = Promise.resolve()
+const holding = runtime.calls
 
 /** A worker's call, for the next write: what it does now and its kind. */
 export function holdCall(id: string, activity: string, kind: Phase | undefined, at: number) {
-  const calls = held.get(id)?.calls ?? []
-  held.set(id, { activity, calls: [...calls, { kind, at }] })
+  const calls = holding.held.get(id)?.calls ?? []
+  holding.held.set(id, { activity, calls: [...calls, { kind, at }] })
 }
 
 /** Whether any call waits to be written. */
-export const hasHeldCalls = (): boolean => held.size > 0
+export const hasHeldCalls = (): boolean => holding.held.size > 0
 
 /**
  * Writes the calls held so far, after any write already under way: the
@@ -33,14 +31,15 @@ export const hasHeldCalls = (): boolean => held.size > 0
  * ended, say) takes its count only: what it did and when are no longer news.
  */
 export function writeCalls($: Engine): Promise<void> {
-  if (held.size === 0) return writing
-  const taken = [...held]
-  held.clear()
-  writing = writing.then(() => quiet($, write($, taken), 'calls').then(() => undefined))
-  return writing
+  // Writes go one after another: one that closes a run waits for the frame's.
+  if (holding.held.size === 0) return runtime.carried.writing
+  const taken = [...holding.held]
+  holding.held.clear()
+  runtime.carried.writing = runtime.carried.writing.then(() => quiet($, write($, taken), 'calls').then(() => undefined))
+  return runtime.carried.writing
 }
 
-async function write($: Engine, taken: [string, Held][]) {
+async function write($: Engine, taken: [string, HeldCalls][]) {
   const byId = new Map(taken)
   await updateWorkers($, list =>
     list.map(w => {

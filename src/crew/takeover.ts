@@ -5,6 +5,7 @@ import { quiet } from '../engine'
 import type { Engine } from '../engine'
 import { t } from '../i18n'
 import { heldTasks, taskClose } from '../prompts/worker'
+import { runtime } from '../runtime'
 import { readLook, readTakeovers, readWorkers, updateTakeovers } from '../state/atoms'
 import { deliver } from './deliver'
 import { ORCH_ID } from './feed'
@@ -25,17 +26,17 @@ export async function takeOver($: Engine, id: string, by: string) {
 }
 
 // Set when a worker's turn ends: the next tick looks for marks to lift.
-let releaseDue = false
+const due = runtime.due
 
 /** Has the next tick lift the marks of runs that ended. */
 export const releaseSoon = () => {
-  releaseDue = true
+  due.release = true
 }
 
 /** Lifts the marks of runs that ended, once a turn end asked for it. */
 export function releaseIfDue($: Engine) {
-  if (!releaseDue) return
-  releaseDue = false
+  if (!due.release) return
+  due.release = false
   void quiet($, release($), 'release')
 }
 

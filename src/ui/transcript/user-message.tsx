@@ -18,7 +18,8 @@ import type { Engine } from '../../engine'
 import { nameColorOf } from '../../figure/accent'
 import { t } from '../../i18n'
 import { stepText } from '../../progress/plan'
-import { ranFor, seeColumns } from '../../progress/tracker'
+import { lastRunMs, seeColumns } from '../../progress/tracker'
+import { runtime } from '../../runtime'
 import { readJobs, readLook, readMembers, readParents, readRoutes, readRuns } from '../../state/atoms'
 import { setKept } from '../../util/bounded'
 import { took } from '../../util/time'
@@ -31,7 +32,7 @@ import { messageSender, notedAgent } from './recover'
 // The title each end-of-task line was first drawn with, by its message id,
 // how long the crew measured that run then, and the step a failed or
 // stopped run stood on.
-const noteFirst = new Map<string, { title: string; ms: number | undefined; step: string }>()
+const { notes } = runtime
 const NOTE_FIRST = 300
 
 type DrawUserMessageHook = MatchedHook<'ui.render', { component: 'UserMessage'; surface: 'terminal' }>
@@ -60,16 +61,16 @@ export async function drawUserMessage($: Engine, e: Parameters<DrawUserMessageHo
     // long it took in the top border, what it was on one line inside. The
     // row keeps the title it was first drawn with, so a redraw never names
     // a later task; with none recorded the bubble is its two borders.
-    let first = noteFirst.get(e.requestId)
+    let first = notes.first.get(e.requestId)
     if (first === undefined) {
       const plan = (await readRuns($)).findLast(r => r.id === who.id)?.plan
       const isCut = props.task?.status === 'failed' || props.task?.status === 'killed'
       first = {
         title: (await readJobs($)).find(j => j.id === who.id)?.title ?? '',
-        ms: ranFor.get(who.id),
+        ms: lastRunMs(who.id),
         step: isCut && plan !== undefined ? t().progress.step(stepText(plan)) : '',
       }
-      setKept(noteFirst, e.requestId, first, NOTE_FIRST)
+      setKept(notes.first, e.requestId, first, NOTE_FIRST)
     }
     const title = first.title
     const status = props.task?.status ?? ''

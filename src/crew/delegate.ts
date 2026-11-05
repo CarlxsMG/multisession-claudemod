@@ -23,6 +23,8 @@ import {
 } from '../prompts/results'
 import { modelAlias } from '../model-label'
 import { heldTasks, taskClose } from '../prompts/worker'
+import { runtime } from '../runtime'
+import type { Intent } from '../runtime'
 import {
   readLook,
   readParents,
@@ -156,7 +158,7 @@ async function delegate($: Engine, input: object, callId?: string): Promise<stri
 
   const { name } = claimName(await takenNow($, list))
   const address = name.toLowerCase()
-  intended.set(address, { cwd, type })
+  meant.intended.set(address, { cwd, type })
   let spawned: Awaited<ReturnType<typeof $.agent.spawn>>
   try {
     spawned = await $.agent.spawn({
@@ -169,7 +171,7 @@ async function delegate($: Engine, input: object, callId?: string): Promise<stri
     })
   } catch (err) {
     // A spawn that throws started nothing: its name is free again.
-    intended.delete(address)
+    meant.intended.delete(address)
     unclaimNames(name)
     throw err
   }
@@ -179,13 +181,13 @@ async function delegate($: Engine, input: object, callId?: string): Promise<stri
     // however often it is made: the orchestrator's own Agent call is reviewed,
     // and the spawn hook takes its agent as this worker.
     if (UNREVIEWED.test(spawned.deny)) {
-      intended.set(address, { cwd, type, task })
+      meant.intended.set(address, { cwd, type, task })
       return autoModeHandoff(name, address, title, type, model, cwd)
     }
     // Any other refusal is said as it came; one in auto mode's words may be
     // the unreviewed one, worded anew.
     if (AUTO_MODE.test(spawned.deny)) unrecognized($, 'auto-mode spawn refusal', spawned.deny)
-    intended.delete(address)
+    meant.intended.delete(address)
     unclaimNames(name)
     return notStarted(spawned.deny)
   }
@@ -234,13 +236,24 @@ export async function refuseWorker($: Engine, agentId: string): Promise<string> 
   return notForWorkers(look.name, reportsTo)
 }
 
+// Where and as what type delegate meant a new worker to work, by its
+// address: the engine may not carry a spawn's `cwd` or type through to its
+// own hooks. One delegate handed to the orchestrator to start keeps its
+// task, which tells its agent from others if the Agent call names none.
+const meant = runtime.delegate
+
 /**
- * Where and as what type delegate meant a new worker to work, by its address:
- * the engine may not carry a spawn's `cwd` or type through to its own hooks.
- * One delegate handed to the orchestrator to start keeps its task, which
- * tells its agent from others if the Agent call names none.
+ * What delegate meant the agent a spawn starts to be, taken: by the name its
+ * call gave, else, for one with no name that is no fork, by its task. `key`
+ * is the address it was meant under, and nothing is meant under it any more.
  */
-export const intended = new Map<string, { cwd: string; type: string; task?: string }>()
+export function takeIntent(name: string | undefined, prompt: string, isFork: boolean): { key: string | undefined; intent: Intent | undefined } {
+  const byPrompt = name === undefined && !isFork ? [...meant.intended].find(([, m]) => m.task === prompt.trim()) : undefined
+  const key = name?.toLowerCase() ?? byPrompt?.[0]
+  const intent = key !== undefined ? meant.intended.get(key) : undefined
+  if (key !== undefined) meant.intended.delete(key)
+  return { key, intent }
+}
 
 // The refusal of a spawn auto mode had no verdict for: it reviews the calls
 // in a model's response, and a plugin's call is in none.
@@ -248,13 +261,13 @@ const UNREVIEWED = /\bgave no verdict for\b/
 // A refusal in auto mode's words.
 const AUTO_MODE = /\bauto[- ]mode\b/i
 
-// Delegate calls in one message may run at once: each waits for the one
-// before, so two never read the same crew and take one name or worker.
-let delegating: Promise<unknown> = Promise.resolve()
-
-/** Runs a delegate call once the ones before it are done. */
+/**
+ * Runs a delegate call once the ones before it are done. Delegate calls in
+ * one message may run at once: each waits for the one before, so two never
+ * read the same crew and take one name or worker.
+ */
 export async function delegateInTurn($: Engine, input: object, callId: string): Promise<string> {
-  const run = delegating.then(async () => {
+  const run = runtime.carried.delegating.then(async () => {
     // Its row reads "→ crew" until the worker is known.
     await markCall($, callId)
     // A woken worker whose run has ended gets what waited for it before
@@ -263,6 +276,6 @@ export async function delegateInTurn($: Engine, input: object, callId: string): 
     const result = await delegate($, input, callId)
     return [result, ...(await tellMissed($, missed))].join('\n')
   })
-  delegating = run.catch(() => undefined)
+  runtime.carried.delegating = run.catch(() => undefined)
   return run
 }

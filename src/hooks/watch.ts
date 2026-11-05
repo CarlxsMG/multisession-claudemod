@@ -5,7 +5,7 @@ import type { HookFor } from 'claude-code'
 import { DELEGATE, PROGRESS } from '../config'
 import { gistOf, markCall, markCrewCall, setJob, setOrch } from '../crew/feed'
 import { noteSendGist } from '../crew/sends'
-import { isolated, takeRenamed } from '../crew/spawn'
+import { forgetIsolated, noteIsolated, takeRenamed } from '../crew/spawn'
 import { findWorker } from '../crew/workers'
 import type { Engine } from '../engine'
 import { t } from '../i18n'
@@ -24,7 +24,7 @@ type WatchCallHook = HookFor<'tool.call'>
 export async function watchCall($: Engine, e: Parameters<WatchCallHook>[1], next: Parameters<WatchCallHook>[2]) {
   if ((e.tool as string) === PROGRESS) return next(e)
   const call: ToolCall = e
-  if (call.tool === 'Agent' && call.isolation === 'worktree') isolated.add(String(call.tool_use_id))
+  if (call.tool === 'Agent' && call.isolation === 'worktree') noteIsolated(String(call.tool_use_id))
   if (e.tool === 'SendMessage' && typeof call.to === 'string') {
     const target = findWorker(await readMembers($), call.to)
     if (target !== undefined) await setJob($, target.id, gistOf(call.summary, call.message))
@@ -46,7 +46,7 @@ export async function watchCall($: Engine, e: Parameters<WatchCallHook>[1], next
     // Its spawn ran inside: a name the crew gave in place of the call's is said here.
     const done = await next(e)
     // A denied call spawned nothing: no agent will ask for its worktree.
-    if (done.deny !== undefined) isolated.delete(String(call.tool_use_id))
+    if (done.deny !== undefined) forgetIsolated(String(call.tool_use_id))
     const note = takeRenamed(e.tool_use_id)
     return note === undefined || done.deny !== undefined ? done : { ...done, context: [...(done.context ?? []), note] }
   }

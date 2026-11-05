@@ -6,6 +6,7 @@ import { nameOf } from '../crew/feed'
 import { ACTIVE, FINISHED, patchWorker } from '../crew/workers'
 import { quiet } from '../engine'
 import type { Engine } from '../engine'
+import { runtime } from '../runtime'
 import {
   STORE_KEYS,
   readMembers,
@@ -51,20 +52,18 @@ const END_TOAST_MS = 8000
 // width it was last given.
 const STATUS_MIN_COLUMNS = 20
 
-// The check-in interval in minutes, 0 for off, as the store keeps it.
-let everyMin = DEFAULT_EVERY
-// The status line as last pinned: undefined after a load, so the first
-// progress tick pins what is true then, or clears a line left from before.
-let statusShown: string | undefined
-// The transcript's width as its rows were last drawn, else the terminal's as
-// a command last ran: the status line is cut to it.
-let rowColumns = 0
-let commandColumns = 80
-// How long each worker's last run took, for an end notification that does
-// not say.
-export const ranFor = new Map<string, number>()
-let placedSeq = 0
-let progressing = false
+// The check-in interval; the status line as last pinned, which the first
+// progress tick of a load pins afresh or clears of a line left from before;
+// the transcript's width as its rows were last drawn, else the terminal's
+// as a command last ran, which the status line is cut to; how long each
+// worker's last run took; and each worker's TaskCreate items.
+const progress = runtime.progress
+
+// The check-in interval in minutes, 0 for off.
+const everyMin = (): number => progress.everyMin ?? DEFAULT_EVERY
+
+/** How long a worker's last run took, for an end notification that does not say. */
+export const lastRunMs = (id: string): number | undefined => progress.ranFor.get(id)
 
 // The main session's turn runs from its start, which sets the orchestrator
 // thinking, to its end, which sets it happy; its tool calls set the rest. A
@@ -73,10 +72,10 @@ const isMainBusy = (o: Orch): boolean => o.mood === 'thinking' || o.mood === 'wo
 
 /** Keeps the conversation's width, which the status line and the placed rows fit. */
 export const seeColumns = (columns: number | undefined) => {
-  if (columns !== undefined && columns > 0) rowColumns = columns
+  if (columns !== undefined && columns > 0) progress.rowColumns = columns
 }
 export const seeCommandColumns = (columns: number) => {
-  commandColumns = columns
+  progress.commandColumns = columns
 }
 
 /**
@@ -88,7 +87,7 @@ export async function beginRun($: Engine, id: string) {
   if ((await readRuns($)).some(r => r.id === id && isOpen(r))) return
   if (!(await readWorkers($)).some(w => w.id === id)) return
   const now = await $.clock.now()
-  taskLists.delete(id)
+  progress.taskLists.delete(id)
   await updateRuns($, list => openRun(list, id, now).slice(-RUNS_KEEP))
   await updateRound($, r => joinRound(r, id, now))
 }
@@ -138,10 +137,9 @@ export async function setPlan($: Engine, id: string, plan: (prev: Plan | undefin
 
 // The todo tools a worker may use of its own accord: their list is its plan
 // when it declared none. TaskCreate and TaskUpdate change one item at a
-// time, so each worker's items are kept here, by the id the engine gave.
-// A reload starts them afresh, and the next call names the items it changes.
+// time, so each worker's items are kept, by the id the engine gave. A
+// reload starts them afresh, and the next call names the items it changes.
 export const TODO_TOOLS = new Set(['TodoWrite', 'TaskCreate', 'TaskUpdate'])
-const taskLists = new Map<string, Map<string, Todo>>()
 
 /** Reads a worker's plan off its todo list, when it declared none with the progress tool. */
 export async function noteTodos($: Engine, id: string, call: Record<string, unknown>, result: unknown) {
@@ -150,8 +148,8 @@ export async function noteTodos($: Engine, id: string, call: Record<string, unkn
     if (!Array.isArray(call.todos)) return
     todos = (call.todos as Record<string, unknown>[]).map(t => ({ status: String(t.status), text: firstText(t.activeForm, t.content) }))
   } else {
-    const items = taskLists.get(id) ?? new Map<string, Todo>()
-    taskLists.set(id, items)
+    const items = progress.taskLists.get(id) ?? new Map<string, Todo>()
+    progress.taskLists.set(id, items)
     if (call.tool === 'TaskCreate') {
       const task = (result as { task?: { id?: unknown } } | undefined)?.task
       if (task?.id === undefined) return
@@ -187,7 +185,7 @@ export async function endRun($: Engine, id: string, end: Exclude<RunEnd, ''>, is
   if (run === undefined) return
   const now = await $.clock.now()
   const at = isLate ? Math.min(now, run.touchedAt) : now
-  setKept(ranFor, id, at - run.startedAt, RUNS_KEEP)
+  setKept(progress.ranFor, id, at - run.startedAt, RUNS_KEEP)
   const list = await updateRuns($, runs => closeRun(runs, id, end, at))
   if (!list.some(isOpen)) await updateRound($, r => (r.startedAt === 0 || r.closedAt !== 0 ? r : { ...r, closedAt: at }))
   const worker = (await readWorkers($)).find(x => x.id === id)
@@ -244,7 +242,7 @@ async function crewLookup($: Engine) {
   }
 }
 
-const rowId = (now: number): string => `progress-${now.toString(36)}-${(placedSeq++).toString(36)}`
+const rowId = (now: number): string => `progress-${now.toString(36)}-${(runtime.carried.placedSeq++).toString(36)}`
 
 // The row's content goes in first, so its drawing finds it.
 async function placeRow($: Engine, row: CheckIn) {
@@ -267,7 +265,7 @@ export async function placeCheckIn($: Engine, isAsked: boolean) {
     kind: 'checkin',
     at: now,
     roundMs: isRound ? now - round.startedAt : 0,
-    every: everyMin,
+    every: everyMin(),
     isAsked,
     lines: isRound ? checkLines(round, all, who, now) : [],
   })
@@ -298,12 +296,12 @@ async function followCheckIn($: Engine, round: Round, now: number) {
 async function placeSummary($: Engine, round: Round) {
   const now = await $.clock.now()
   const lines = checkLines(round, await readRuns($), await crewLookup($), now)
-  await placeRow($, { id: rowId(now), kind: 'summary', at: now, roundMs: round.closedAt - round.startedAt, every: everyMin, isAsked: false, lines })
+  await placeRow($, { id: rowId(now), kind: 'summary', at: now, roundMs: round.closedAt - round.startedAt, every: everyMin(), isAsked: false, lines })
 }
 
 function showStatus($: Engine, text: string) {
-  if (text === statusShown) return
-  statusShown = text
+  if (text === progress.statusShown) return
+  progress.statusShown = text
   $.ui.status(text === '' ? undefined : text)
 }
 
@@ -311,8 +309,8 @@ function showStatus($: Engine, text: string) {
 // lines of ends that wait and a check-in or a round's summary when one is
 // due, while the main session's turn is not under way.
 async function progressTick($: Engine) {
-  if (progressing) return
-  progressing = true
+  if (progress.isTicking) return
+  progress.isTicking = true
   try {
     const now = await $.clock.now()
     const list = await readWorkers($)
@@ -340,7 +338,7 @@ async function progressTick($: Engine) {
       .filter(r => isJustEnded(r, now) && list.some(w => w.id === r.id))
       .sort((a, b) => a.endedAt - b.endedAt)
       .map(r => ({ name: list.find(w => w.id === r.id)!.name, end: r.end as Exclude<RunEnd, ''> }))
-    showStatus($, statusText(entries, Math.max(STATUS_MIN_COLUMNS, (rowColumns || commandColumns) - 2), ended))
+    showStatus($, statusText(entries, Math.max(STATUS_MIN_COLUMNS, (progress.rowColumns || progress.commandColumns) - 2), ended))
     // A row that stands is drawn again, so it follows even while the main turn runs.
     await followCheckIn($, await readRound($), now)
 
@@ -354,11 +352,11 @@ async function progressTick($: Engine) {
         return []
       })
     }
-    for (const row of waiting) await placeRow($, { id: rowId(now), at: now, roundMs: 0, every: everyMin, isAsked: false, ...row })
+    for (const row of waiting) await placeRow($, { id: rowId(now), at: now, roundMs: 0, every: everyMin(), isAsked: false, ...row })
 
     const round = await readRound($)
     if (round.startedAt === 0) return
-    const every = everyMin * 60_000
+    const every = everyMin() * 60_000
     if (round.closedAt !== 0) {
       if (wantsSummary(round, every)) await placeSummary($, round)
       await updateRound($, () => NO_ROUND)
@@ -368,22 +366,18 @@ async function progressTick($: Engine) {
     if (hasNews(round.seen, seenOf(round, all, statusOf))) await placeCheckIn($, false)
     else await updateRound($, x => ({ ...x, lastAt: now }))
   } finally {
-    progressing = false
+    progress.isTicking = false
   }
 }
 
-/**
- * The check-in cadence the store keeps, a status line pinned afresh, and the
- * tick that keeps them.
- */
+/** The check-in cadence the store keeps, and the tick that keeps it and the status line. */
 export async function startProgress($: Engine) {
-  everyMin = parseEvery(String(await $.store.get(STORE_KEYS.progress))) ?? DEFAULT_EVERY
-  statusShown = undefined
+  progress.everyMin = parseEvery(String(await $.store.get(STORE_KEYS.progress))) ?? DEFAULT_EVERY
   $.clock.every(PROGRESS_MS, () => void quiet($, progressTick($), 'progress tick'))
 }
 
 /** Sets the minutes between check-ins, 0 for none, and keeps them in the store. */
 export async function setEvery($: Engine, minutes: number) {
-  everyMin = minutes
+  progress.everyMin = minutes
   await $.store.set(STORE_KEYS.progress, minutes)
 }

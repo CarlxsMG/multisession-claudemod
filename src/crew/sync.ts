@@ -4,6 +4,7 @@ import type { AgentInfo } from 'claude-code'
 import type { Worker, WorkerStatus } from '../../types'
 import { quiet } from '../engine'
 import type { Engine } from '../engine'
+import { runtime } from '../runtime'
 import { readDropped, readRuns, readWorkers, updateDropped, updateWorkers } from '../state/atoms'
 import { enlist } from './feed'
 import { release } from './takeover'
@@ -18,7 +19,7 @@ export async function clearFinished($: Engine) {
 }
 
 // The agents the engine has listed in this load.
-const everListed = new Set<string>()
+const listed = runtime.sync
 
 // How long a busy worker the engine lists no more has been quiet when its
 // end, which never reached the crew, is taken for granted.
@@ -43,7 +44,7 @@ async function goneEnds($: Engine, list: readonly Worker[], infos: readonly Agen
   if (quietOnes.length === 0) return ends
   const runs = await readRuns($)
   for (const w of quietOnes) {
-    const end = runs.find(r => r.id === w.id)?.end || (everListed.has(w.id) ? 'stopped' : '')
+    const end = runs.find(r => r.id === w.id)?.end || (listed.everListed.has(w.id) ? 'stopped' : '')
     if (end !== '') ends.set(w.id, end)
   }
   return ends
@@ -57,7 +58,7 @@ async function goneEnds($: Engine, list: readonly Worker[], infos: readonly Agen
  */
 export async function syncAgents($: Engine) {
   const infos = await $.agent.list()
-  for (const info of infos) everListed.add(info.id)
+  for (const info of infos) listed.everListed.add(info.id)
   const list = await readWorkers($)
   const shelf = new Map((await readDropped($)).map(w => [w.id, w]))
   // A status the crew has no word for tells it nothing: the worker keeps the

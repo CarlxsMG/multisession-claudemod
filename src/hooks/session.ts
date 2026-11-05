@@ -5,7 +5,6 @@ import type { HookFor } from 'claude-code'
 import type { MoodLines } from '../../types'
 import { TICK_MS } from '../config'
 import { enlist } from '../crew/feed'
-import { relaySoon } from '../crew/relay'
 import { quiet } from '../engine'
 import type { Engine } from '../engine'
 import { setPalette256 } from '../figure/color256'
@@ -14,6 +13,7 @@ import { t } from '../i18n'
 import { settleLocale } from '../i18n/locale'
 import { startProgress } from '../progress/tracker'
 import { PROGRESS_SPEC, ROSTER_SPEC, delegateSpec } from '../prompts/tools'
+import { resetRuntime } from '../runtime'
 import { checkConversation, freezeBrief } from '../settings/notes'
 import {
   STORE_KEYS,
@@ -27,10 +27,10 @@ import {
   updateMoodLines,
   updateOrch,
 } from '../state/atoms'
-import { tick } from '../ui/pane/animation'
-import { APPLE_TYPE_TICK_MS, TYPE_TICK_MS, typeTick } from '../ui/pane/feed'
+import { tick, typeTick } from '../ui/pane/animation'
+import { APPLE_TYPE_TICK_MS, TYPE_TICK_MS } from '../ui/pane/feed'
 import { openPaneOnAttach, openPaneWhenShown } from '../ui/pane/index'
-import { hasApp, probe, probeUsage, toLimits } from '../usage/limits'
+import { allowUsageProbe, hasApp, probeUsage, toLimits } from '../usage/limits'
 
 /**
  * Reads the main session's model, or takes the one a switch names: the pane
@@ -43,10 +43,12 @@ export async function readModel($: Engine, id = '') {
 
 type OnSessionStartHook = HookFor<'session.start'>
 /**
- * Sets the crew up for a session: the colors its terminal shows, what the
- * store kept, the timers, the `/crew` command and the pane.
+ * Sets the crew up for a session: the load's runtime state afresh, the
+ * colors its terminal shows, what the store kept, the timers, the `/crew`
+ * command and the pane.
  */
 export async function onSessionStart($: Engine, e: Parameters<OnSessionStartHook>[1], next: Parameters<OnSessionStartHook>[2]) {
+  resetRuntime()
   await settleLocale($)
   // Terminal.app gets the engine's 256 colors unless it was told it shows
   // more (macOS 26 and later can): the figures pick theirs from those first.
@@ -79,8 +81,6 @@ export async function onSessionStart($: Engine, e: Parameters<OnSessionStartHook
   await $.tool.register(ROSTER_SPEC)
   await $.tool.register(PROGRESS_SPEC)
   await enlist($, [...(await readDropped($)), ...(await readWorkers($))])
-  // Messages a reload caught on their way go on at the first tick.
-  relaySoon()
   $.clock.every(TICK_MS, () => tick($))
   $.clock.every(isAppleTerminal ? APPLE_TYPE_TICK_MS : TYPE_TICK_MS, () => typeTick($))
   await startProgress($)
@@ -90,7 +90,7 @@ export async function onSessionStart($: Engine, e: Parameters<OnSessionStartHook
   // Only the person's own session asks: a headless one never does. The
   // desktop app and the editors run theirs as the SDK, not interactive,
   // with the app attached, now or once it attaches.
-  probe.isAllowed = e.isInteractive || (await hasApp($))
+  if (e.isInteractive || (await hasApp($))) allowUsageProbe()
   void probeUsage($)
   await openPaneWhenShown($)
 
@@ -119,10 +119,7 @@ type OnAttachHook = HookFor<'session.attach'>
 export async function onAttach($: Engine, e: Parameters<OnAttachHook>[1], next: Parameters<OnAttachHook>[2]) {
   const attached = await next(e)
   openPaneOnAttach($)
-  if (!probe.isAllowed && e.surface !== 'terminal') {
-    probe.isAllowed = true
-    void probeUsage($)
-  }
+  if (e.surface !== 'terminal' && allowUsageProbe()) void probeUsage($)
   return attached
 }
 
