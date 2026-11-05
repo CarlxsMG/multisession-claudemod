@@ -14,9 +14,14 @@ export function openRun(list: readonly Run[], id: string, now: number): Run[] {
   return [...list.filter(r => r.id !== id), run]
 }
 
-/** One more call of an open run, and the phase it leaves. */
+/**
+ * One more call of an open run, and the phase it leaves. A call written
+ * after a later sign of life, a plan's step, keeps that one as the last.
+ */
 export function countCall(list: readonly Run[], id: string, kind: Phase | undefined, now: number): Run[] {
-  return list.map(r => (r.id === id && isOpen(r) ? { ...r, tools: r.tools + 1, touchedAt: now, ...nextPhase(r, kind, now) } : r))
+  return list.map(r =>
+    r.id === id && isOpen(r) ? { ...r, tools: r.tools + 1, touchedAt: Math.max(r.touchedAt, now), ...nextPhase(r, kind, now) } : r,
+  )
 }
 
 /**

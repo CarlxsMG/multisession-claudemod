@@ -3,7 +3,7 @@
 // conversation. Nothing here messages anyone or adds to a prompt.
 import type { CheckIn, CheckLine, Note, Orch, PendingRow, Plan, Round, RunEnd, Worker } from '../../types'
 import { nameOf } from '../crew/feed'
-import { ACTIVE, FINISHED } from '../crew/workers'
+import { ACTIVE, FINISHED, patchWorker } from '../crew/workers'
 import { quiet } from '../engine'
 import type { Engine } from '../engine'
 import {
@@ -24,12 +24,13 @@ import {
 import { appendKept, setKept } from '../util/bounded'
 import type { ToolCall } from '../util/input'
 import { firstText } from '../util/text'
+import { holdCall, writeCalls } from './calls'
 import { DEFAULT_EVERY, parseEvery } from './check-in'
-import { phaseOf, shownPhase } from './phase'
+import { describe, phaseOf, shownPhase } from './phase'
 import { todoPlan, withPlan } from './plan'
 import type { Todo } from './plan'
 import { NO_ROUND, checkLines, hasNews, joinRound, seenOf, wantsSummary } from './round'
-import { closeRun, countCall, isJustEnded, isOpen, openRun, runMs } from './runs'
+import { closeRun, isJustEnded, isOpen, openRun, runMs } from './runs'
 import { endNotice } from './text/ended'
 import { statusText } from './text/status-line'
 
@@ -102,12 +103,18 @@ export async function settleRun($: Engine, w: Pick<Worker, 'id' | 'status'>) {
   await endRun($, w.id, FINISHED.has(w.status) ? (w.status as Exclude<RunEnd, ''>) : 'done', true)
 }
 
-/** Counts a worker's tool call in its run, and moves its phase and plan on. */
+/**
+ * A worker's tool call. One that sets it working shows at once; its count,
+ * what it does and its run's phase wait for the pane's next frame
+ * (`holdCall`), since a worker makes many calls between two.
+ */
 export async function noteCall($: Engine, id: string, call: ToolCall) {
+  const worker = (await readWorkers($)).find(w => w.id === id)
+  if (worker === undefined) return
+  const activity = describe(call)
+  if (worker.status !== 'working') await patchWorker($, id, () => ({ status: 'working', activity }))
   await beginRun($, id)
-  const now = await $.clock.now()
-  const kind = phaseOf(call)
-  await updateRuns($, list => countCall(list, id, kind, now))
+  holdCall(id, activity, phaseOf(call), await $.clock.now())
 }
 
 /**
@@ -173,6 +180,8 @@ export async function noteTodos($: Engine, id: string, call: Record<string, unkn
  * neither.
  */
 export async function endRun($: Engine, id: string, end: Exclude<RunEnd, ''>, isLate = false) {
+  // The run ends with every call it made, and its last sign of life.
+  await writeCalls($)
   const run = (await readRuns($)).find(r => r.id === id && isOpen(r))
   if (run === undefined) return
   const now = await $.clock.now()

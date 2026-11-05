@@ -86,6 +86,8 @@ test('a worker that wakes a finished agent of its own takes its next report, and
 test('a task for an agent its worker woke waits, and goes from here once that run ends', async ($, on) => {
   const { seen, clock, delegate, roster, done } = await wokenCrew($, on)
   await $.tool.call({ tool: 'Read', file_path: '/work/api/src/bus.ts', agentId: 'agent-2' })
+  // What it does shows from the pane's next frame.
+  await clock.advance(400)
   const sends = seen.sends.length
 
   const input = { task: 'Record session.message_emitted in oneTurn.', title: 'Session bus', worker: 'bolt' }

@@ -7,6 +7,7 @@ import { releaseIfDue } from '../../crew/takeover'
 import { quiet } from '../../engine'
 import type { Engine } from '../../engine'
 import type { Cells } from '../../figure/raster'
+import { hasHeldCalls, writeCalls } from '../../progress/calls'
 import { ensureLines } from '../../settings/mood-lines'
 import { updatePaneTick } from '../../state/atoms'
 
@@ -99,6 +100,8 @@ export function tick($: Engine) {
       return redrawPane($)
     })
   }
+  // The workers' calls since the last frame, in one write.
+  if (hasHeldCalls()) void writeCalls($)
   relayIfDue($)
   // The engine's statuses now and then, and the marks of woken workers whose
   // run ended at the next tick after it did.
