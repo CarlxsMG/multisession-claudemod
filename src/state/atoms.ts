@@ -77,6 +77,16 @@ const pendingRows = atom({ plugin: 'crew', key: 'due' } as const, [], { shape: '
 // Moved on to redraw the pane alone: an invalidate would draw every crew row
 // of the conversation again too.
 const paneTick = atom({ plugin: 'crew', key: 'beat' } as const, 0)
+// What calls under way leave for the hooks that follow them, which a
+// reload of the plugin's code may come between: what delegate meant each
+// new worker to be, the Agent calls that asked for a worktree, each
+// worker's last SendMessage and its TaskCreate items, and what each
+// end-of-task row was first drawn with.
+const intents = atom({ plugin: 'crew', key: 'intents' } as const, [], { shape: 'intents-1' })
+const isolated = atom({ plugin: 'crew', key: 'isolated' } as const, [], { shape: 'isolated-1' })
+const sendGists = atom({ plugin: 'crew', key: 'sendGists' } as const, [], { shape: 'sendGists-1' })
+const taskLists = atom({ plugin: 'crew', key: 'taskLists' } as const, [], { shape: 'taskLists-1' })
+const noteFirst = atom({ plugin: 'crew', key: 'noteFirst' } as const, [], { shape: 'noteFirst-1' })
 
 // What an atom holds, as a change to it takes and gives it.
 type Change<A> = A extends Atom<infer T> ? (value: T) => T : never
@@ -304,4 +314,44 @@ export function readPaneTick($: StateDollar) {
 
 export function updatePaneTick($: StateDollar, change: Change<typeof paneTick>) {
   return update($, paneTick, change)
+}
+
+export function readIntents($: StateDollar) {
+  return read($, intents)
+}
+
+export function updateIntents($: StateDollar, change: Change<typeof intents>) {
+  return update($, intents, change)
+}
+
+export function readIsolated($: StateDollar) {
+  return read($, isolated)
+}
+
+export function updateIsolated($: StateDollar, change: Change<typeof isolated>) {
+  return update($, isolated, change)
+}
+
+export function readSendGists($: StateDollar) {
+  return read($, sendGists)
+}
+
+export function updateSendGists($: StateDollar, change: Change<typeof sendGists>) {
+  return update($, sendGists, change)
+}
+
+export function readTaskLists($: StateDollar) {
+  return read($, taskLists)
+}
+
+export function updateTaskLists($: StateDollar, change: Change<typeof taskLists>) {
+  return update($, taskLists, change)
+}
+
+export function readNoteFirst($: StateDollar) {
+  return read($, noteFirst)
+}
+
+export function updateNoteFirst($: StateDollar, change: Change<typeof noteFirst>) {
+  return update($, noteFirst, change)
 }

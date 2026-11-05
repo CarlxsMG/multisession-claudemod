@@ -12,36 +12,48 @@ import { runtime } from '../runtime'
 import {
   readDropped,
   readIsOn,
+  readIsolated,
   readLook,
   readWorkers,
   readWorktrees,
+  updateIsolated,
   updateParents,
   updateWorkers,
   updateWorktrees,
 } from '../state/atoms'
-import { setKept } from '../util/bounded'
+import { appendKept, setKept } from '../util/bounded'
 import { samePath } from '../util/path'
 import { cap, oneLine } from '../util/text'
 import { takeIntent } from './delegate'
 import { ORCH_ID, enlist, say, setJob } from './feed'
 import { FINISHED, claimName, findWorker, makeWorker, patchWorker, prune, shelve, takenNow, unclaimNames, unshelve } from './workers'
 
-// The Agent calls that asked for a worktree, whose agent works there, not
-// in the repository the worktree was made from; and what an Agent call's
-// model reads after its result when the crew named its agent otherwise than
-// the call did: the name its card and the roster show, and the address
-// SendMessage reaches it by. Both by tool_use_id.
+// What an Agent call's model reads after its result when the crew named
+// its agent otherwise than the call did, by tool_use_id: the name its card
+// and the roster show, and the address SendMessage reaches it by.
 const agentCalls = runtime.spawn
 const RENAMED_KEEP = 50
+// The Agent calls that asked for a worktree, by tool_use_id: their agent
+// works there, not in the repository the worktree was made from. Kept in
+// the state, as a reload may come between a call and its spawn (while the
+// person is asked to allow it); the newest, as a call may spawn nothing.
+const ISOLATED_KEEP = 50
 
 /** An Agent call asked for a worktree: its agent works there. */
-export function noteIsolated(toolUseId: string) {
-  agentCalls.isolated.add(toolUseId)
+export function noteIsolated($: Engine, toolUseId: string) {
+  return updateIsolated($, ids => appendKept(ids, [toolUseId], ISOLATED_KEEP, x => x))
 }
 
 /** An Agent call that asked for a worktree spawns nothing. */
-export function forgetIsolated(toolUseId: string) {
-  agentCalls.isolated.delete(toolUseId)
+export function forgetIsolated($: Engine, toolUseId: string) {
+  return updateIsolated($, ids => ids.filter(x => x !== toolUseId))
+}
+
+// Whether the Agent call asked for a worktree, which its spawn takes.
+async function takeIsolated($: Engine, toolUseId: string): Promise<boolean> {
+  if (!(await readIsolated($)).includes(toolUseId)) return false
+  await forgetIsolated($, toolUseId)
+  return true
 }
 
 /** The word for an Agent call whose agent the crew named otherwise, once. */
@@ -75,7 +87,7 @@ export async function onSpawn($: Engine, e: Parameters<OnSpawnHook>[1], next: Pa
   const sessionCwd = await $.session.cwd()
   // Only a worker `delegate` started, or handed to the orchestrator to
   // start, is the crew's to hand more work to.
-  const { key, intent } = takeIntent(e.name, e.prompt, e.fork)
+  const { key, intent } = await takeIntent($, e.name, e.prompt, e.fork)
   const isCrew = intent !== undefined && !e.fork
   // A worker's own spawn reports to it, and runs where it does.
   const parent = e.parentAgentId !== undefined ? list.find(w => w.id === e.parentAgentId) : undefined
@@ -91,7 +103,7 @@ export async function onSpawn($: Engine, e: Parameters<OnSpawnHook>[1], next: Pa
   const inWorktree = new Set(await readWorktrees($))
   // Its own worktree, or the one of the worker that starts it, where it
   // starts too unless the call sends it elsewhere.
-  const own = agentCalls.isolated.delete(e.tool_use_id)
+  const own = await takeIsolated($, e.tool_use_id)
   const shared = !own && e.cwd === undefined && parent !== undefined && inWorktree.has(parent.id)
   const worktree = own || shared
   // Delegate's workers hear the crew's preamble in either mode; with
