@@ -43,6 +43,10 @@ All notable changes to crew are written here. The format follows
 - The orchestrator no longer cheers for a turn that was stopped or failed; `/crew msg` sends the
   message with its lines and spacing as typed; and once the desktop app or an editor leaves the
   session, the pane is no longer drawn again every few seconds for it.
+- After Claude Code restarts, a resumed conversation's crew bubbles draw as the crew's again,
+  not as the engine's rows: from what each row holds (names, delegate titles, how a run ended
+  and its time), with nothing kept on disk. A worker's colour comes back only where the row
+  carries its id; elsewhere the bubble is grey.
 
 ## [0.1.0] - 2026-11-05
 

@@ -54,6 +54,14 @@ happens.
 
   Drawing only: what is stored and what any model reads stay as they were. ctrl+o shows each one
   whole.
+
+  The crew keeps nothing of a conversation on disk, so after Claude Code restarts a resumed
+  conversation's earlier bubbles are drawn from what each row holds: the worker's name in the
+  orchestrator's calls and in what workers send, a task's title in its delegate bubble, and how a
+  run ended and how long it took when its end notice says. A worker's colour comes back where the
+  row carries its id (a call that started or woke it, a stop, an end notice); elsewhere the
+  bubble is grey. An end notice names no worker or title (`crew → Nova · ✓ done · 2m 5s`), and
+  the step a failed run stood on and the run times the crew measured itself do not come back.
 - **Progress that no model reads.** A status line under the prompt
   (`crew · Pip 3/5 6m Fix the tests · Bolt reading 4m`), a toast when a run ends, a line in the
   conversation for each message between workers, and a check-in every 3 minutes while anyone
