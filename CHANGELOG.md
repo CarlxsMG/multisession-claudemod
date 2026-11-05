@@ -18,6 +18,8 @@ All notable changes to crew are written here. The format follows
 - A full model id given to `delegate` (`claude-sonnet-4-5`) starts the worker on its family's
   alias, and reuses one asked for that alias, instead of failing the spawn; a model that names
   no family is turned down with the aliases it takes.
+- A worker's message to a free teammate that failed on its way no longer loses the messages
+  queued after it: each is sent on by itself.
 
 ## [0.1.0] - 2026-11-05
 
