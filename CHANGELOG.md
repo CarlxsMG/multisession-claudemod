@@ -6,6 +6,11 @@ All notable changes to crew are written here. The format follows
 
 ## [Unreleased]
 
+### Changed
+
+- Finished workers (done, failed or stopped) leave the pane's row a few seconds after their end
+  stops standing out, as free ones do; the team view and the roster still list them.
+
 ## [0.1.0] - 2026-11-05
 
 The first public release.

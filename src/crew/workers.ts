@@ -112,15 +112,16 @@ export async function unshelve($: Engine, id: string) {
   )
 }
 
-// A free worker's figure naps from the moment it is free, and `updatedAt`
-// holds that moment: its status changed then, and an idle worker is touched
-// again only by a message to it or by what wakes it (a task, a resume).
-// After five seconds asleep it leaves the panel's row but not the crew: the
-// team view, the roster and delegate still have it, and whatever wakes it
-// puts it back. One whose run just ended stays while its end stands out.
+// A worker that is not busy, free or finished, leaves the panel's row five
+// seconds after its status changed, which `updatedAt` holds: an idle or
+// finished worker is touched again only by a message to it or by what wakes
+// it (a task, a resume). It leaves the row but not the crew: the team view,
+// the roster and delegate still have it, and whatever wakes it puts it back.
+// One whose run just ended stays while its end stands out, failed included:
+// the toast, the team view and the roster still say so once it is gone.
 export const NAP_SHOWN_MS = 5000
-/** Whether a free worker has napped long enough to leave the pane's row. */
-export const napsAway = (w: Worker, now: number): boolean => w.status === 'idle' && now - w.updatedAt >= NAP_SHOWN_MS
+/** Whether a worker that is not busy has rested long enough to leave the pane's row. */
+export const napsAway = (w: Worker, now: number): boolean => !ACTIVE.has(w.status) && now - w.updatedAt >= NAP_SHOWN_MS
 
 /** Changes a worker's fields and touches it; one the list no longer has is left alone. */
 export async function patchWorker(

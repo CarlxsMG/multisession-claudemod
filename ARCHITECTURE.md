@@ -338,8 +338,9 @@ These fail silently if Claude Code changes the text they read; each is a known l
   and colours after the list lets a worker go.
 - **Shelf (dropped).** Workers cleared from the list or let go by its size limit. They keep their
   names and history; one that works again comes back.
-- **Nap.** A free worker dozes (`zZ`) and leaves the card row after 5 s; it stays in the crew. The
-  orchestrator naps after 3 minutes with nothing to do.
+- **Nap.** A free worker dozes (`zZ`); it and a finished one (done, failed, stopped) leave the
+  card row 5 s after their status changed, once their end stopped standing out, and stay in the
+  crew. The orchestrator naps after 3 minutes with nothing to do.
 - **Beat (`paneTick`).** A counter whose change redraws the pane.
 - **Blit.** Repainting a raster's cells in place without a render pass.
 - **Surface.** Where the session is shown: the terminal, the desktop app, an editor, the phone.

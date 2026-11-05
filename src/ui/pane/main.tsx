@@ -158,7 +158,7 @@ export async function drawMain($: Engine, ui: PaneUi, sprite: Sprite, kit: Worke
   const dues = inRow.flatMap(w => {
     const r = lastRun.get(w.id)
     return [
-      ...(w.status === 'idle' ? [w.updatedAt + NAP_SHOWN_MS] : []),
+      ...(!ACTIVE.has(w.status) ? [w.updatedAt + NAP_SHOWN_MS] : []),
       ...(r !== undefined && justEnded(w) !== undefined ? [r.endedAt + JUST_ENDED_MS] : []),
     ].filter(at => at > now)
   })
