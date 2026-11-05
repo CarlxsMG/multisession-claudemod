@@ -25,6 +25,8 @@ All notable changes to crew are written here. The format follows
 
 ### Fixed
 
+- The orchestrator greets a new session awake, and naps after three idle minutes of it, instead
+  of sleeping from the start until its first turn.
 - A worker or fork the engine ends a while after its last turn no longer shows as working for
   good: it stays done, and a busy one the engine no longer lists, silent for a minute, is
   closed with its run's end, or as stopped.

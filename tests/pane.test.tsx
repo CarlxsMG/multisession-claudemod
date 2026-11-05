@@ -2,7 +2,7 @@ import { expect } from 'claude-code/testing'
 import type { AgentInfo } from 'claude-code'
 import { NAME_COLORS, W } from '../src/figure/catalog'
 import { DIAMOND_ROWS, DIAMOND_W } from '../src/figure/diamond'
-import { DEFAULT_LOOK } from '../src/figure/look'
+import { DEFAULT_LOOK, defaultLook } from '../src/figure/look'
 import { enVibes as VIBES_EN } from '../src/i18n/en-vibes'
 import { VIBES, vibeOf } from '../src/persona/vibes'
 import { JUST_ENDED_MS } from '../src/progress/runs'
@@ -178,6 +178,25 @@ test('the orchestrator cheers when its turn ends, idles, and naps after three mi
   expect(await says(lines.happy)).toBe(false)
   expect(await says(lines.sleep)).toBe(false)
   await clock.advance(130_000)
+  expect(await says(lines.sleep)).toBe(true)
+})
+
+test('the orchestrator is awake when the session starts, and naps after three minutes of it', async ($, on) => {
+  const clock = engine(on)
+  await $.session.start({ cwd: '/work/main', surface: 'terminal', isInteractive: true })
+  const lines = VIBES_EN.cheerful.lines
+  const says = async (pool: readonly string[]) => {
+    const ui = await $.ui.mount({ ...PANE, surface: 'terminal' })
+    const isSaid = (await ui.findAll({ type: 'Text' })).some(t => pool.includes(t.text))
+    await ui.unmount()
+    return isSaid
+  }
+  // Idle, it says its catchphrase most.
+  expect(await says([...lines.idle, defaultLook().phrase])).toBe(true)
+  expect(await says(lines.sleep)).toBe(false)
+  await clock.advance(179_000)
+  expect(await says(lines.sleep)).toBe(false)
+  await clock.advance(2000)
   expect(await says(lines.sleep)).toBe(true)
 })
 

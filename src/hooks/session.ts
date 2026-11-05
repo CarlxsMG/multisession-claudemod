@@ -25,6 +25,7 @@ import {
   updateLook,
   updateMainModel,
   updateMoodLines,
+  updateOrch,
 } from '../state/atoms'
 import { tick } from '../ui/pane/animation'
 import { APPLE_TYPE_TICK_MS, TYPE_TICK_MS, typeTick } from '../ui/pane/feed'
@@ -56,6 +57,10 @@ export async function onSessionStart($: Engine, e: Parameters<OnSessionStartHook
   await updateLook($, () => (stored !== undefined ? normalizeLook(stored) : defaultLook()))
   const storedOn = await $.store.get(STORE_KEYS.isOn)
   if (typeof storedOn === 'boolean') await updateIsOn($, () => storedOn)
+  // The orchestrator greets the session awake: its nap counts from now, not
+  // from a mood never set. One a reload finds set keeps its own.
+  const startedAt = await $.clock.now()
+  await updateOrch($, o => (o.since === 0 ? { ...o, since: startedAt } : o))
   const storedLines = (await $.store.get(STORE_KEYS.lines)) as Partial<MoodLines> | undefined
   if (typeof storedLines?.sig === 'string' && typeof storedLines.moods === 'object' && storedLines.moods !== null) {
     const saved = { sig: storedLines.sig, moods: storedLines.moods }
