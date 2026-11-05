@@ -8,8 +8,8 @@ rules the code relies on. Words in **bold** on first use are defined in the [Glo
 
 crew is a Claude Code plugin with one **hooks module**, `hooks/register.tsx` (named by
 `hooks/hooks.json`). Claude Code loads it and calls `register(on, options)`, where `options` holds
-the plugin's `userConfig` values (`language`). Each `on(event, matcher?, handler)` call adds a
-hook.
+the plugin's `userConfig` values (`language`, `usageProbe`, `napAfter`). Each
+`on(event, matcher?, handler)` call adds a hook.
 
 - **A hook** receives `$` (the engine: `$.state`, `$.store`, `$.ui`, `$.agent`, `$.session`,
   `$.clock`, `$.tool`, `$.command`, `$.settings`, `$.process`, `$.fs`, `$.env`), the event `e`,
@@ -128,7 +128,7 @@ writes, which work an earlier session started still holds its place in, and the 
 placed rows' ids apart, as those rows outlive the load.
 
 Outside it: what `register` takes from the plugin's options before the session starts (the
-`language` and `usageProbe` choices), the locale and the 256-colour palette `session.start`
+`language`, `usageProbe` and `napAfter` choices), the locale and the 256-colour palette `session.start`
 settles (read on every drawing, through `t()` and `onScreen`), and the colour-fitting memo of
 `src/figure/color256.ts`, which gives the same answer in any session.
 
@@ -433,8 +433,8 @@ is noticed in the debug log: `unrecognized($, kind, detail)` (`src/engine.ts`) w
 - **Shelf (dropped).** Workers cleared from the list or let go by its size limit. They keep their
   names and history; one that works again comes back.
 - **Nap.** A free worker dozes (`zZ`); it and a finished one (done, failed, stopped) leave the
-  card row 5 s after their status changed, once their end stopped standing out, and stay in the
-  crew. The orchestrator naps after 3 minutes with nothing to do.
+  card row the `napAfter` option's time after their status changed (5 s by default, never with
+  `never`), once their end stopped standing out, and stay in the crew. The orchestrator naps after 3 minutes with nothing to do.
 - **Beat (`paneTick`).** A counter whose change redraws the pane.
 - **Blit.** Repainting a raster's cells in place without a render pass.
 - **Surface.** Where the session is shown: the terminal, the desktop app, an editor, the phone.

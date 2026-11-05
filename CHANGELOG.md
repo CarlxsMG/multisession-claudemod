@@ -10,6 +10,8 @@ All notable changes to crew are written here. The format follows
 
 - A `usageProbe` option (`on` or `off`, `on` by default) that turns off the headless `claude -p`
   the crew runs for Fable's weekly window; with `off` the pane shows the engine's windows only.
+- A `napAfter` option (`5s`, `30s`, `2m` or `never`, `5s` by default) that sets how long a free
+  or finished worker stays in the pane's row; a finished one still stays while its end stands out.
 
 ### Changed
 

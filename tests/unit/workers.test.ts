@@ -1,12 +1,34 @@
 import { expect, test } from 'claude-code/testing'
 
 import type { Worker, WorkerStatus } from '../../types'
-import { claimName, findWorker, makeWorker, prune, statusOf, takenNames } from '../../src/crew/workers'
+import { chooseNapAfter, claimName, findWorker, makeWorker, napLeavesAt, napsAway, prune, statusOf, takenNames } from '../../src/crew/workers'
 import { WORKER_NAMES, freshName, isWorkerName } from '../../src/persona/names'
 
 const worker = (id: string, name: string, status: WorkerStatus, updatedAt = 0): Worker => ({
   ...makeWorker({ id, name, address: name.toLowerCase(), task: '', type: 'general-purpose', cwd: '/work', status, model: '', asked: '' }, 0),
   updatedAt,
+})
+
+test('napAfter sets when a worker that is not busy leaves the row, the default for what it does not know', () => {
+  const free = worker('a', 'Pip', 'idle', 1000)
+  const busy = worker('b', 'Gus', 'working', 1000)
+  for (const [option, ms] of [[undefined, 5000], ['5s', 5000], ['30s', 30_000], ['2m', 120_000], ['soon', 5000]] as const) {
+    chooseNapAfter(option)
+    expect(napLeavesAt(free)).toBe(1000 + ms)
+    expect(napLeavesAt(busy)).toBeUndefined()
+    expect(napsAway(free, 1000 + ms - 1)).toBe(false)
+    expect(napsAway(free, 1000 + ms)).toBe(true)
+    expect(napsAway(busy, 1000 + ms)).toBe(false)
+  }
+  chooseNapAfter(undefined)
+})
+
+test('with napAfter never no worker leaves the row, and the pane owes no redraw for it', () => {
+  chooseNapAfter('never')
+  const free = worker('a', 'Pip', 'idle', 1000)
+  expect(napLeavesAt(free)).toBeUndefined()
+  expect(napsAway(free, Number.MAX_SAFE_INTEGER)).toBe(false)
+  chooseNapAfter(undefined)
 })
 
 test('the pool holds only names of 2 to 4 characters, no two alike', () => {

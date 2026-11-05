@@ -20,7 +20,7 @@ falla en tiempo real.
   `■` detenido). Bajo su nombre, el paso de su plan (`3/5`), o lo que lleva su ejecución, o una
   palabra de cuatro letras (`init`, `wait`, `done`, `fail`, `stop`). Un worker libre o que ha
   terminado (listo, falló o detenido) sale de la fila a los pocos segundos, cuando su final ha
-  dejado de destacar, pero sigue en la vista del equipo (`/crew equipo`), que lista cada worker con
+  dejado de destacar (cuánto es un [ajuste](#ajustes)), pero sigue en la vista del equipo (`/crew equipo`), que lista cada worker con
   su estado, repositorio, tarea, lo que hace y el tiempo y las llamadas de su ejecución.
 - **Los mensajes del equipo**: los dos más recientes como burbujas de chat que se van escribiendo,
   los anteriores como una línea discreta cada uno.
@@ -144,6 +144,11 @@ el editor: `r` aleatorio, `l` listo (`d` en inglés) y, en Compartir, `c` copia 
   como mucho cada 3 minutos y solo desde una sesión interactiva o con la app de escritorio o un
   editor conectados. Una sesión `-p` nunca la pide. Con `off` no se pide nunca, y el panel muestra
   solo las ventanas de 5 horas y semanal, que da el motor.
+- **Cuánto siguen en la fila** (opción `napAfter` del plugin: `5s`, `30s`, `2m` o `never`; `5s` por
+  defecto). Cuánto sigue un worker libre o terminado en la fila del panel desde que cambia su
+  estado. Uno terminado sigue al menos mientras su final destaca (30 s), sea cual sea el ajuste;
+  con `never` ningún worker sale de la fila. El que ha salido sigue en la vista del equipo y en el
+  roster, y vuelve cuando lo despiertan.
 
 ## Compatibilidad
 

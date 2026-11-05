@@ -19,8 +19,8 @@ happens.
   `.oO` thinking, `>` delegating, `*` cheering, `✓` done, `zZ` asleep, `!` failed, `■` stopped).
   Under its name: its plan's step (`3/5`), or how long its run has taken, or a four-letter word
   (`init`, `wait`, `done`, `fail`, `stop`). A worker that is free or has finished (done, failed
-  or stopped) leaves the row a few seconds later, once its end has stood out, and stays in the
-  team view (`/crew team`), which lists every worker with its status, repository, task, what it is
+  or stopped) leaves the row a few seconds later, once its end has stood out (how long is a
+  [setting](#settings)), and stays in the team view (`/crew team`), which lists every worker with its status, repository, task, what it is
   doing and its run's time and calls.
 - **A feed of the crew's messages**: the two newest as chat bubbles that type out, older ones as
   one quiet line each.
@@ -140,6 +140,11 @@ code.
   every 3 minutes, and only from an interactive session or one with the desktop app or an editor
   attached. A `-p` session never runs it. With `off` it never runs, and the pane shows the 5-hour
   and weekly windows only, which come from the engine.
+- **Nap after** (`napAfter` option of the plugin: `5s`, `30s`, `2m` or `never`; `5s` by default).
+  How long a free or finished worker stays in the pane's row once its status changes. A finished
+  one stays at least while its end stands out (30 s), whatever the setting; with `never` no worker
+  leaves the row. One that left is still in the team view and the roster, and comes back when it
+  is woken.
 
 ## Compatibility
 
