@@ -44,6 +44,31 @@ test("a worker's message to a free teammate goes on from the main conversation: 
   expect(await delegate({ task: 'Next step', title: 'Next', worker: 'pip' })).toMatch(/^Given to Pip /)
 })
 
+test('a relay whose record fails is still sent, and the relays queued after it go too', async ($, on) => {
+  let spawned = 0
+  const seen: Seen = { prompts: [], sends: [] }
+  // The line of Bolt's first message cannot be kept: its write is refused.
+  on('state.set', { plugin: 'crew', key: 'due' }, (_, e, next) => (JSON.stringify(e.value).includes('first') ? { deny: 'state full' } : next(e)))
+  const clock = engine(on, { nextId: () => `agent-${++spawned}`, seen })
+  await $.session.start({ cwd: '/work/main', surface: 'terminal', isInteractive: true })
+  const delegate = async (input: Record<string, unknown>) => String((await $.tool.call({ tool: DELEGATE, ...input })).result)
+  const roster = async (worker: string) => String((await $.tool.call({ tool: 'mcp__crew__roster', worker })).result)
+  await delegate({ task: 'Build the session bus step', title: 'Session bus', repo: '/work/api' })
+  await delegate({ task: 'Build the remote channel', title: 'Remote channel', repo: '/work/api', fresh: true })
+  await delegate({ task: 'Write the docs', title: 'Docs', repo: '/work/api', fresh: true })
+  await $.turn.complete({ answer: 'Hecho', durationMs: 1, isAborted: false, turnId: 't1', agentId: 'agent-1', reason: 'answer' })
+  await $.turn.complete({ answer: 'Hecho', durationMs: 1, isAborted: false, turnId: 't3', agentId: 'agent-3', reason: 'answer' })
+
+  // Bolt writes to its two free teammates, Pip and Mika: both wait for the tick.
+  const sends = seen.sends.length
+  await workerSend($, 'pip', 'Bolt: first', 'agent-2', { kind: 'plugin', name: 'crew' })
+  await workerSend($, 'mika', 'Bolt: second', 'agent-2', { kind: 'plugin', name: 'crew' })
+  await clock.advance(400)
+  expect(seen.sends.slice(sends).map(text => text.split('\n\n')[1])).toEqual(['Bolt: first', 'Bolt: second'])
+  expect(await roster('pip')).toMatch(/^- Pip: address "pip", working, /)
+  expect(await roster('mika')).toMatch(/^- Mika: address "mika", working, /)
+})
+
 test('a worker that wakes a finished agent of its own takes its next report, and the mark goes when that run ends', async ($, on) => {
   const { clock, delegate, roster, done } = await wokenCrew($, on)
   expect(await roster('bolt')).toMatch(/^- Bolt: address "agent-2", working, answering Pip, started by Pip, repo \/work\/api, /)

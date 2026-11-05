@@ -44,7 +44,9 @@ export async function isAgentOf($: Engine, id: string, by: Worker | undefined): 
 }
 
 // Sends on what waits, in order. Run from the timer only: a send from a
-// worker's turn is that worker's.
+// worker's turn is that worker's. The queue is emptied first, so a relay that
+// throws is caught on its own: the ones after it still go, and none is sent
+// twice by a later tick.
 async function relay($: Engine) {
   let out: Relay[] = []
   await updateRelays($, list => {
@@ -53,19 +55,25 @@ async function relay($: Engine) {
   })
   if (out.length === 0) return
   const look = await readLook($)
-  for (const pending of out) {
-    const worker = (await readWorkers($)).find(x => x.id === pending.id)
-    const name = nameOf(pending.id, worker, await readMembers($))
-    const wasFree = worker === undefined || !ACTIVE.has(worker.status)
-    const sent = await deliver($, {
-      id: pending.id,
-      worker: worker,
-      text: relayText(pending, look.name),
-      line: { from: { name: pending.by, id: pending.byId }, to: name, text: pending.text, tone: 'worker' },
-      patch: () => ({ status: 'working', activity: '' }),
-      isCaught: true,
-    })
-    await noteMessage($, { fromId: pending.byId, from: pending.by, toId: pending.id, to: name, gist: pending.gist, wakes: sent.isDelivered && wasFree, isLost: !sent.isDelivered })
-    if (!sent.isDelivered) $.ui.toast(t().missedRelay(name, pending.by, sent.reason))
-  }
+  for (const pending of out) await quiet($, relayOne($, pending, look.name), 'relay')
+}
+
+// One relay: sent from here, a toast when it did not arrive, and its line.
+async function relayOne($: Engine, pending: Relay, lookName: string) {
+  const worker = (await readWorkers($)).find(x => x.id === pending.id)
+  const name = nameOf(pending.id, worker, await readMembers($))
+  const wasFree = worker === undefined || !ACTIVE.has(worker.status)
+  const sent = await deliver($, {
+    id: pending.id,
+    worker: worker,
+    text: relayText(pending, lookName),
+    line: { from: { name: pending.by, id: pending.byId }, to: name, text: pending.text, tone: 'worker' },
+    patch: () => ({ status: 'working', activity: '' }),
+    isCaught: true,
+  })
+  if (!sent.isDelivered) $.ui.toast(t().missedRelay(name, pending.by, sent.reason))
+  // What follows only records: the message went, or the toast said it did
+  // not, and a record that fails leaves its line out of the conversation.
+  const note = { fromId: pending.byId, from: pending.by, toId: pending.id, to: name, gist: pending.gist, wakes: sent.isDelivered && wasFree, isLost: !sent.isDelivered }
+  await quiet($, noteMessage($, note), 'record relay')
 }
