@@ -129,11 +129,12 @@ el editor: `r` aleatorio, `l` listo (`d` en inglés) y, en Compartir, `c` copia 
 - **Cada cuánto llegan los avisos** (`/crew progreso 1m|2m|3m|5m|10m|off`). Se guarda entre
   sesiones. `off` quita los avisos y el resumen de la ronda, no la línea de estado, las líneas de
   final ni el panel.
-- **La consulta del uso.** La ventana semanal de Fable solo está en `/usage`, así que el crew se la
-  pide a un `claude -p` sin plugins ni sesión (la petición `get_usage` del SDK: no gasta tokens,
-  unos 3 s en segundo plano), como mucho cada 3 minutos y solo desde una sesión interactiva o con
-  la app de escritorio o un editor conectados. Una sesión `-p` nunca la pide. Las ventanas de 5
-  horas y semanal las da el motor.
+- **La consulta del uso** (opción `usageProbe` del plugin: `on` u `off`; `on` por defecto). La
+  ventana semanal de Fable solo está en `/usage`, así que el crew se la pide a un `claude -p` sin
+  plugins ni sesión (la petición `get_usage` del SDK: no gasta tokens, unos 3 s en segundo plano),
+  como mucho cada 3 minutos y solo desde una sesión interactiva o con la app de escritorio o un
+  editor conectados. Una sesión `-p` nunca la pide. Con `off` no se pide nunca, y el panel muestra
+  solo las ventanas de 5 horas y semanal, que da el motor.
 
 ## Compatibilidad
 

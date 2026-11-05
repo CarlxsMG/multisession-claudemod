@@ -126,11 +126,12 @@ code.
 - **Delegation** (`/crew mode on|off`, or the pane's switch). Kept across sessions.
 - **Check-in interval** (`/crew progress 1m|2m|3m|5m|10m|off`). Kept across sessions. `off` stops
   the check-ins and the round summary, not the status line, the end lines or the pane.
-- **Usage probe.** Fable's weekly window is only in `/usage`, so the crew asks a headless
-  `claude -p` for it (the SDK's `get_usage` request, no plugins, no session, no tokens, about 3 s
-  in the background), at most every 3 minutes, and only from an interactive session or one with
-  the desktop app or an editor attached. A `-p` session never runs it. The 5-hour and weekly
-  windows come from the engine.
+- **Usage probe** (`usageProbe` option of the plugin: `on` or `off`; `on` by default). Fable's
+  weekly window is only in `/usage`, so the crew asks a headless `claude -p` for it (the SDK's
+  `get_usage` request, no plugins, no session, no tokens, about 3 s in the background), at most
+  every 3 minutes, and only from an interactive session or one with the desktop app or an editor
+  attached. A `-p` session never runs it. With `off` it never runs, and the pane shows the 5-hour
+  and weekly windows only, which come from the engine.
 
 ## Compatibility
 
