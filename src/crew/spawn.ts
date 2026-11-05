@@ -6,6 +6,7 @@ import type { ParentLink, Worker } from '../../types'
 import type { Engine } from '../engine'
 import { modelAlias } from '../model-label'
 import { beginRun, settleRun } from '../progress/tracker'
+import { renamedAgent } from '../prompts/results'
 import { forkPreamble, gitRules, workerPreamble } from '../prompts/worker'
 import {
   readDropped,
@@ -17,17 +18,31 @@ import {
   updateWorkers,
   updateWorktrees,
 } from '../state/atoms'
+import { setKept } from '../util/bounded'
 import { samePath } from '../util/path'
 import { cap, oneLine } from '../util/text'
-import { freeName, intended } from './delegate'
+import { intended } from './delegate'
 import { ORCH_ID, enlist, say, setJob } from './feed'
-import { FINISHED, findWorker, makeWorker, patchWorker, prune, shelve, unshelve } from './workers'
+import { FINISHED, claimName, findWorker, makeWorker, patchWorker, prune, shelve, takenNow, unclaimNames, unshelve } from './workers'
 
 /**
  * The Agent calls that asked for a worktree, by tool_use_id: their agent
  * works there, not in the repository the worktree was made from.
  */
 export const isolated = new Set<string>()
+
+// What an Agent call's model reads after its result when the crew named
+// its agent otherwise than the call did, by tool_use_id: the name its card
+// and the roster show, and the address SendMessage reaches it by.
+const renamed = new Map<string, string>()
+const RENAMED_KEEP = 50
+
+/** The word for an Agent call whose agent the crew named otherwise, once. */
+export function takeRenamed(toolUseId: string): string | undefined {
+  const note = renamed.get(toolUseId)
+  renamed.delete(toolUseId)
+  return note
+}
 
 type OnSpawnHook = HookFor<'agent.spawn'>
 /**
@@ -62,8 +77,13 @@ export async function onSpawn($: Engine, e: Parameters<OnSpawnHook>[1], next: Pa
   const reportsTo = parent?.name ?? look.name
   const cwd = e.cwd ?? intent?.cwd ?? parent?.cwd ?? sessionCwd
   if (key !== undefined) intended.delete(key)
-  const given = e.name ?? key
-  const name = given !== undefined ? cap(given) : await freeName($, list)
+  // Delegate's own, or one it handed to the orchestrator to start, has the
+  // name delegate gave it; any other takes one no other member has, the
+  // name its call gave when that fits.
+  const claim = intent !== undefined ? undefined : claimName(await takenNow($, list), e.name)
+  const name = claim?.name ?? cap(e.name ?? key ?? '')
+  // The name its call gave stays its address, unless another member has it.
+  const addressOf = (id: string) => (e.name !== undefined && (claim === undefined || claim.isWantedFree) ? e.name : id)
   const inWorktree = new Set(await readWorktrees($))
   // Its own worktree, or the one of the worker that starts it, where it
   // starts too unless the call sends it elsewhere.
@@ -91,8 +111,15 @@ export async function onSpawn($: Engine, e: Parameters<OnSpawnHook>[1], next: Pa
     ? { background: true, ...(e.cwd === undefined && !samePath(cwd, sessionCwd) ? { cwd } : {}) }
     : {}
   const started = await next({ ...e, prompt, ...model, ...intendedRun })
-  if (started.agentId === undefined) return started
+  if (started.agentId === undefined) {
+    if (claim !== undefined) unclaimNames(name, ...(claim.isWantedFree && e.name !== undefined ? [e.name] : []))
+    return started
+  }
   const id = started.agentId
+  const address = addressOf(id)
+  if (e.name !== undefined && name.toLowerCase() !== e.name.toLowerCase()) {
+    setKept(renamed, e.tool_use_id, renamedAgent(e.name, name, address), RENAMED_KEEP)
+  }
   const now = await $.clock.now()
   const task = e.description || oneLine(e.prompt, 60)
   const out: Worker[] = []
@@ -101,7 +128,7 @@ export async function onSpawn($: Engine, e: Parameters<OnSpawnHook>[1], next: Pa
     const known = current.find(w => w.id === id)
     const fields = {
       name,
-      address: e.name ?? id,
+      address,
       task,
       // Spelled as delegate was asked, which its reuse compares with.
       type: intent?.type || e.subagentType || '',

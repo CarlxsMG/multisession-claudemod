@@ -2,10 +2,11 @@
 // that say what a status allows, their names, and the list kept of them.
 import type { Member, Worker, WorkerStatus } from '../../types'
 import type { Engine } from '../engine'
-import { WORKER_NAMES } from '../persona/names'
-import { readDropped, readWorkers, updateDropped, updateWorkers } from '../state/atoms'
+import { freshName, isWorkerName } from '../persona/names'
+import { readDropped, readMembers, readWorkers, updateDropped, updateWorkers } from '../state/atoms'
 import { appendKept } from '../util/bounded'
 import { hash } from '../util/random'
+import { cap } from '../util/text'
 
 /**
  * The statuses of a worker that is busy, one a task can be given to as is
@@ -26,18 +27,45 @@ export const STATUS_OF: Record<string, WorkerStatus> = {
   killed: 'stopped',
 }
 
+// The names given in this load, the moment each is chosen: spawns of one
+// response run at once, and each reads the list before the other's worker
+// is on it.
+const claimed = new Set<string>()
+
 /**
- * The first worker name no worker has and `reserved` does not hold, with a
- * number after it once every name is taken.
+ * What no new worker may be called, lowercase: the name and the address of
+ * every member of the session `members` holds (the list, the shelf, the cast
+ * the rows keep).
  */
-export function nextName(list: readonly Worker[], reserved: Iterable<string> = []): string {
-  const taken = new Set([...list.map(w => w.name.toLowerCase()), ...reserved])
-  for (let round = 1; ; round++) {
-    for (const name of WORKER_NAMES) {
-      const candidate = round === 1 ? name : `${name}${round}`
-      if (!taken.has(candidate.toLowerCase())) return candidate
-    }
-  }
+export const takenNames = (members: readonly Member[]): Set<string> =>
+  new Set(members.flatMap(m => [m.name.toLowerCase(), m.address.toLowerCase()]))
+
+/**
+ * What a new worker may not be called now: the names and addresses of the
+ * session's members, one on the shelf or in the rows still that worker's.
+ */
+export async function takenNow($: Engine, list: readonly Worker[]): Promise<Set<string>> {
+  return takenNames([...list, ...(await readDropped($)), ...(await readMembers($))])
+}
+
+/**
+ * Gives a new worker a name no other has, nor had in this load: `wanted`
+ * when it fits and is free, else the next fresh one. `isWantedFree` says
+ * whether `wanted` can still be its address, as given, when it is no name.
+ * What it answers is taken from here on.
+ */
+export function claimName(taken: ReadonlySet<string>, wanted?: string): { name: string; isWantedFree: boolean } {
+  const isFree = (x: string) => !taken.has(x.toLowerCase()) && !claimed.has(x.toLowerCase())
+  const isWantedFree = wanted !== undefined && isFree(wanted)
+  const name = wanted !== undefined && isWantedFree && isWorkerName(wanted) ? cap(wanted) : freshName(new Set([...taken, ...claimed]))
+  claimed.add(name.toLowerCase())
+  if (wanted !== undefined && isWantedFree) claimed.add(wanted.toLowerCase())
+  return { name, isWantedFree }
+}
+
+/** Gives back the names a spawn that started nothing took. */
+export const unclaimNames = (...names: string[]) => {
+  for (const name of names) claimed.delete(name.toLowerCase())
 }
 
 /**

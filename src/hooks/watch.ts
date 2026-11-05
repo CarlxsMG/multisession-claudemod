@@ -5,7 +5,7 @@ import type { HookFor } from 'claude-code'
 import { DELEGATE, PROGRESS } from '../config'
 import { gistOf, markCrewCall, setJob, setOrch } from '../crew/feed'
 import { noteSendGist } from '../crew/sends'
-import { isolated } from '../crew/spawn'
+import { isolated, takeRenamed } from '../crew/spawn'
 import { findWorker, patchWorker } from '../crew/workers'
 import type { Engine } from '../engine'
 import { t } from '../i18n'
@@ -17,8 +17,9 @@ import { oneLine } from '../util/text'
 
 type WatchCallHook = HookFor<'tool.call'>
 /**
- * Follows every tool call but the progress tool's: a spawn into a worktree,
- * who a SendMessage reaches, and a worker's activity, phase and plan.
+ * Follows every tool call but the progress tool's: a spawn into a worktree
+ * and the name its agent took, who a SendMessage reaches, and a worker's
+ * activity, phase and plan.
  */
 export async function watchCall($: Engine, e: Parameters<WatchCallHook>[1], next: Parameters<WatchCallHook>[2]) {
   if ((e.tool as string) === PROGRESS) return next(e)
@@ -44,6 +45,12 @@ export async function watchCall($: Engine, e: Parameters<WatchCallHook>[1], next
   } else if (e.tool !== DELEGATE) {
     await setOrch($, 'working', describe(call))
     if (e.tool === 'TaskStop') await markCrewCall($, e.tool_use_id, call.task_id ?? call.shell_id)
+  }
+  if (e.tool === 'Agent') {
+    // Its spawn ran inside: a name the crew gave in place of the call's is said here.
+    const done = await next(e)
+    const note = takeRenamed(e.tool_use_id)
+    return note === undefined || done.deny !== undefined ? done : { ...done, context: [...(done.context ?? []), note] }
   }
   if (e.agentId === undefined || !TODO_TOOLS.has(e.tool)) return next(e)
   const done = await next(e)

@@ -46,6 +46,13 @@ export const heldWentFirst = (count: number): string =>
 export const notStarted = (deny: string): string => `crew: could not start a worker: ${deny}`
 
 /**
+ * What an Agent call reads after its result when the name it gave does not
+ * fit a worker (2 to 4 characters) or another member has it.
+ */
+export const renamedAgent = (asked: string, name: string, address: string): string =>
+  `[crew] The crew calls this agent ${name}, not "${asked}": a worker's name is 2 to 4 characters and no other worker's. SendMessage reaches it as "${address}".`
+
+/**
  * Where auto mode reviews only the calls in the model's own response, the
  * orchestrator starts the worker itself, with the Agent call spelt out.
  */

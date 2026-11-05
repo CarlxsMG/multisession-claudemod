@@ -142,8 +142,7 @@ dropped, missing or invalid ones take the default's value.
    short reminder of how to report; held tasks that once missed it go first, in the same
    message. A worker woken by another worker gets nothing yet: the task is a **held task** on
    its takeover, and the result says so.
-5. Without a worker, it takes a free name (skipping names on the shelf and those in `intended`),
-   records the **intent**, and calls `$.agent.spawn`. A model asked for is passed only when it is
+5. Without a worker, it takes a free name (see Names below), records the **intent**, and calls `$.agent.spawn`. A model asked for is passed only when it is
    not haiku. With none, the spawn hook gives the worker the session's model, as the alias the
    Agent tool takes (`modelAlias`: `claude-opus-5-5` is `opus`); an id that names no family sets
    none, and the agent's own definition decides.
@@ -161,6 +160,21 @@ preamble, a fork's shorter one, the git rules), records its parent (`fork of`, `
 it where its parent runs or in its worktree (`isolated`), and sets its model. Only workers
 `delegate` started (or handed to the orchestrator to start) are reused without being named; an
 adopted agent has `asked: null`. A resumed agent's run starts afresh.
+
+### Names
+
+A worker's name is 2 to 4 characters, so a card's four columns hold it whole, and no two members
+of the session share one: `claimName` (`src/crew/workers.ts`) skips every name and address of the
+list, the shelf and the cast, and every name given in this load. It holds that name from the
+moment it gives it, so two spawns of one response, which both read the list before either worker
+is on it, never take the same one. A worker cleared from the list keeps its name: the engine
+still knows it by it, a message wakes it with its history, and the rows still show it.
+
+New workers take the next name of the pool (`src/persona/names.ts`), then a letter and a number
+(`A1` … `Z999`). A name an Agent call gives is kept when it fits and is free; otherwise the agent
+takes the next name, the call's name stays its address unless another member has it (then its id
+is), and the call reads the name and the address after its result (`renamedAgent`). Delegate's
+own spawns, and one it handed to the orchestrator to start, keep the name delegate gave.
 
 ### Messages between agents
 

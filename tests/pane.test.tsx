@@ -333,7 +333,7 @@ test('no worker wears the color of the orchestrator\'s name', async ($, on) => {
   for (let i = 1; i <= 10; i++) {
     await $.tool.call({ tool: 'mcp__crew__delegate', task: `Task ${i}`, repo: `/work/r${i}` })
   }
-  const names = ['Pip', 'Bolt', 'Mika', 'Tito', 'Luna', 'Rex', 'Kiko', 'Nube', 'Chispa', 'Coco']
+  const names = ['Pip', 'Bolt', 'Mika', 'Tito', 'Luna', 'Rex', 'Kiko', 'Nube', 'Chip', 'Coco']
 
   const ui = await $.ui.mount({ ...PANE, surface: 'terminal', props: { ...PANE.props, bodyColumns: 46 } })
   for (let k = 1; k < NAME_COLORS.length; k++) {
