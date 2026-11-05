@@ -28,7 +28,7 @@ import {
 } from '../../state/atoms'
 import { LIMITS_SHOWN, limitColor, limitLabel } from '../../usage/limits'
 import { wrapText } from '../../util/text'
-import { CARD_LABEL, END, statusLabel } from '../labels'
+import { END, cardLabel, statusLabel } from '../labels'
 import { pane } from './animation'
 import { drawFeed } from './feed'
 import { MAIL_SHOWN_MS, ORCH_SEED, toggle } from './widgets'
@@ -180,7 +180,7 @@ export async function drawMain($: Engine, ui: PaneUi, sprite: Sprite, kit: Worke
             {nameButton(worker)}
             {ended !== undefined ? (
               <Text wrap="truncate-end" bold inverse color={END[ended].color}>
-                {CARD_LABEL[ended]}
+                {cardLabel(ended)}
               </Text>
             ) : (
               worker.status !== 'idle' && (

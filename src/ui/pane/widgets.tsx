@@ -54,11 +54,12 @@ export type Sprite = ReturnType<typeof startSprites>
 /** A framed ON/OFF switch, one press target. */
 export function toggle(ui: PaneUi, key: string, label: string, value: boolean, onPress: () => void) {
   const { Box, Text, Button } = ui
+  const said = value ? t().pane.on : t().pane.off
   return (
     <Box key={`${key}-frame`} borderStyle="round" borderColor={value ? 'success' : 'inactive'} hover={{ borderColor: 'claude' }}>
-      <Button key={key} plain label={`${label}: ${value ? 'ON' : 'OFF'}`} onPress={onPress}>
+      <Button key={key} plain label={`${label}: ${said}`} onPress={onPress}>
         <Text> {label} </Text>
-        <Text bold color={value ? 'success' : 'inactive'}>{value ? 'ON ' : 'OFF'}</Text>
+        <Text bold color={value ? 'success' : 'inactive'}>{said.padEnd(3)}</Text>
         <Text> </Text>
       </Button>
     </Box>

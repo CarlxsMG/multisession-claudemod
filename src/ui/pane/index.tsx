@@ -3,6 +3,7 @@ import type { HookFor } from 'claude-code'
 
 import { PANE } from '../../config'
 import type { Engine } from '../../engine'
+import { t } from '../../i18n'
 import { readLook, readPaneTick, readRuns, readView, readWorkers } from '../../state/atoms'
 import { forgetPane } from './animation'
 import { drawEditor } from './editor'
@@ -13,7 +14,7 @@ import type { PaneEvent } from './widgets'
 
 /** Opens the pane beside the conversation, focused when asked. */
 export function openPane($: Engine, focus?: boolean) {
-  return $.ui.open({ id: PANE, title: 'Crew', columns: 48, ...(focus ? { focus: true } : {}) })
+  return $.ui.open({ id: PANE, title: t().pane.title, columns: 48, ...(focus ? { focus: true } : {}) })
 }
 
 // Set when the session started with no surface attached, headless or before

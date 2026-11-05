@@ -7,7 +7,7 @@ import { findWorker } from '../crew/workers'
 import type { Engine } from '../engine'
 import { randomLookFor } from '../figure/look'
 import { lookCode, parseLookCode } from '../figure/share-code'
-import { t } from '../i18n'
+import { t, verbOf } from '../i18n'
 import { parseEvery } from '../progress/check-in'
 import { placeCheckIn, seeCommandColumns, setEvery } from '../progress/tracker'
 import { changeLook } from '../settings/look'
@@ -25,17 +25,15 @@ export async function runCrewCommand($: Engine, e: Parameters<RunCrewCommandHook
   const words = t().command
   seeCommandColumns(e.presentation.columns)
 
-  switch (verb) {
+  switch (verb === '' ? '' : verbOf(verb)) {
     case '':
       await updateView($, () => 'main')
       await openPane($)
       return { text: words.opened(look.name) }
-    case 'editar':
     case 'edit':
       await updateView($, () => 'edit')
       await openPane($, true)
       return { text: words.editing(look.name) }
-    case 'equipo':
     case 'team':
       await updateView($, () => 'crew')
       await openPane($)
@@ -47,37 +45,30 @@ export async function runCrewCommand($: Engine, e: Parameters<RunCrewCommandHook
       await messageWorker($, worker, said.join(' '))
       return { text: words.sent(worker.name) }
     }
-    case 'codigo':
-    case 'código':
     case 'code': {
       const code = lookCode(look)
       const copied = await $.ui.copy({ text: code })
       return { text: words.code(look.name, copied.isCopied, code) }
     }
-    case 'importar':
     case 'import': {
       const parsed = parseLookCode(rest)
       if (parsed === undefined) return { text: words.badCode }
       const saved = await changeLook($, parsed)
       return { text: words.imported(saved.name) }
     }
-    case 'aleatorio':
     case 'random': {
       const saved = await changeLook($, current => randomLookFor(current))
       return { text: words.newLook(saved.name) }
     }
-    case 'modo':
     case 'mode': {
       const value = rest === 'on' ? true : rest === 'off' ? false : !(await readIsOn($))
       await setMode($, value)
       return { text: value ? words.modeOn(look.name) : words.modeOff(look.name) }
     }
-    case 'limpiar':
     case 'clear': {
       await clearFinished($)
       return { text: words.cleared }
     }
-    case 'progreso':
     case 'progress': {
       if (rest !== '') {
         const every = parseEvery(rest)

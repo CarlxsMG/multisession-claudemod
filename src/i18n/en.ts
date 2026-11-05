@@ -100,6 +100,17 @@ export const en = {
     view: (name: string) => `View ${name}`,
     back: '◀ Back',
     clearFinished: 'Clear finished',
+    /** The pane's title, as Claude Code shows it over the pane. */
+    title: 'Crew',
+    /** A switch's two values; three columns at most. */
+    on: 'ON',
+    off: 'OFF',
+    /**
+     * A worker's status under its card, in its four columns, where `status`
+     * does not fit; a free worker's card says nothing. The same words in
+     * every locale: four columns hold no translation of them.
+     */
+    card: { starting: 'init', working: 'work', waiting: 'wait', idle: '', done: 'done', failed: 'fail', stopped: 'stop' },
   },
   editor: {
     heading: 'customize',
@@ -136,6 +147,8 @@ export const en = {
     done: 'Done',
     /** The key that presses Done, its word's first letter. */
     doneKey: 'd',
+    /** The worker a personality's delegating line names in its sample. */
+    sampleWorker: 'Pip',
   },
   /** The `/crew` command: its line in the command list, its help and its replies. */
   command: {
@@ -165,6 +178,23 @@ export const en = {
     modeOff: (name: string) => `${name} will work without delegating.`,
     cleared: 'The finished workers are off the pane.',
     progressUsage: 'Usage: /crew progress [1m|2m|3m|5m|10m|off]',
+    /**
+     * The words `/crew` takes for each verb. A word of any locale's works
+     * whatever the UI speaks, so no word may name two verbs.
+     */
+    verbs: {
+      edit: ['edit'],
+      team: ['team'],
+      msg: ['msg'],
+      code: ['code'],
+      import: ['import'],
+      random: ['random'],
+      mode: ['mode'],
+      clear: ['clear'],
+      progress: ['progress'],
+    },
+    /** The units `/crew progress` takes after its minutes (`5m`); those of any locale work. */
+    minutes: ['m', 'min', 'mins'],
   },
   /** The personalities' names and lines, by the key a look stores. */
   vibes: enVibes,

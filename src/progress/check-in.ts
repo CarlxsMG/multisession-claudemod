@@ -1,5 +1,6 @@
 // How often a check-in row may come: the choices, the default, and what
-// `/crew progreso` takes.
+// `/crew progress` takes.
+import { minuteUnits } from '../i18n'
 
 // The check-in intervals `/crew progreso` takes, in minutes; 0 is off.
 const EVERY_CHOICES = [1, 2, 3, 5, 10] as const
@@ -10,7 +11,8 @@ export const DEFAULT_EVERY = 3
 export function parseEvery(text: string): number | undefined {
   const input = text.trim().toLowerCase()
   if (input === 'off' || input === 'no' || input === '0') return 0
-  const match = /^(\d+)\s*(?:m|min|mins|minutos?)?$/.exec(input)
-  const minutes = match === null ? NaN : Number(match[1])
+  const match = /^(\d+)\s*(\p{L}*)$/u.exec(input)
+  if (match === null || (match[2] !== '' && !minuteUnits().includes(match[2]!))) return undefined
+  const minutes = Number(match[1])
   return (EVERY_CHOICES as readonly number[]).includes(minutes) ? minutes : undefined
 }
