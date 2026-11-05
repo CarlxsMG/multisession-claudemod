@@ -283,7 +283,7 @@ test("a run's end and a message between agents in Spanish: their lines, the end 
   await clock.advance(65_000)
   await end('agent-1')
   await end('agent-2', 'aborted')
-  expect(toasts).toEqual(['✓ Pip terminó: Arreglar tests · 1m 5s', '× Bolt detenido: Revisar README · paso 2/4 · 1m 5s'])
+  expect(toasts).toEqual(['✓ Pip terminó: Arreglar tests · 1m 5s', '■ Bolt detenido: Revisar README · paso 2/4 · 1m 5s'])
   const note = (status: string, durationMs?: number): Said => ({
     text: 'Agent "Revisar README" finished',
     origin: { kind: 'task-notification' },
@@ -369,7 +369,7 @@ test('the words the crew builds in Spanish: phases, ages, pasted text, plans, en
 
   expect(endNotice({ id: 'a', name: 'Pip', end: 'done', doing: 'Arreglar tests', plan: declarePlan(undefined, 4, 4, 'x'), ms: 725_000 })).toBe('✓ Pip terminó: Arreglar tests · 12m 5s')
   expect(endNotice({ id: 'b', name: 'Bolt', end: 'failed', doing: 'Revisar README', plan: declarePlan(undefined, 2, 4, 'x'), ms: 180_000 })).toBe('× Bolt falló: Revisar README · paso 2/4 · 3m 0s')
-  expect(endNotice({ id: 'c', name: 'Mika', end: 'stopped', doing: '', ms: 4_000 })).toBe('× Mika detenido · 4s')
+  expect(endNotice({ id: 'c', name: 'Mika', end: 'stopped', doing: '', ms: 4_000 })).toBe('■ Mika detenido · 4s')
 
   const text = (pieces: { text: string }[]) => pieces.map(p => p.text).join('')
   const note = { fromId: 'agent-2', from: 'Bolt', toId: 'agent-1', to: 'Pip', gist: 'router fixed', wakes: true, isLost: false }

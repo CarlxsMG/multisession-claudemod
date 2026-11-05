@@ -452,7 +452,7 @@ export async function progressCrew($: Parameters<TestBody>[0], on: On, stored: R
 
 // Glyphs Windows Terminal and Terminal.app draw alike, besides letters,
 // digits and ASCII: ≈ marks a guessed time.
-export const SAME_EVERYWHERE = /^[\p{L}\p{N}\s!-~✓×·→…─│╭╮╯╰▀▄█░▴▸◀▶≈]*$/u
+export const SAME_EVERYWHERE = /^[\p{L}\p{N}\s!-~✓×■·→…─│╭╮╯╰▀▄█░▴▸◀▶≈]*$/u
 
 // ---- plans ----
 

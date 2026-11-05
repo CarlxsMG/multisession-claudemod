@@ -17,7 +17,7 @@ falla en tiempo real.
 - **Las fichas de los workers.** Una fila de rombos, uno por worker, cada uno en su color y con su
   pareja de signos. Una marca en la esquina dice qué hace (`+` arrancando, `|/-\` trabajando, `?`
   esperando, `.oO` pensando, `>` delegando, `*` celebrando, `✓` listo, `zZ` durmiendo, `!` falló,
-  `x` detenido). Bajo su nombre, el paso de su plan (`3/5`), o lo que lleva su ejecución, o una
+  `■` detenido). Bajo su nombre, el paso de su plan (`3/5`), o lo que lleva su ejecución, o una
   palabra de cuatro letras (`init`, `wait`, `done`, `fail`, `stop`). Un worker libre o que ha
   terminado (listo, falló o detenido) sale de la fila a los pocos segundos, cuando su final ha
   dejado de destacar, pero sigue en la vista del equipo (`/crew equipo`), que lista cada worker con

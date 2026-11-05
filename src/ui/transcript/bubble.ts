@@ -4,7 +4,7 @@ import type { Look, Member } from '../../../types'
 import { accentOf } from '../../figure/accent'
 import { hash } from '../../util/random'
 import { headLines, oneLine } from '../../util/text'
-import { END, endMarked, statusLabel } from '../labels'
+import { END, endMarked } from '../labels'
 
 /** The rows of its text a task's bubble shows, and a report's. */
 export const TASK_ROWS = 2
@@ -15,7 +15,7 @@ export const REPORT_ROWS = 3
 const ENDS: Record<string, () => Seg> = {
   completed: () => ({ text: endMarked('done'), color: END.done.color }),
   failed: () => ({ text: endMarked('failed'), color: END.failed.color }),
-  killed: () => ({ text: `■ ${statusLabel('stopped')}`, color: END.stopped.color }),
+  killed: () => ({ text: endMarked('stopped'), color: END.stopped.color }),
 }
 /**
  * How a task notification's status reads at the end of its bubble's border,
