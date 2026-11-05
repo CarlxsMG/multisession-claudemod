@@ -18,11 +18,11 @@ const foots = (tool: string, output: unknown, members: Member[] = [pip, bolt]) =
   resultFoots(tool, output, pip, members, l)?.map(f => f.map(x => x.text).join(''))
 
 test('a bubble holds who to whom and its title on top, the text inside, and its foot below', () => {
-  expect(lines(bubbleRows(names, 'Arreglar tests', TASK, 2, 40, 'c', [[{ text: 'nuevo' }]]).rows)).toEqual([
+  expect(lines(bubbleRows(names, 'Arreglar tests', TASK, 2, 40, 'c', [[{ text: 'new' }]]).rows)).toEqual([
     '╭─ Nova → Pip · Arreglar tests ─────╮',
     '│ Run the tests and fix what fails, │',
     '│ then report.                      │',
-    '╰─ nuevo ───────────────────────────╯',
+    '╰─ new ─────────────────────────────╯',
   ])
 })
 
@@ -50,22 +50,22 @@ test('a cut bubble ends its text in the "…" that opens it', () => {
 
 test("a crew call's result reads in the foot: delivered, woken, reused, new, held, and who else works there", () => {
   expect(resultFoots('TaskStop', 'stopped', pip, [pip], l)).toEqual([])
-  expect(foots('SendMessage', { success: true, message: 'ok' })).toEqual(['entregado'])
-  expect(foots('SendMessage', { success: true, resumedAgentId: 'agent-1', message: 'Resuming' })).toEqual(['despierta a Pip', 'despierta'])
-  expect(foots('mcp__crew__delegate', [{ type: 'text', text: given(pip, '/w', '') }])).toEqual(['reutilizado · conserva su contexto', 'reutilizado'])
+  expect(foots('SendMessage', { success: true, message: 'ok' })).toEqual(['delivered'])
+  expect(foots('SendMessage', { success: true, resumedAgentId: 'agent-1', message: 'Resuming' })).toEqual(['wakes Pip', 'wakes'])
+  expect(foots('mcp__crew__delegate', [{ type: 'text', text: given(pip, '/w', '') }])).toEqual(['reused · keeps its context', 'reused'])
   expect(foots('mcp__crew__delegate', started('Pip', 'pip', 'agent-1', '/w', headsUp(['Bolt'])))).toEqual([
-    'nuevo · ! Bolt trabaja aquí',
-    'nuevo · ! Bolt trabaja aquí',
-    'nuevo · ! 1 más aquí',
-    'nuevo',
+    'new · ! Bolt works here',
+    'new · ! Bolt works here',
+    'new · ! 1 more here',
+    'new',
   ])
   expect(foots('mcp__crew__delegate', given(pip, '/w', headsUp(['Bolt', 'Mika'])))).toEqual([
-    'reutilizado · conserva su contexto · ! Bolt y Mika trabajan aquí',
-    'reutilizado · ! Bolt y Mika trabajan aquí',
-    'reutilizado · ! 2 más aquí',
-    'reutilizado',
+    'reused · keeps its context · ! Bolt and Mika work here',
+    'reused · ! Bolt and Mika work here',
+    'reused · ! 2 more here',
+    'reused',
   ])
-  expect(foots('mcp__crew__delegate', heldFor(pip, 'Bolt', 1))).toEqual(['en espera · responde a Bolt', 'en espera'])
+  expect(foots('mcp__crew__delegate', heldFor(pip, 'Bolt', 1))).toEqual(['waiting · answers to Bolt', 'waiting'])
 })
 
 test('a result the row cannot read keeps the engine\'s own drawing', () => {

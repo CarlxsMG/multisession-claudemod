@@ -16,8 +16,8 @@ test('switching the mode or the name leaves the brief and the delegate tool as t
   expect((await composeBrief($))?.text).toBe(before)
   await ui.press({ key: 'mode' })
   await ui.unmount()
-  await crewCommand($, 'modo off')
-  await crewCommand($, `importar ${lookCode({ ...DEFAULT_LOOK, name: 'Luna' })}`)
+  await crewCommand($, 'mode off')
+  await crewCommand($, `import ${lookCode({ ...DEFAULT_LOOK, name: 'Luna' })}`)
   expect((await composeBrief($))?.text).toBe(before)
   expect(seen.tools).toHaveLength(1)
 })
@@ -34,8 +34,8 @@ test('the next message carries one "[crew]" note with the latest state, and the 
 
   await submit('Hola')
   expect(contexts[0]).toBeUndefined()
-  await crewCommand($, 'modo off')
-  await crewCommand($, `importar ${lookCode({ ...DEFAULT_LOOK, name: 'Luna', vibe: 'pirate' })}`)
+  await crewCommand($, 'mode off')
+  await crewCommand($, `import ${lookCode({ ...DEFAULT_LOOK, name: 'Luna', vibe: 'pirate' })}`)
   expect((await submit('Arregla el login')).text).toBe('Arregla el login')
   expect(contexts[1]).toHaveLength(1)
   expect(contexts[1]![0]).toBe(
@@ -47,10 +47,10 @@ test('the next message carries one "[crew]" note with the latest state, and the 
   expect(contexts[2]).toBeUndefined()
 
   // A switch to the mode it already has says nothing; back on, it does.
-  await crewCommand($, 'modo off')
+  await crewCommand($, 'mode off')
   await submit('Sigue')
   expect(contexts[3]).toBeUndefined()
-  await crewCommand($, 'modo on')
+  await crewCommand($, 'mode on')
   await submit('Reparte')
   expect(contexts[4]![0]).toMatch(/^\[crew\] The user changed the crew settings\. Delegation is ON: you orchestrate, per the crew brief\. You are Luna\./)
 })
@@ -86,7 +86,7 @@ test('each conversation is told against its own last note', async ($, on) => {
   await submit('Empezamos')
   expect(contexts[1]).toBeUndefined()
   // After a /clear (another id, no new load) the brief still says ON: OFF is news.
-  await crewCommand($, 'modo off')
+  await crewCommand($, 'mode off')
   await submit('Sin equipo')
   expect(contexts[2]![0]).toMatch(/Delegation is OFF/)
   id.now = 'sess-D'

@@ -99,7 +99,7 @@ test('a task for an agent its worker woke waits, and goes from here once that ru
 
   // Its bubble says it waits, and for whom.
   const row = await mountRow($, toolRow(DELEGATE, 'toolu_w1', input, { output }))
-  expect(await row.find({ type: 'Text', text: /^╰─ en espera · responde a Pip ─+╯$/ })).toBeDefined()
+  expect(await row.find({ type: 'Text', text: /^╰─ waiting · answers to Pip ─+╯$/ })).toBeDefined()
   const pip = (await (await $.ui.mount({ ...PANE, surface: 'terminal' })).find({ type: 'Text', text: /^Pip$/ }))?.props.color
   expect((await row.find({ type: 'Text', text: /^Pip$/ }))?.props.color).toBe(pip)
   expect(await isBlank(await mountResult($, { tool: DELEGATE, tool_use_id: 'toolu_w1', output, isErrored: false }))).toBe(true)

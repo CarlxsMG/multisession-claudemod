@@ -3,7 +3,7 @@ import type { AgentInfo } from 'claude-code'
 import { NAME_COLORS, W } from '../src/figure/catalog'
 import { DIAMOND_ROWS, DIAMOND_W } from '../src/figure/diamond'
 import { DEFAULT_LOOK } from '../src/figure/look'
-import { esVibes as VIBES_ES } from '../src/i18n/es-vibes'
+import { enVibes as VIBES_EN } from '../src/i18n/en-vibes'
 import { VIBES, vibeOf } from '../src/persona/vibes'
 import { JUST_ENDED_MS } from '../src/progress/runs'
 import { AWAY_MS, DELEGATE, PANE, SLOW, cellText, crewCommand, engine, napCrew, switchTo, test, workerSend } from './support/crew'
@@ -24,7 +24,7 @@ test('the figures are cells on the terminal and SVG on the desktop, the editor a
     const figures = await ui.findAll({ type: 'Svg' })
     expect(figures).toHaveLength(2)
     expect(String(figures[0]?.props.source)).toMatch(/^<svg xmlns="http:\/\/www\.w3\.org\/2000\/svg"/)
-    expect(figures.map(f => f.props.alt)).toEqual(['Nova, el orquestador', 'Pip: arrancando'])
+    expect(figures.map(f => f.props.alt)).toEqual(['Nova, the orchestrator', 'Pip: starting'])
     expect(await ui.find({ type: 'Raster' })).toBeUndefined()
     await ui.unmount()
   }
@@ -39,19 +39,19 @@ test('the top line names the model the main session runs, and follows it when it
   const ui = await $.ui.mount({ ...PANE, surface: 'terminal', props: { ...PANE.props, bodyColumns: 46 } })
   const top = async () => (await ui.find({ type: 'Text', text: /^Nova · / }))?.text
   try {
-    expect(await top()).toBe('Nova · Alegre · Opus 5.5')
+    expect(await top()).toBe('Nova · Cheerful · Opus 5.5')
     // /model: the switch names the model it went to.
     model = 'claude-sonnet-5-5'
     await $.classic.PostModelSwitch(switchTo(model))
-    expect(await top()).toBe('Nova · Alegre · Sonnet 5.5')
+    expect(await top()).toBe('Nova · Cheerful · Sonnet 5.5')
     // The settings changed it: the next turn of the main session reads it.
     model = 'claude-fable-5-1'
     await $.turn.start({ text: 'hola', turnId: 't1' })
-    expect(await top()).toBe('Nova · Alegre · Fable 5.1')
+    expect(await top()).toBe('Nova · Cheerful · Fable 5.1')
     // A worker's turn does not ask.
     model = 'claude-haiku-4-5'
     await $.turn.start({ text: 'go', turnId: 't2', agentId: 'agent-9' })
-    expect(await top()).toBe('Nova · Alegre · Fable 5.1')
+    expect(await top()).toBe('Nova · Cheerful · Fable 5.1')
     // A cloud's ids, an older one, and one that does not read as a model's.
     for (const [id, shown] of [
       ['us.anthropic.claude-sonnet-4-5-20250929-v1:0', 'Sonnet 4.5'],
@@ -61,7 +61,7 @@ test('the top line names the model the main session runs, and follows it when it
       ['my-gateway/large', 'my-gateway/large'],
     ] as const) {
       await $.classic.PostModelSwitch(switchTo(id))
-      expect(await top()).toBe(`Nova · Alegre · ${shown}`)
+      expect(await top()).toBe(`Nova · Cheerful · ${shown}`)
     }
   } finally {
     await ui.unmount()
@@ -79,7 +79,8 @@ test('the top line fits its width: the model is cut first, then left out, and th
   const head = `${name} · ${persona}`
   for (const id of ['claude-sonnet-5-5', 'an-unknown-gateway-model-with-a-long-name']) {
     await $.classic.PostModelSwitch(switchTo(id))
-    for (const bodyColumns of [56, 46, 40, 34, 30, 26]) {
+    // Down to the name and personality alone, the narrowest they show whole.
+    for (const bodyColumns of [56, 46, 40, 34, 30, head.length]) {
       const ui = await $.ui.mount({ ...PANE, surface: 'terminal', props: { ...PANE.props, bodyColumns } })
       const text = (await ui.find({ type: 'Text', text: new RegExp(`^${name} · `) }))?.text ?? ''
       await ui.unmount()
@@ -93,7 +94,7 @@ test('the top line fits its width: the model is cut first, then left out, and th
   }
   // In the dock's 46 columns the long one is cut to what is left.
   const ui = await $.ui.mount({ ...PANE, surface: 'terminal', props: { ...PANE.props, bodyColumns: 46 } })
-  expect((await ui.find({ type: 'Text', text: new RegExp(`^${name} · `) }))?.text).toBe(`${head} · an-unknown-gatewa…`)
+  expect((await ui.find({ type: 'Text', text: new RegExp(`^${name} · `) }))?.text).toBe(`${head} · an-unknown-gate…`)
   await ui.unmount()
 })
 
@@ -143,12 +144,12 @@ test('the crew takes one row, and the rest wait in the team view', async ($, on)
   expect(await figures()).toHaveLength(8)
   const more = await ui.find({ key: 'crew-all' })
   expect(more?.text).toBe('+3')
-  expect(more?.props.label).toBe('Ver todos (3 más)')
+  expect(more?.props.label).toBe('Show all (3 more)')
 
   await ui.press({ key: 'crew-all' })
   expect((await ui.findAll({ type: 'Button' }))[0]?.key).toBe('crew-back')
   expect(await figures()).toHaveLength(11)
-  expect(await ui.find({ type: 'Text', text: /^Equipo · 11 workers · 10 activos$/ })).toBeDefined()
+  expect(await ui.find({ type: 'Text', text: /^Crew · 11 workers · 10 active$/ })).toBeDefined()
   await ui.press({ key: 'crew-clear' })
   expect(await figures()).toHaveLength(10)
   expect(await ui.find({ key: 'crew-clear' })).toBeUndefined()
@@ -162,7 +163,7 @@ test('the crew takes one row, and the rest wait in the team view', async ($, on)
 test('the orchestrator cheers when its turn ends, idles, and naps after three minutes, as before its first turn', SLOW, async ($, on) => {
   const clock = engine(on)
   await $.session.start({ cwd: '/work/main', surface: 'terminal', isInteractive: true })
-  const lines = VIBES_ES.cheerful.lines
+  const lines = VIBES_EN.cheerful.lines
   // A pane drawn afresh: the mood is read off the clock when it draws.
   const says = async (pool: readonly string[]) => {
     const ui = await $.ui.mount({ ...PANE, surface: 'terminal' })
@@ -183,7 +184,7 @@ test('the orchestrator cheers when its turn ends, idles, and naps after three mi
 test("the orchestrator's line holds while its mood does, whatever tools it calls", async ($, on) => {
   const clock = engine(on)
   await $.session.start({ cwd: '/work/main', surface: 'terminal', isInteractive: true })
-  const working = VIBES_ES.cheerful.lines.working
+  const working = VIBES_EN.cheerful.lines.working
   const said = async () => {
     const ui = await $.ui.mount({ ...PANE, surface: 'terminal' })
     const line = (await ui.findAll({ type: 'Text' })).find(t => working.includes(t.text))?.text
@@ -212,7 +213,7 @@ test('a free worker naps, and its card says nothing more', async ($, on) => {
 
   const ui = await $.ui.mount({ ...PANE, surface: 'terminal' })
   expect((await ui.find({ type: 'Text', text: /^Pip$/ }))?.text).toBe('Pip')
-  expect(await ui.find({ type: 'Text', text: /^libre$/ })).toBeUndefined()
+  expect(await ui.find({ type: 'Text', text: /^free$/ })).toBeUndefined()
   // Its figure sleeps: a zZ comes and goes over its head.
   let marks = ''
   for (let k = 0; k < 4; k++) {
@@ -237,18 +238,18 @@ test('a worker that finishes and naps leaves the row once its end stops standing
   // With nobody left to show the row takes no room at all; the count above
   // is the whole crew's.
   expect(await ui.find({ key: 'view-agent-1' })).toBeUndefined()
-  expect(await ui.find({ type: 'Text', text: /^1 worker · 0 activos$/ })).toBeDefined()
+  expect(await ui.find({ type: 'Text', text: /^1 worker · 0 active$/ })).toBeDefined()
 
   // Still in the crew: the roster has it, and the team view shows it asleep.
   expect(await roster()).toMatch(/^- Pip: address "pip", idle, /m)
-  await crewCommand($, 'equipo')
+  await crewCommand($, 'team')
   let marks = ''
   for (let k = 0; k < 4; k++) {
     marks += cellText(String((await card('agent-1'))?.props.cells))
     await clock.advance(1200)
   }
   expect(marks).toMatch(/z/)
-  expect(await ui.find({ type: 'Text', text: /^libre$/ })).toBeDefined()
+  expect(await ui.find({ type: 'Text', text: /^free$/ })).toBeDefined()
   await ui.press({ key: 'crew-back' })
 
   // A new task goes to it, and it is back in the row at once.
@@ -290,13 +291,13 @@ test('a worker that ends done, failed or stopped leaves the row once its end sto
   for (const id of ['agent-1', 'agent-2', 'agent-3']) expect(await card(id)).toBeDefined()
   await clock.advance(100)
   for (const id of ['agent-1', 'agent-2', 'agent-3']) expect(await card(id)).toBeUndefined()
-  expect(await ui.find({ type: 'Text', text: /^3 workers · 0 activos$/ })).toBeDefined()
+  expect(await ui.find({ type: 'Text', text: /^3 workers · 0 active$/ })).toBeDefined()
 
   // Still in the crew: the roster and the team view have them as they ended.
   expect(await roster()).toMatch(/^- Bolt: address "bolt", failed, /m)
-  await crewCommand($, 'equipo')
+  await crewCommand($, 'team')
   for (const id of ['agent-1', 'agent-2', 'agent-3']) expect(await card(id)).toBeDefined()
-  expect(await ui.find({ type: 'Text', text: /^falló$/ })).toBeDefined()
+  expect(await ui.find({ type: 'Text', text: /^failed$/ })).toBeDefined()
   await ui.unmount()
 })
 
@@ -310,7 +311,7 @@ test('the row and its +N count only the workers that have not napped away', asyn
   const more = await ui.find({ key: 'crew-all' })
   expect(more?.text).toBe('+2')
   expect((await ui.find({ key: 'crew-all-frame' }))?.props.width).toBe(4)
-  expect(await ui.find({ type: 'Text', text: /^12 workers · 10 activos$/ })).toBeDefined()
+  expect(await ui.find({ type: 'Text', text: /^12 workers · 10 active$/ })).toBeDefined()
 
   // One more naps away: the nine left fit, and no place is spent on the rest.
   await nap('agent-3')
@@ -320,7 +321,7 @@ test('the row and its +N count only the workers that have not napped away', asyn
   expect(await ui.find({ key: 'crew-all' })).toBeUndefined()
 
   // The team view has all twelve.
-  await crewCommand($, 'equipo')
+  await crewCommand($, 'team')
   await ui.redraw()
   expect(await figures()).toHaveLength(12)
   await ui.unmount()

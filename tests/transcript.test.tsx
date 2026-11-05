@@ -15,7 +15,7 @@ test("the orchestrator's delegate row names the worker in the panel's color, onc
   expect(output).toMatch(/^Started Pip /)
   await ui.redraw(toolRow(DELEGATE, 'toolu_d1', input, { output }))
   expect(await ui.find({ type: 'Text', text: /^╭─ Nova → Pip · Arreglar tests ─+╮$/ })).toBeDefined()
-  expect(await ui.find({ type: 'Text', text: /^╰─ nuevo ─+╯$/ })).toBeDefined()
+  expect(await ui.find({ type: 'Text', text: /^╰─ new ─+╯$/ })).toBeDefined()
   expect(await ui.find({ type: 'Text', text: /^│ Run the tests and fix what fails\. +│$/ })).toBeDefined()
   expect(await ui.find({ text: /^│ The suite lives in api\/\.… +│$/ })).toBeDefined()
   expect(await ui.find({ type: 'Text', text: /Third line/ })).toBeUndefined()
@@ -62,12 +62,12 @@ test('a delegate bubble says in its bottom border whether the worker is new or r
   const done = (id: string) => $.turn.complete({ answer: 'ok', durationMs: 1, isAborted: false, turnId: id, agentId: id, reason: 'answer' })
 
   const first = await call('toolu_h1', { task: 'Arregla el login', title: 'Login', repo: '/work/api' })
-  expect(await first.row.find({ type: 'Text', text: /^╰─ nuevo ─+╯$/ })).toBeDefined()
+  expect(await first.row.find({ type: 'Text', text: /^╰─ new ─+╯$/ })).toBeDefined()
 
   // Pip is at work in the repository: its name, in its color.
   const second = await call('toolu_h2', { task: 'Arregla el checkout', title: 'Checkout', repo: '/work/api', fresh: true })
   expect(second.output).toMatch(/\nHeads-up: Pip is working in this repository/)
-  expect(await second.row.find({ type: 'Text', text: /^╰─ nuevo · ! Pip trabaja aquí ─+╯$/ })).toBeDefined()
+  expect(await second.row.find({ type: 'Text', text: /^╰─ new · ! Pip works here ─+╯$/ })).toBeDefined()
   const pipColor = (await first.row.find({ type: 'Text', text: /^Pip$/ }))?.props.color
   expect((await second.row.find({ type: 'Text', text: /^Pip$/ }))?.props.color).toBe(pipColor)
   const warn = await second.row.find({ type: 'Text', text: /^! $/ })
@@ -78,16 +78,21 @@ test('a delegate bubble says in its bottom border whether the worker is new or r
   expect(await isBlank(result)).toBe(true)
   await result.unmount()
 
-  // Reused while Bolt works there: the long form does not fit, the short one does.
+  // Reused while Bolt works there: the long form where it fits; in a
+  // narrower row it does not, and the short one does.
   await done('agent-1')
   const third = await call('toolu_h3', { task: 'Y el registro', title: 'Registro', repo: '/work/api' })
   expect(third.output).toMatch(/^Given to Pip /)
-  expect(await third.row.find({ type: 'Text', text: /^╰─ reutilizado · ! Bolt trabaja aquí ─+╯$/ })).toBeDefined()
+  expect(await third.row.find({ type: 'Text', text: /^╰─ reused · keeps its context · ! Bolt works here ─+╯$/ })).toBeDefined()
+  await third.row.unmount()
+  const narrow = await mountRow($, toolRow(DELEGATE, 'toolu_h3', { task: 'Y el registro', title: 'Registro', repo: '/work/api' }, { output: third.output }), { ...CLICKS, columns: 56 })
+  expect(await narrow.find({ type: 'Text', text: /^╰─ reused · ! Bolt works here ─+╯$/ })).toBeDefined()
+  await narrow.unmount()
 
   await done('agent-1')
   await done('agent-2')
   const fourth = await call('toolu_h4', { task: 'Revisa el checkout', title: 'Revisión', worker: 'bolt' })
-  expect(await fourth.row.find({ type: 'Text', text: /^╰─ reutilizado · conserva su contexto ─+╯$/ })).toBeDefined()
+  expect(await fourth.row.find({ type: 'Text', text: /^╰─ reused · keeps its context ─+╯$/ })).toBeDefined()
 
   // A result delegate did not write keeps the engine's text under the row.
   const odd = await mountResult($, { tool: DELEGATE, tool_use_id: 'toolu_h4', output: 'crew: something else', isErrored: false })
@@ -124,11 +129,11 @@ test('the orchestrator\'s SendMessage and TaskStop to a worker are drawn in its 
   // What became of it, once it answered: delivered, or the worker woken.
   const woke = { success: true, message: 'Resuming agent pip', resumedAgentId: 'agent-1' }
   await sent.redraw(toolRow('SendMessage', 'toolu_s1', ask, { output: woke }))
-  expect(await sent.find({ type: 'Text', text: /^╰─ despierta a Pip ─+╯$/ })).toBeDefined()
+  expect(await sent.find({ type: 'Text', text: /^╰─ wakes Pip ─+╯$/ })).toBeDefined()
   const result = await mountResult($, { tool: 'SendMessage', tool_use_id: 'toolu_s1', output: woke, isErrored: false })
   expect(await isBlank(result)).toBe(true)
   await sent.redraw(toolRow('SendMessage', 'toolu_s1', ask, { output: { success: true, message: "Message sent to pip's inbox" } }))
-  expect(await sent.find({ type: 'Text', text: /^╰─ entregado ─+╯$/ })).toBeDefined()
+  expect(await sent.find({ type: 'Text', text: /^╰─ delivered ─+╯$/ })).toBeDefined()
   // One that did not arrive says nothing in the border, and its result shows.
   const lost = { success: false, message: 'No agent named pip is running' }
   await sent.redraw(toolRow('SendMessage', 'toolu_s1', ask, { output: lost }))
@@ -189,7 +194,7 @@ test('a worker\'s report and hand-back come in its color, to whoever started it'
     task: { id: 'agent-1', status: 'completed', durationMs: 125_000 },
   })
   expect(await frameRows(note)).toEqual([
-    expect.stringMatching(/^╭─ Pip → Nova · ✓ listo · 2m 5s ─+╮$/),
+    expect.stringMatching(/^╭─ Pip → Nova · ✓ done · 2m 5s ─+╮$/),
     expect.stringMatching(/^│ Arreglar tests +│$/),
     expect.stringMatching(/^╰─+╯$/),
   ])
@@ -211,7 +216,7 @@ test('a worker\'s report and hand-back come in its color, to whoever started it'
   const nested = await mountSaid($, 'm4', { text: 'Agent "Tickets" completed', origin: { kind: 'task-notification' }, isExpanded: false, task: { id: 'agent-2', status: 'completed' } })
   const pipColor = (await nested.find({ type: 'Text', text: /^Pip$/ }))?.props.color
   expect(await frameRows(nested)).toEqual([
-    expect.stringMatching(/^╭─ Bolt → Pip · ✓ listo ─+╮$/),
+    expect.stringMatching(/^╭─ Bolt → Pip · ✓ done ─+╮$/),
     expect.stringMatching(/^│ Tickets +│$/),
     expect.stringMatching(/^╰─+╯$/),
   ])
@@ -252,8 +257,8 @@ test('a worker\'s end is a small bubble: how it ended above, the task it just di
 
   await $.tool.call({ tool: DELEGATE, task: 'Haz la primera tarea', title: 'Primera tarea', repo: '/work/api' })
   const first = await ended('end-1', 'agent-1', 'completed', 4_000)
-  expect((await bubble(first)).slice(0, 2)).toEqual([expect.stringMatching(/^╭─ Pip → Nova · ✓ listo · 4s ─+╮$/), expect.stringMatching(/^│ Primera tarea +│$/)])
-  expect((await first.find({ type: 'Text', text: /^✓ listo$/ }))?.props.color).toBe('success')
+  expect((await bubble(first)).slice(0, 2)).toEqual([expect.stringMatching(/^╭─ Pip → Nova · ✓ done · 4s ─+╮$/), expect.stringMatching(/^│ Primera tarea +│$/)])
+  expect((await first.find({ type: 'Text', text: /^✓ done$/ }))?.props.color).toBe('success')
   const pipColor = (await first.find({ type: 'Text', text: /^Pip$/ }))?.props.color
   expect((await first.find({ type: 'Text', text: /^╭─ $/ }))?.props.color).toBe(pipColor)
   expect(await first.find({ type: 'Text', text: /Agent "/ })).toBeUndefined()
@@ -263,16 +268,16 @@ test('a worker\'s end is a small bubble: how it ended above, the task it just di
   await $.turn.complete({ answer: 'ok', durationMs: 1, isAborted: false, turnId: 't1', agentId: 'agent-1', reason: 'answer' })
   await $.tool.call({ tool: DELEGATE, task: 'Ahora el borde', title: 'Prueba borde: reutilizado', repo: '/work/api' })
   const second = await ended('end-2', 'agent-1', 'failed', 2_000)
-  expect((await bubble(second)).slice(0, 2)).toEqual([expect.stringMatching(/^╭─ Pip → Nova · × falló · 2s ─+╮$/), expect.stringMatching(/^│ Prueba borde: reutilizado +│$/)])
+  expect((await bubble(second)).slice(0, 2)).toEqual([expect.stringMatching(/^╭─ Pip → Nova · × failed · 2s ─+╮$/), expect.stringMatching(/^│ Prueba borde: reutilizado +│$/)])
   expect((await second.find({ type: 'Text', text: /^╭─ $/ }))?.props.color).toBe('warning')
-  expect((await second.find({ type: 'Text', text: /^× falló$/ }))?.props.color).toBe('error')
+  expect((await second.find({ type: 'Text', text: /^× failed$/ }))?.props.color).toBe('error')
   await first.redraw()
   expect((await bubble(first))[1]).toMatch(/^│ Primera tarea +│$/)
 
   // A message given last names it by its summary, or its first line.
   await $.tool.call({ tool: 'SendMessage', to: 'pip', summary: 'Pregunta sobre el brief', message: '¿Qué recortarías?' })
   expect((await bubble(await ended('end-3', 'agent-1', 'killed'))).slice(0, 2)).toEqual([
-    expect.stringMatching(/^╭─ Pip → Nova · ■ detenido ─+╮$/),
+    expect.stringMatching(/^╭─ Pip → Nova · ■ stopped ─+╮$/),
     expect.stringMatching(/^│ Pregunta sobre el brief +│$/),
   ])
   await $.tool.call({ tool: 'SendMessage', to: 'pip', message: '\nMira el login.\nY el registro.' })
@@ -283,13 +288,13 @@ test('a worker\'s end is a small bubble: how it ended above, the task it just di
   // Cut to the row, never wrapped.
   await $.tool.call({ tool: 'SendMessage', to: 'pip', summary: 'Un resumen muy largo que en una terminal estrecha no cabe en la línea', message: 'Detalle' })
   const narrow = await bubble(await ended('end-6', 'agent-1', 'completed', 61_000, 40))
-  expect(narrow[0]).toMatch(/^╭─ Pip → Nova · ✓ listo · 1m 1s ─+╮$/)
+  expect(narrow[0]).toMatch(/^╭─ Pip → Nova · ✓ done · 1m 1s ─+╮$/)
   expect(narrow[1]).toMatch(/^│ Un resumen.*…\s*│$/)
   expect(narrow[0]!.length).toBeLessThanOrEqual(34)
 
   // An agent nobody gave anything to: just the two borders, never the engine's words.
   await spawnAgent($, { prompt: '', description: '', subagentType: 'general-purpose' })
-  expect((await bubble(await ended('end-7', 'agent-2', 'completed'), 2))[0]).toMatch(/^╭─ Bolt → Nova · ✓ listo ─+╮$/)
+  expect((await bubble(await ended('end-7', 'agent-2', 'completed'), 2))[0]).toMatch(/^╭─ Bolt → Nova · ✓ done ─+╮$/)
 })
 
 test('on a narrow terminal a bubble takes the row and never overflows it', async ($, on) => {
@@ -311,7 +316,7 @@ test('on a narrow terminal a bubble takes the row and never overflows it', async
   expect(rows[0]!.length).toBeLessThanOrEqual(34)
   expect(rows[0]).toMatch(/^╭─ Nova → Pip · Un título.*…/)
   expect(rows[2]).toMatch(/…\s+│$/)
-  expect(rows[3]).toMatch(/^╰─ nuevo ─+╯$/)
+  expect(rows[3]).toMatch(/^╰─ new ─+╯$/)
   await ui.unmount()
 })
 
@@ -329,7 +334,7 @@ test('a cut bubble opens whole on a click and closes on another; where nothing r
   // Its "…" alone is the press, in the bubble's color: the pointer inverts
   // that one cell and nothing else.
   const more = await row.findAll({ type: 'Button' })
-  expect(more.map(b => [b.key, b.text, b.props.label])).toEqual([['toolu_c1:more', '…', 'Ver todo']])
+  expect(more.map(b => [b.key, b.text, b.props.label])).toEqual([['toolu_c1:more', '…', 'Show all']])
   const pipColor = (await row.find({ type: 'Text', text: /^Pip$/ }))?.props.color
   expect((await row.find({ type: 'Text', text: /^…$/ }))?.props.color).toBe(pipColor)
   await row.press({ key: 'toolu_c1:more' })
@@ -339,8 +344,8 @@ test('a cut bubble opens whole on a click and closes on another; where nothing r
   expect(new Set(opened.map(r => r.length)).size).toBe(1)
   expect(await row.find({ type: 'Text', text: /^│ Línea cuatro\. +│$/ })).toBeDefined()
   // Opened, a "▴" at the end of the bottom border closes it.
-  expect(opened[5]).toMatch(/^╰─ nuevo ─+▴─╯$/)
-  expect((await row.findAll({ type: 'Button' })).map(b => [b.key, b.text, b.props.label])).toEqual([['toolu_c1:less', '▴', 'Ver menos']])
+  expect(opened[5]).toMatch(/^╰─ new ─+▴─╯$/)
+  expect((await row.findAll({ type: 'Button' })).map(b => [b.key, b.text, b.props.label])).toEqual([['toolu_c1:less', '▴', 'Show less']])
   await row.press({ key: 'toolu_c1:less' })
   await row.redraw()
   expect(await frameRows(row)).toHaveLength(4)

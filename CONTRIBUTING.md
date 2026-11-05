@@ -133,11 +133,13 @@ request and someone will translate it.
 - `tests/support/crew.ts` is the shared kit: an `engine(on)` that answers beneath the plugin,
   fixtures and helpers. A test that loads the plugin imports `test` from it rather than from
   `claude-code/testing`, because its `test` passes the plugin under test its options.
-- **Most tests read the Spanish UI**: the kit passes `language: 'es'` to the plugin and calls
-  `setLocale('es')` for what a test imports from `src` (the plugin under test and the test file do
-  not share module instances). English is covered by `tests/locale.test.tsx`, the English width
-  test in `tests/progress.test.tsx` and `tests/unit/i18n.test.ts`. A test that needs English passes
-  `{ options: { language: 'en' } }`.
+- **Tests read the English UI**, the product's default: the kit passes `language: 'en'` to the
+  plugin, and what a test imports from `src` speaks English too unless its file calls `setLocale`
+  (the plugin under test and the test file do not share module instances). Spanish is covered by
+  `tests/spanish.test.tsx`, which calls `setLocale('es')` and passes each test
+  `{ options: { language: 'es' } }`, the width tests in `tests/progress.test.tsx`, which run in
+  both languages, `tests/locale.test.tsx` and `tests/unit/i18n.test.ts`. Another test that needs
+  Spanish passes `{ options: { language: 'es' } }` and says why.
 - `tests/unit/` tests pure modules; `tests/golden/` holds the model-facing texts.
 - Every bug fix comes with a test that fails without it.
 

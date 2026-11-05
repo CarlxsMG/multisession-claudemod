@@ -51,7 +51,7 @@ test("a worker's phase comes from the kinds of its calls, and reading between ed
   expect(nextPhase(editing, 'testing', 5)).toEqual({ phase: 'testing', phaseAt: 5 })
   expect(nextPhase({ phase: 'reading', phaseAt: 0 }, 'editing', 1)).toEqual({ phase: 'editing', phaseAt: 1 })
   expect(nextPhase(editing, undefined, 99_999)).toEqual(editing)
-  expect((['thinking', 'reading', 'editing', 'running', 'testing', 'web', 'delegating', 'waiting'] as const).map(phaseLabel)).toEqual(['pensando', 'leyendo', 'editando', 'ejecutando', 'probando', 'navegando', 'delegando', 'esperando'])
+  expect((['thinking', 'reading', 'editing', 'running', 'testing', 'web', 'delegating', 'waiting'] as const).map(phaseLabel)).toEqual(['thinking', 'reading', 'editing', 'running', 'testing', 'browsing', 'delegating', 'waiting'])
 
   for (const [text, minutes] of [['1m', 1], ['2', 2], ['3min', 3], ['5m', 5], ['10m', 10], ['off', 0]] as const) expect(parseEvery(text)).toBe(minutes)
   for (const text of ['4m', '15m', 'soon', '']) expect(parseEvery(text)).toBeUndefined()
@@ -64,50 +64,50 @@ test('the status line names each active worker, its phase, its run time and its 
 
   expect(await delegate('Run the tests', '/work/api', 'Arreglar tests')).toMatch(/^Started Pip /)
   await clock.advance(1000)
-  expect(status()).toBe('crew · Pip pensando 1s Arreglar tests')
+  expect(status()).toBe('crew · Pip thinking 1s Arreglar tests')
   await $.tool.call({ tool: 'Read', file_path: '/work/api/a.ts', agentId: 'agent-1' })
   await clock.advance(60_000)
-  expect(status()).toBe('crew · Pip leyendo 1m Arreglar tests')
+  expect(status()).toBe('crew · Pip reading 1m Arreglar tests')
 
   expect(await delegate('Review the README', '/work/web', 'Revisar README')).toMatch(/^Started Bolt /)
   await $.tool.call({ tool: 'Edit', file_path: '/work/web/README.md', old_string: 'a', new_string: 'b', agentId: 'agent-2' })
   await clock.advance(120_000)
-  expect(status()).toBe('crew · Pip leyendo 3m Arreglar tests · Bolt editando 2m Revisar README')
+  expect(status()).toBe('crew · Pip reading 3m Arreglar tests · Bolt editing 2m Revisar README')
 
   // Each end is marked after those at work, in the order they came.
   await end('agent-1')
   await clock.advance(1000)
-  expect(status()).toBe('crew · Bolt editando 2m Revisar README · ✓ Pip listo')
+  expect(status()).toBe('crew · Bolt editing 2m Revisar README · ✓ Pip done')
   await end('agent-2', 'error')
   await clock.advance(1000)
-  expect(status()).toBe('crew · ✓ Pip listo · × Bolt falló')
+  expect(status()).toBe('crew · ✓ Pip done · × Bolt failed')
   await clock.advance(JUST_ENDED_MS - 2000)
-  expect(status()).toBe('crew · × Bolt falló')
+  expect(status()).toBe('crew · × Bolt failed')
   await clock.advance(1000)
   expect(status()).toBeUndefined()
 
   // A reused worker's time is its new run's, from nothing.
   expect(await delegate('Now the login', '/work/api', 'Login')).toMatch(/^Given to Pip /)
   await clock.advance(1000)
-  expect(status()).toBe('crew · Pip pensando 1s Login')
+  expect(status()).toBe('crew · Pip thinking 1s Login')
   await $.tool.call({ tool: 'Bash', command: 'npm test', agentId: 'agent-1' })
   await clock.advance(120_000)
-  expect(status()).toBe('crew · Pip probando 2m Login')
+  expect(status()).toBe('crew · Pip testing 2m Login')
 })
 
 test('the status line gives up the titles first, then the ends, then the workers that do not fit', () => {
   const pip = { name: 'Pip', phase: 'editing' as const, ms: 360_000, title: 'Arreglar tests' }
   const bolt = { name: 'Bolt', phase: 'reading' as const, ms: 240_000, title: 'Revisar README', plan: declarePlan(undefined, 1, 4, 'Leer') }
   const ended = [{ name: 'Nube', end: 'done' as const }]
-  const whole = 'crew · Pip editando 6m Arreglar tests · Bolt 1/4 4m Revisar README · ✓ Nube listo'
+  const whole = 'crew · Pip editing 6m Arreglar tests · Bolt 1/4 4m Revisar README · ✓ Nube done'
   expect(statusText([pip, bolt], 200, ended)).toBe(whole)
-  expect(statusText([pip, bolt], whole.length - 1, ended)).toBe('crew · Pip editando 6m · Bolt 1/4 4m · ✓ Nube listo')
-  expect(statusText([pip, bolt], 40, ended)).toBe('crew · Pip editando 6m · Bolt 1/4 4m')
-  expect(statusText([pip, bolt], 30, ended)).toBe('crew · Pip editando 6m · +1')
-  expect(statusText([], 80, ended)).toBe('crew · ✓ Nube listo')
+  expect(statusText([pip, bolt], whole.length - 1, ended)).toBe('crew · Pip editing 6m · Bolt 1/4 4m · ✓ Nube done')
+  expect(statusText([pip, bolt], 40, ended)).toBe('crew · Pip editing 6m · Bolt 1/4 4m')
+  expect(statusText([pip, bolt], 30, ended)).toBe('crew · Pip editing 6m · +1')
+  expect(statusText([], 80, ended)).toBe('crew · ✓ Nube done')
   expect(statusText([], 80)).toBe('')
   // A long title is cut to its room.
-  expect(statusText([{ ...pip, title: 'Una tarea con un título bastante largo' }], 200)).toBe('crew · Pip editando 6m Una tarea con un título…')
+  expect(statusText([{ ...pip, title: 'Una tarea con un título bastante largo' }], 200)).toBe('crew · Pip editing 6m Una tarea con un título…')
 })
 
 test("a check-in row comes every 3 minutes of work when something changed, and waits for the orchestrator's turn to end", SLOW, async ($, on) => {
@@ -119,7 +119,7 @@ test("a check-in row comes every 3 minutes of work when something changed, and w
   expect(placed).toHaveLength(0)
   await clock.advance(1000)
   expect(placed).toHaveLength(1)
-  expect(await lines(placed[0]!)).toEqual(['─ crew · 1 activo · ronda 3m', '  Pip  leyendo  3m  Read a.ts'])
+  expect(await lines(placed[0]!)).toEqual(['─ crew · 1 active · round 3m', '  Pip  reading  3m  Read a.ts'])
 
   // Three more minutes with nothing new: no row.
   await clock.advance(180_000)
@@ -139,13 +139,13 @@ test("a check-in row comes every 3 minutes of work when something changed, and w
   await clock.advance(1000)
   expect(placed).toHaveLength(3)
   expect(await lines(placed[2]!)).toEqual([
-    '─ crew · 2 activos · ronda 12m',
-    '  Pip   editando  12m  Edit a.ts',
-    '  Bolt  pensando   3m',
+    '─ crew · 2 active · round 12m',
+    '  Pip   editing   12m  Edit a.ts',
+    '  Bolt  thinking   3m',
   ])
   // The rows before it fold to one line each, as they were.
-  expect(await lines(placed[0]!)).toEqual(['─ crew · ronda 3m · Pip leyendo 3m'])
-  expect(await lines(placed[1]!)).toEqual(['─ crew · ronda 9m · Pip editando 9m'])
+  expect(await lines(placed[0]!)).toEqual(['─ crew · round 3m · Pip reading 3m'])
+  expect(await lines(placed[1]!)).toEqual(['─ crew · round 9m · Pip editing 9m'])
 
   // Many more calls are news even in the same phase.
   for (let k = 0; k < 25; k++) await $.tool.call({ tool: 'Edit', file_path: '/work/api/a.ts', old_string: 'a', new_string: 'b', agentId: 'agent-1' })
@@ -164,7 +164,7 @@ test('the newest check-in follows the round in place, its times once a minute; t
   await $.tool.call({ tool: 'Read', file_path: '/work/api/a.ts', agentId: 'agent-1' })
   await clock.advance(180_000)
   expect(placed).toHaveLength(1)
-  expect(await lines(placed[0]!)).toEqual(['─ crew · 1 activo · ronda 3m', '  Pip  leyendo  1/9  3m  Fast-forward main'])
+  expect(await lines(placed[0]!)).toEqual(['─ crew · 1 active · round 3m', '  Pip  reading  1/9  3m  Fast-forward main'])
 
   // A step and a phase later, the same row says so, even while the
   // orchestrator's turn runs; nothing new is placed before the next mark.
@@ -173,24 +173,24 @@ test('the newest check-in follows the round in place, its times once a minute; t
   await $.tool.call({ tool: 'Edit', file_path: '/work/api/a.ts', old_string: 'a', new_string: 'b', agentId: 'agent-1' })
   await clock.advance(1000)
   expect(placed).toHaveLength(1)
-  expect(await lines(placed[0]!)).toEqual(['─ crew · 1 activo · ronda 3m', '  Pip  editando  3/9  3m  Write the docs'])
+  expect(await lines(placed[0]!)).toEqual(['─ crew · 1 active · round 3m', '  Pip  editing  3/9  3m  Write the docs'])
   await done()
   // With nothing else new, its times move on once a minute.
   await clock.advance(59_000)
-  expect(await lines(placed[0]!)).toEqual(['─ crew · 1 activo · ronda 3m', '  Pip  editando  3/9  3m  Write the docs'])
+  expect(await lines(placed[0]!)).toEqual(['─ crew · 1 active · round 3m', '  Pip  editing  3/9  3m  Write the docs'])
   await clock.advance(1000)
-  expect(await lines(placed[0]!)).toEqual(['─ crew · 1 activo · ronda 4m', '  Pip  editando  3/9  4m  Write the docs'])
+  expect(await lines(placed[0]!)).toEqual(['─ crew · 1 active · round 4m', '  Pip  editing  3/9  4m  Write the docs'])
 
   // The next check-in follows from then on, and the first folds to what it
   // showed when it was placed.
   await clock.advance(120_000)
   expect(placed).toHaveLength(2)
-  expect(await lines(placed[1]!)).toEqual(['─ crew · 1 activo · ronda 6m', '  Pip  editando  3/9  6m  Write the docs'])
-  expect(await lines(placed[0]!)).toEqual(['─ crew · ronda 3m · Pip leyendo 1/9 3m'])
+  expect(await lines(placed[1]!)).toEqual(['─ crew · 1 active · round 6m', '  Pip  editing  3/9  6m  Write the docs'])
+  expect(await lines(placed[0]!)).toEqual(['─ crew · round 3m · Pip reading 1/9 3m'])
   await progress($, 'agent-1', 4, 9, 'Push')
   await clock.advance(1000)
-  expect(await lines(placed[1]!)).toEqual(['─ crew · 1 activo · ronda 6m', '  Pip  editando  4/9  6m  Push'])
-  expect(await lines(placed[0]!)).toEqual(['─ crew · ronda 3m · Pip leyendo 1/9 3m'])
+  expect(await lines(placed[1]!)).toEqual(['─ crew · 1 active · round 6m', '  Pip  editing  4/9  6m  Push'])
+  expect(await lines(placed[0]!)).toEqual(['─ crew · round 3m · Pip reading 1/9 3m'])
 })
 
 test('with check-ins off, as the store keeps them from an earlier session, no row comes, nor a summary', SLOW, async ($, on) => {
@@ -207,7 +207,7 @@ test('with check-ins off, as the store keeps them from an earlier session, no ro
   expect(placed).toHaveLength(0)
 })
 
-test('/crew progreso 1m or 10m sets how often, in the store, and says so in a row; the reply says nothing', SLOW, async ($, on) => {
+test('/crew progress 1m or 10m sets how often, in the store, and says so in a row; the reply says nothing', SLOW, async ($, on) => {
   const { clock, placed, delegate, end, lines } = await progressCrew($, on)
   await delegate('Run the tests', '/work/api', 'Arreglar tests')
   await delegate('Review the README', '/work/web', 'Revisar README')
@@ -217,14 +217,14 @@ test('/crew progreso 1m or 10m sets how often, in the store, and says so in a ro
 
   // Asked for, a row says how the crew is doing and the interval at once;
   // the command's reply, which is stored where the model reads it, is empty.
-  const reply = await crewCommand($, 'progreso 1m')
+  const reply = await crewCommand($, 'progress 1m')
   expect(reply.text).toBeUndefined()
   expect(reply.context).toBeUndefined()
   expect(placed).toHaveLength(1)
   expect(await lines(placed[0]!)).toEqual([
-    '─ crew · 1 activo · ronda 30s · aviso cada 1m',
-    '  Pip   ejecutando  30s  Bash ls',
-    '  Bolt  ✓ listo     30s  Revisar README',
+    '─ crew · 1 active · round 30s · check-in every 1m',
+    '  Pip   running  30s  Bash ls',
+    '  Bolt  ✓ done   30s  Revisar README',
   ])
   await $.tool.call({ tool: 'Read', file_path: '/work/api/b.ts', agentId: 'agent-1' })
   await clock.advance(59_000)
@@ -232,9 +232,9 @@ test('/crew progreso 1m or 10m sets how often, in the store, and says so in a ro
   await clock.advance(1000)
   expect(placed).toHaveLength(2)
 
-  expect((await crewCommand($, 'progreso 10m')).text).toBeUndefined()
+  expect((await crewCommand($, 'progress 10m')).text).toBeUndefined()
   expect(placed).toHaveLength(3)
-  expect((await lines(placed[2]!))[0]).toMatch(/· aviso cada 10m$/)
+  expect((await lines(placed[2]!))[0]).toMatch(/· check-in every 10m$/)
   await $.tool.call({ tool: 'Edit', file_path: '/work/api/b.ts', old_string: 'a', new_string: 'b', agentId: 'agent-1' })
   await clock.advance(599_000)
   expect(placed).toHaveLength(3)
@@ -244,16 +244,16 @@ test('/crew progreso 1m or 10m sets how often, in the store, and says so in a ro
   await end('agent-1')
   await clock.advance(1000)
   expect(placed).toHaveLength(5)
-  expect((await lines(placed[4]!))[0]).toBe('─ crew · ronda terminada · 11m')
+  expect((await lines(placed[4]!))[0]).toBe('─ crew · round over · 11m')
   // Another load reads the interval back from the store. Alone, the command
   // places a check-in now; with nobody at work it says so.
   await $.session.start({ cwd: '/work/main', surface: 'terminal', isInteractive: true })
-  expect(await crewCommand($, 'progreso')).toEqual({})
-  expect(await lines(placed[5]!)).toEqual(['─ crew · nadie trabajando · aviso cada 10m'])
-  expect((await crewCommand($, 'progreso 4m')).text).toBe('Uso: /crew progreso [1m|2m|3m|5m|10m|off]')
+  expect(await crewCommand($, 'progress')).toEqual({})
+  expect(await lines(placed[5]!)).toEqual(['─ crew · nobody working · check-in every 10m'])
+  expect((await crewCommand($, 'progress 4m')).text).toBe('Usage: /crew progress [1m|2m|3m|5m|10m|off]')
   expect(placed).toHaveLength(6)
-  expect(await crewCommand($, 'progreso off')).toEqual({})
-  expect(await lines(placed[6]!)).toEqual(['─ crew · nadie trabajando · sin avisos'])
+  expect(await crewCommand($, 'progress off')).toEqual({})
+  expect(await lines(placed[6]!)).toEqual(['─ crew · nobody working · no check-ins'])
 })
 
 // A quarter of an hour of the clock, a progress tick a second: more than the
@@ -277,7 +277,7 @@ test("a round of two workers, or one longer than the interval, ends in one summa
   await clock.advance(1000)
   expect(placed).toHaveLength(1)
   expect(await lines(placed[0]!)).toEqual([
-    '─ crew · ronda terminada · 1m',
+    '─ crew · round over · 1m',
     '  × Bolt    40s  Revisar README',
     '  ✓ Pip   1m 0s  Arreglar tests',
   ])
@@ -296,8 +296,8 @@ test("a round of two workers, or one longer than the interval, ends in one summa
   await done()
   await clock.advance(1000)
   expect(placed).toHaveLength(3)
-  expect(await lines(placed[2]!)).toEqual(['─ crew · ronda terminada · 3m', '  ✓ Mika  3m 20s  Migración'])
-  expect(await lines(placed[0]!)).toEqual(['─ crew · ronda de 1m · × Bolt 40s · ✓ Pip 1m 0s'])
+  expect(await lines(placed[2]!)).toEqual(['─ crew · round over · 3m', '  ✓ Mika  3m 20s  Migración'])
+  expect(await lines(placed[0]!)).toEqual(['─ crew · round of 1m · × Bolt 40s · ✓ Pip 1m 0s'])
   await clock.advance(200_000)
   expect(placed).toHaveLength(3)
 })
@@ -312,14 +312,14 @@ test("the team view gives each worker its phase, and its run's calls and time or
   await clock.advance(372_000)
   await end('agent-2')
   await clock.advance(4000)
-  await crewCommand($, 'equipo')
+  await crewCommand($, 'team')
   const ui = await $.ui.mount({ ...PANE, surface: 'terminal' })
-  expect(await ui.find({ type: 'Text', text: /^probando$/ })).toBeDefined()
-  expect(await ui.find({ type: 'Text', text: /^6m · 1 llamada$/ })).toBeDefined()
-  expect(await ui.find({ type: 'Text', text: /^última 6m 12s · 2 llamadas$/ })).toBeDefined()
+  expect(await ui.find({ type: 'Text', text: /^testing$/ })).toBeDefined()
+  expect(await ui.find({ type: 'Text', text: /^6m · 1 call$/ })).toBeDefined()
+  expect(await ui.find({ type: 'Text', text: /^last 6m 12s · 2 calls$/ })).toBeDefined()
   // The cards of the main view stay as they were.
   await ui.press({ key: 'crew-back' })
-  expect(await ui.find({ type: 'Text', text: /llamada/ })).toBeUndefined()
+  expect(await ui.find({ type: 'Text', text: /\d calls?\b/ })).toBeUndefined()
   await ui.unmount()
 })
 
@@ -336,15 +336,17 @@ test("a worker's end bubble says how long its run took when the notification doe
     task: { id: 'agent-1', status, ...(durationMs !== undefined ? { durationMs } : {}) },
   })
   const measured = await mountSaid($, 'end-a', note('killed'))
-  expect((await frameRows(measured))[0]).toMatch(/^╭─ Pip → Nova · ■ detenido · paso 2\/4 · 6m 12s ─+╮$/)
+  expect((await frameRows(measured))[0]).toMatch(/^╭─ Pip → Nova · ■ stopped · step 2\/4 · 6m 12s ─+╮$/)
   await measured.unmount()
   // The notification's own time comes first; a finished run names no step.
   const own = await mountSaid($, 'end-b', note('completed', 4000))
-  expect((await frameRows(own))[0]).toMatch(/^╭─ Pip → Nova · ✓ listo · 4s ─+╮$/)
+  expect((await frameRows(own))[0]).toMatch(/^╭─ Pip → Nova · ✓ done · 4s ─+╮$/)
   await own.unmount()
 })
 
-test('progress reaches no model: no prompt section, no message context, no message, no stored row', SLOW, async ($, on) => {
+// In Spanish, so that no word of the UI's reads as the English the models
+// are given: the check looks for the UI's words in what a model reads.
+test('progress reaches no model: no prompt section, no message context, no message, no stored row', { ...SLOW, options: { language: 'es' } }, async ($, on) => {
   const session = mock.session(on)
   const contexts: (readonly string[] | undefined)[] = []
   on('prompt.submit', (_, e) => {
@@ -399,11 +401,11 @@ test('progress reaches no model: no prompt section, no message context, no messa
 
 // The words the width tests look for, in each language they run in.
 const WIDTH_WORDS = {
-  es: { calls: /llamada/, step: /^paso /, share: /% de los pasos$/, running: 'ejecutando' },
-  en: { calls: /\bcalls?\b/, step: /^step /, share: /% of the steps$/, running: 'running' },
+  en: { team: 'team', calls: /\bcalls?\b/, step: /^step /, share: /% of the steps$/, running: 'running' },
+  es: { team: 'equipo', calls: /llamada/, step: /^paso /, share: /% de los pasos$/, running: 'ejecutando' },
 }
 
-for (const [columns, language] of [[48, 'es'], [34, 'es'], [34, 'en']] as const) {
+for (const [columns, language] of [[48, 'en'], [34, 'en'], [48, 'es'], [34, 'es']] as const) {
   const words = WIDTH_WORDS[language]
   test(`progress fits ${columns} columns in ${language}: the status line, the placed rows and the team view`, { ...SLOW, options: { language } }, async ($, on) => {
     const { clock, status, placed, delegate, end, lines } = await progressCrew($, on)
@@ -418,7 +420,7 @@ for (const [columns, language] of [[48, 'es'], [34, 'es'], [34, 'en']] as const)
     await progress($, 'agent-3', 0, 4, step)
     await progress($, 'agent-3', 2, 12, step)
     await progress($, 'agent-4', 1, 10, step)
-    await $.command.run({ command: 'crew', args: 'equipo', origin: COMPOSER, presentation: { isFullscreen: false, columns } })
+    await $.command.run({ command: 'crew', args: words.team, origin: COMPOSER, presentation: { isFullscreen: false, columns } })
     await clock.advance(200_000)
     const line = status()!
     expect(line.length).toBeLessThanOrEqual(columns - 2)
@@ -469,8 +471,8 @@ test('a plan is its step, the share of the steps done and, once one is, a guess 
   const third = declarePlan(declared, 3, 5, '  Escribir\n tests ')
   expect(third).toMatchObject({ step: 3, total: 5, done: 2, first: 5, doing: 'Escribir tests' })
   expect(stepBar(third)).toBe('██░░░')
-  expect(stepShare(third)).toBe('40 % de los pasos')
-  expect(stepsLeft(third, 360_000)).toBe('≈9m más (estimado)')
+  expect(stepShare(third)).toBe('40 % of the steps')
+  expect(stepsLeft(third, 360_000)).toBe('≈9m more (estimated)')
   // Nothing is guessed before a step is done, nor once all are.
   expect(stepsLeft(declarePlan(declared, 1, 5, 'x'), 360_000)).toBeUndefined()
   expect(stepsLeft({ done: 5, total: 5 }, 360_000)).toBeUndefined()
@@ -498,7 +500,7 @@ test("a worker's plan shows as its step in the status line, the team view, the c
   await delegate('Review the README', '/work/web', 'Revisar README')
   expect(await progress($, 'agent-1', 0, 5, 'Plan')).toBe('ok; next: step 1 of 5, as you start it.')
   await clock.advance(1000)
-  expect(status()).toBe('crew · Pip 0/5 1s Arreglar tests · Bolt pensando 1s Revisar README')
+  expect(status()).toBe('crew · Pip 0/5 1s Arreglar tests · Bolt thinking 1s Revisar README')
 
   await clock.advance(119_000)
   await progress($, 'agent-1', 3, 5, 'Escribir tests')
@@ -509,14 +511,14 @@ test("a worker's plan shows as its step in the status line, the team view, the c
   expect(status()).toBe('crew · Pip 3/5 3m Arreglar tests · Bolt 1/4 3m Revisar README')
   expect(placed).toHaveLength(1)
   expect(await lines(placed[0]!)).toEqual([
-    '─ crew · 2 activos · ronda 3m',
-    '  Pip   editando  3/5  3m  Escribir tests',
-    '  Bolt  leyendo   1/4  3m  Leer el README',
+    '─ crew · 2 active · round 3m',
+    '  Pip   editing  3/5  3m  Escribir tests',
+    '  Bolt  reading  1/4  3m  Leer el README',
   ])
   // Three of five is two done: the bar and the share count those, and the
   // rest is guessed at their pace. Nothing is guessed for Bolt yet.
   const texts = await teamTexts($)
-  for (const text of ['Escribir tests', 'paso 3/5 · editando · 3m', '██░░░ 40 % de los pasos', '≈4m más (estimado)', 'paso 1/4 · leyendo · 3m', '░░░░ 0 % de los pasos']) {
+  for (const text of ['Escribir tests', 'step 3/5 · editing · 3m', '██░░░ 40 % of the steps', '≈4m more (estimated)', 'step 1/4 · reading · 3m', '░░░░ 0 % of the steps']) {
     expect(texts).toContain(text)
   }
   expect(texts.filter(t => t.startsWith('≈'))).toHaveLength(1)
@@ -528,36 +530,36 @@ test("a worker's plan shows as its step in the status line, the team view, the c
   await clock.advance(180_000)
   expect(placed).toHaveLength(2)
   expect(await lines(placed[1]!)).toEqual([
-    '─ crew · 2 activos · ronda 6m',
-    '  Pip   editando  3/5  6m  Escribir tests',
-    '  Bolt  leyendo   2/4  6m  Corregir enlaces',
+    '─ crew · 2 active · round 6m',
+    '  Pip   editing  3/5  6m  Escribir tests',
+    '  Bolt  reading  2/4  6m  Corregir enlaces',
   ])
-  expect(await lines(placed[0]!)).toEqual(['─ crew · ronda 3m · Pip editando 3/5 3m · Bolt leyendo 1/4 3m'])
+  expect(await lines(placed[0]!)).toEqual(['─ crew · round 3m · Pip editing 3/5 3m · Bolt reading 1/4 3m'])
   await end('agent-1')
   await end('agent-2', 'error')
   await clock.advance(1000)
   expect(placed).toHaveLength(3)
   expect(await lines(placed[2]!)).toEqual([
-    '─ crew · ronda terminada · 6m',
+    '─ crew · round over · 6m',
     '  ✓ Pip   6m 0s  5/5  Arreglar tests',
     '  × Bolt  6m 0s  2/4  Revisar README',
   ])
   const after = await teamTexts($)
-  expect(after).toContain('última 6m 0s · 1 llamada · 5/5 pasos')
-  expect(after).toContain('última 6m 0s · 1 llamada · 2/4 pasos')
+  expect(after).toContain('last 6m 0s · 1 call · 5/5 steps')
+  expect(after).toContain('last 6m 0s · 1 call · 2/4 steps')
 })
 
 test("the orchestrator's progress call is turned down and changes nothing; a worker's that makes no sense too", async ($, on) => {
   const { clock, status, delegate } = await progressCrew($, on)
   await delegate('Fix the tests', '/work/api', 'Arreglar tests')
   await clock.advance(1000)
-  expect(status()).toBe('crew · Pip pensando 1s Arreglar tests')
+  expect(status()).toBe('crew · Pip thinking 1s Arreglar tests')
   expect(await progress($, undefined, 2, 4, 'Coordinar')).toBe('crew: progress is for workers; nothing changed.')
   expect(await progress($, 'agent-1', -1, 0, 'Nada')).toBe('crew: step is 0 or more and total 1 or more.')
   await clock.advance(1000)
-  expect(status()).toBe('crew · Pip pensando 2s Arreglar tests')
+  expect(status()).toBe('crew · Pip thinking 2s Arreglar tests')
   expect(String((await $.tool.call({ tool: 'mcp__crew__roster' })).result)).not.toMatch(/step/)
-  expect((await teamTexts($)).some(t => /paso|%|≈/.test(t))).toBe(false)
+  expect((await teamTexts($)).some(t => /step|%|≈/.test(t))).toBe(false)
 })
 
 test('a plan that grows says so, and the time left is guessed only once a step is done, marked ≈', async ($, on) => {
@@ -567,21 +569,21 @@ test('a plan that grows says so, and the time left is guessed only once a step i
   await progress($, 'agent-1', 1, 4, 'Leer')
   await clock.advance(120_000)
   let texts = await teamTexts($)
-  expect(texts).toContain('paso 1/4 · leyendo · 2m')
-  expect(texts.some(t => /≈|más|creció/.test(t))).toBe(false)
+  expect(texts).toContain('step 1/4 · reading · 2m')
+  expect(texts.some(t => /≈|more|grew/.test(t))).toBe(false)
 
   // One done in 2m, three left.
   await progress($, 'agent-1', 2, 4, 'Arreglar')
   texts = await teamTexts($)
-  expect(texts).toContain('≈6m más (estimado)')
+  expect(texts).toContain('≈6m more (estimated)')
 
   await progress($, 'agent-1', 3, 6, 'Más tests')
   await clock.advance(1000)
   expect(status()).toBe('crew · Pip 3/6 2m Arreglar tests')
   texts = await teamTexts($)
-  expect(texts).toContain('paso 3/6 · el plan creció · leyendo · 2m')
-  expect(texts).toContain('██░░░░ 33 % de los pasos')
-  expect(texts).toContain('≈4m más (estimado)')
+  expect(texts).toContain('step 3/6 · the plan grew · reading · 2m')
+  expect(texts).toContain('██░░░░ 33 % of the steps')
+  expect(texts).toContain('≈4m more (estimated)')
 })
 
 test('without a plan there is no step, no share and no guess: the phase as before', SLOW, async ($, on) => {
@@ -589,14 +591,16 @@ test('without a plan there is no step, no share and no guess: the phase as befor
   await delegate('Fix the tests', '/work/api', 'Arreglar tests')
   await $.tool.call({ tool: 'Bash', command: 'npm test', agentId: 'agent-1' })
   await clock.advance(180_000)
-  expect(status()).toBe('crew · Pip probando 3m Arreglar tests')
-  expect(await lines(placed[0]!)).toEqual(['─ crew · 1 activo · ronda 3m', '  Pip  probando  3m  Bash npm test'])
+  expect(status()).toBe('crew · Pip testing 3m Arreglar tests')
+  expect(await lines(placed[0]!)).toEqual(['─ crew · 1 active · round 3m', '  Pip  testing  3m  Bash npm test'])
   const texts = await teamTexts($)
-  expect(texts).toContain('3m · 1 llamada')
-  expect(texts.some(t => /paso|%|≈|█|░/.test(t))).toBe(false)
+  expect(texts).toContain('3m · 1 call')
+  expect(texts.some(t => /step|%|≈|█|░/.test(t))).toBe(false)
 })
 
-test("the roster gives an active worker's step, the one part of progress a model reads", async ($, on) => {
+// In Spanish, as the test above: the roster's own step is English, the UI's
+// is not.
+test("the roster gives an active worker's step, the one part of progress a model reads", { options: { language: 'es' } }, async ($, on) => {
   const { delegate, end } = await progressCrew($, on)
   await delegate('Fix the tests', '/work/api', 'Arreglar tests')
   await delegate('Review the README', '/work/web', 'Revisar README')
@@ -652,11 +656,11 @@ test('a worker that declared its plan and said no step more ends with it whole; 
   await clock.advance(180_000)
   expect(placed).toHaveLength(2)
   const rows = await lines(placed[1]!, 100)
-  expect(rows).toContainEqual(expect.stringMatching(/^  Pip +✓ listo +4\/4 +3m +Map code for beehives task$/))
-  expect(rows).toContainEqual(expect.stringMatching(/^  Bolt +× detenido +2\/4 +3m +Revisar README$/))
+  expect(rows).toContainEqual(expect.stringMatching(/^  Pip +✓ done +4\/4 +3m +Map code for beehives task$/))
+  expect(rows).toContainEqual(expect.stringMatching(/^  Bolt +× stopped +2\/4 +3m +Revisar README$/))
   const texts = await teamTexts($)
-  expect(texts).toContain('última 3m 0s · 0 llamadas · 4/4 pasos')
-  expect(texts).toContain('última 3m 0s · 0 llamadas · 2/4 pasos')
+  expect(texts).toContain('last 3m 0s · 0 calls · 4/4 steps')
+  expect(texts).toContain('last 3m 0s · 0 calls · 2/4 steps')
 })
 
 test("a new task for a free worker whose run's end was missed starts afresh: no plan, no time, no todo items of the last", async ($, on) => {
@@ -674,7 +678,7 @@ test("a new task for a free worker whose run's end was missed starts afresh: no 
   await $.tool.call({ tool: 'mcp__crew__roster' })
   expect(await delegate('Now the login', '/work/api', 'Login')).toMatch(/^Given to Pip /)
   await clock.advance(1000)
-  expect(status()).toBe('crew · Pip pensando 1s Login')
+  expect(status()).toBe('crew · Pip thinking 1s Login')
   // Its old run ended unseen a while ago: no toast for it now.
   expect(toasts).toEqual([])
   await $.tool.call({ tool: 'TaskCreate', subject: 'Login', description: 'Login', agentId: 'agent-1' })
@@ -705,7 +709,7 @@ test("a worker's own todo list stands in for a plan it did not declare, and a de
   const texts = await teamTexts($)
   expect(texts).toContain('Writing tests')
   expect(texts).toContain('Corrigiendo enlaces')
-  expect(texts).toContain('█░░░ 25 % de los pasos')
+  expect(texts).toContain('█░░░ 25 % of the steps')
 
   // Declared with the tool, the plan is the worker's word: a later list
   // leaves it be.
@@ -775,7 +779,7 @@ for (const columns of [48, 34]) {
       expect(c.text).toMatch(SAME_EVERYWHERE)
     }
     const texts = await teamTexts($)
-    for (const word of ['esperando', 'falló', 'detenido', 'arrancando', 'listo']) expect(texts).toContain(word)
+    for (const word of ['waiting', 'failed', 'stopped', 'starting', 'done']) expect(texts).toContain(word)
   })
 }
 
@@ -785,16 +789,16 @@ test('what a worker does stays whole in the team view and the check-ins', SLOW, 
   await $.tool.call({ tool: 'Bash', command: 'npm run build -- --verbose', agentId: 'agent-1' })
   await clock.advance(180_000)
   expect((await cardLines($)).map(c => c.text)).toEqual(['3m'])
-  expect(await lines(placed[0]!)).toEqual(['─ crew · 1 activo · ronda 3m', '  Pip  ejecutando  3m  Bash npm run build -- --verbose'])
+  expect(await lines(placed[0]!)).toEqual(['─ crew · 1 active · round 3m', '  Pip  running  3m  Bash npm run build -- --verbose'])
   expect(await teamTexts($)).toContain('Bash npm run build -- --verbose')
 })
 
 // ---- ends ----
 
 test("a run's end toast says who, how, the task and the time; a failed or stopped one the step it stopped on", () => {
-  expect(endNotice({ id: 'a', name: 'Pip', end: 'done', doing: 'Arreglar tests', plan: declarePlan(undefined, 4, 4, 'x'), ms: 725_000 })).toBe('✓ Pip terminó: Arreglar tests · 12m 5s')
-  expect(endNotice({ id: 'b', name: 'Bolt', end: 'failed', doing: 'Revisar README', plan: declarePlan(undefined, 2, 4, 'x'), ms: 180_000 })).toBe('× Bolt falló: Revisar README · paso 2/4 · 3m 0s')
-  expect(endNotice({ id: 'c', name: 'Mika', end: 'stopped', doing: '', ms: 4_000 })).toBe('× Mika detenido · 4s')
+  expect(endNotice({ id: 'a', name: 'Pip', end: 'done', doing: 'Arreglar tests', plan: declarePlan(undefined, 4, 4, 'x'), ms: 725_000 })).toBe('✓ Pip finished: Arreglar tests · 12m 5s')
+  expect(endNotice({ id: 'b', name: 'Bolt', end: 'failed', doing: 'Revisar README', plan: declarePlan(undefined, 2, 4, 'x'), ms: 180_000 })).toBe('× Bolt failed: Revisar README · step 2/4 · 3m 0s')
+  expect(endNotice({ id: 'c', name: 'Mika', end: 'stopped', doing: '', ms: 4_000 })).toBe('× Mika stopped · 4s')
 })
 
 test("a worker whose report goes to its parent ends in one line of its own here, once the main turn is over; one reporting here, in its bubble alone", async ($, on) => {
@@ -814,16 +818,16 @@ test("a worker whose report goes to its parent ends in one line of its own here,
   await done()
   await clock.advance(1000)
   expect(placed).toHaveLength(2)
-  expect(await lines(placed[0]!)).toEqual(['✓ Bolt terminó: Tickets · 1m 5s'])
-  expect(await lines(placed[1]!)).toEqual(['× Mika falló: Carrito · paso 2/4 · 1m 5s'])
+  expect(await lines(placed[0]!)).toEqual(['✓ Bolt finished: Tickets · 1m 5s'])
+  expect(await lines(placed[1]!)).toEqual(['× Mika failed: Carrito · step 2/4 · 1m 5s'])
 
   // Pip's report comes here: its bubble is its line. What is placed is the
   // round's summary, now that nobody works, and no line of Pip's end.
   await end('agent-1')
   await clock.advance(5000)
   const after = await Promise.all(placed.slice(2).map(id => lines(id)))
-  expect(after.map(rows => rows[0])).toEqual([expect.stringMatching(/^─ crew · ronda terminada · /)])
-  expect(toasts).toEqual(['✓ Bolt terminó: Tickets · 1m 5s', '× Mika falló: Carrito · paso 2/4 · 1m 5s', '✓ Pip terminó: Checkout · 1m 9s'])
+  expect(after.map(rows => rows[0])).toEqual([expect.stringMatching(/^─ crew · round over · /)])
+  expect(toasts).toEqual(['✓ Bolt finished: Tickets · 1m 5s', '× Mika failed: Carrito · step 2/4 · 1m 5s', '✓ Pip finished: Checkout · 1m 9s'])
 })
 
 test('an agent its worker woke ends in one line here, its report going to that worker', async ($, on) => {
@@ -851,10 +855,10 @@ test('an agent its worker woke ends in one line here, its report going to that w
   }
   expect(await Promise.all(placed.map(first))).toEqual([
     '● Pip → Bolt: Pip: are you on router.ts?',
-    '✓ Bolt terminó: Session bus · 0s',
-    '● Pip → Bolt: Pip: both fixed · lo despierta',
-    '✓ Bolt terminó: Session bus · 30s',
-    expect.stringMatching(/^─ crew · ronda terminada · /),
+    '✓ Bolt finished: Session bus · 0s',
+    '● Pip → Bolt: Pip: both fixed · wakes it',
+    '✓ Bolt finished: Session bus · 30s',
+    expect.stringMatching(/^─ crew · round over · /),
   ])
 })
 
@@ -867,7 +871,7 @@ test("a worker's end is seen at once: a toast, and for half a minute its card's 
   await clock.advance(65_000)
   await end('agent-1')
   await end('agent-2', 'aborted')
-  expect(toasts).toEqual(['✓ Pip terminó: Arreglar tests · 1m 5s', '× Bolt detenido: Revisar README · paso 2/4 · 1m 5s'])
+  expect(toasts).toEqual(['✓ Pip finished: Arreglar tests · 1m 5s', '× Bolt stopped: Revisar README · step 2/4 · 1m 5s'])
 
   // The engine has Pip free since, yet its card keeps the row, its word in
   // a block of its color, and its figure cheers instead of napping.
@@ -897,11 +901,12 @@ test("a worker's end is seen at once: a toast, and for half a minute its card's 
 test("a message's line says who to whom, its gist, and whether it woke the recipient or never got there; the gist gives way first", () => {
   const text = (pieces: { text: string }[]) => pieces.map(p => p.text).join('')
   const note = { fromId: 'agent-2', from: 'Bolt', toId: 'agent-1', to: 'Pip', gist: 'router fixed', wakes: true, isLost: false }
-  expect(text(notePieces(note, 80))).toBe('● Bolt → Pip: router fixed · lo despierta')
+  expect(text(notePieces(note, 80))).toBe('● Bolt → Pip: router fixed · wakes it')
   expect(text(notePieces({ ...note, wakes: false }, 80))).toBe('● Bolt → Pip: router fixed')
-  expect(text(notePieces({ ...note, isLost: true, wakes: false }, 80))).toBe('● Bolt → Pip: router fixed · no entregado')
-  expect(text(notePieces(note, 36))).toBe('● Bolt → Pip: router… · lo despierta')
-  expect(text(notePieces(note, 30))).toBe('● Bolt → Pip · lo despierta')
+  expect(text(notePieces({ ...note, isLost: true, wakes: false }, 80))).toBe('● Bolt → Pip: router fixed · not delivered')
+  expect(text(notePieces(note, 36))).toBe('● Bolt → Pip: router fix… · wakes it')
+  expect(text(notePieces(note, 30))).toBe('● Bolt → Pip: rout… · wakes it')
+  expect(text(notePieces(note, 28))).toBe('● Bolt → Pip · wakes it')
   // Names in their worker's color; one outside the crew, plain.
   const outside = notePieces({ ...note, toId: '', to: 'otra-sesion', wakes: false }, 80)
   expect(outside.map(p => p.role)).toEqual(['head', 'name', 'head', 'phase', 'doing'])
@@ -934,7 +939,7 @@ test('every message between agents has its line here once the main turn is over;
   await send('main', 'Bolt: the channel is up')
   await clock.advance(1000)
   expect(placed).toHaveLength(2)
-  expect(await lines(placed[1]!)).toEqual(['● Bolt → Pip: Bolt: both fixed · lo despierta'])
+  expect(await lines(placed[1]!)).toEqual(['● Bolt → Pip: Bolt: both fixed · wakes it'])
   expect(seen.sends[seen.sends.length - 1]).toMatch(/^\[crew\] From Bolt \("bolt"\), passed on by the crew: /)
 
   // One the crew could not pass on: a line that says so, and a toast.
@@ -943,6 +948,6 @@ test('every message between agents has its line here once the main turn is over;
   ;(seen as { failSends?: boolean }).failSends = true
   await send('pip', 'Bolt: one more thing')
   await clock.advance(1000)
-  expect(await lines(placed[placed.length - 1]!)).toEqual(['● Bolt → Pip: Bolt: one more thing · no entregado'])
-  expect(toasts[toasts.length - 1]).toMatch(/^No llegó a Pip el mensaje de Bolt: /)
+  expect(await lines(placed[placed.length - 1]!)).toEqual(['● Bolt → Pip: Bolt: one more thing · not delivered'])
+  expect(toasts[toasts.length - 1]).toMatch(/^Bolt's message did not reach Pip: /)
 })
