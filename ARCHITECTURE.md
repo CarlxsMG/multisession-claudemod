@@ -47,7 +47,7 @@ the debug log. Its `unrecognized` logs there an engine text the crew reads in no
 | `src/settings/` | What the user changes: the look (`look.ts`), delegation and the `[crew]` note (`notes.ts`), Haiku's mood lines (`mood-lines.ts`). |
 | `src/figure/` | The pictures: the catalog of parts and colours, the orchestrator's critter, the workers' diamonds, the animation of each state, rasterizing to cells or SVG, looks and share codes, accent colours, the 256-colour mapping. |
 | `src/ui/pane/` | The pane: how it opens (`index.tsx`), its timer and repainting (`animation.ts`), its views (`main.tsx`, `editor.tsx`, `team.tsx`), the feed (`feed.tsx`), shared widgets. |
-| `src/ui/transcript/` | The crew's rows in the conversation: bubbles for crew calls, worker reports and task notifications, and the placed rows. |
+| `src/ui/transcript/` | The crew's rows in the conversation: bubbles or one-line cards for crew calls, worker reports and task notifications, and the placed rows. |
 | `src/ui/labels.ts` | The words, marks and colours of each worker status and run end. |
 | `src/usage/limits.ts` | The account's usage windows, and the usage probe. |
 | `src/i18n/` | The UI's text in English and Spanish, and the locale. See [docs/i18n.md](docs/i18n.md). |
@@ -296,12 +296,24 @@ end, or `stopped` when that end never reached the crew and the engine had listed
   `$.ui.blit` on the pane tick without a render pass, and only when a frame changes something.
   The desktop app, the editors and the phone draw the figures as `Svg`; no blit reaches them, so
   the pane is redrawn every few seconds there (`pane.asPage`).
-- **Bubbles in the conversation** (terminal only). `ToolUse` and `ToolResult` of `delegate`,
-  `SendMessage` and `TaskStop` from the main conversation, and `UserMessage` for a worker's report
-  or message and for task notifications, are drawn as bubbles in the worker's colour. Drawing
-  only: the stored transcript and what any model reads stay the same. Anything the crew cannot
-  place, and errors, keep the engine's drawing. In full-screen mode a cut bubble opens with a
-  click on its `…`.
+- **Rows in the conversation.** `ToolUse` and `ToolResult` of `delegate`, `SendMessage` and
+  `TaskStop` from the main conversation, and `UserMessage` for a worker's report or message and
+  for task notifications. Each surface draws them its own way, and `callRow` (`tool-use.tsx`) and
+  `saidRow` (`user-message.tsx`) work out what they say for all of them: who to whom, title, foot,
+  how it ended and in whose colour. Drawing only: the stored transcript and what any model reads
+  stay the same. Anything the crew cannot place, and errors, keep the engine's drawing.
+  - `terminal`: bubbles in the worker's colour. In full-screen mode a cut bubble opens with a
+    click on its `…`.
+  - `desktop` and `vscode`: one-line cards (`card.tsx`, `crewCard`). A worker's figure as `Svg`, its
+    pose frozen at the row's end, beside the line (`cardLine`), and a `Button` of its own, `▸`, where
+    the line does not hold the whole text: a press shows it under the line as `Markdown` and is kept
+    in `opened`, as a bubble's is. The figure stands apart because a `Button` holds only text. A
+    card ignores `isExpanded`: on a surface with no ctrl+o the engine may set it on every row. A
+    crew call's `ToolResult` is blank there as on the terminal, its words being in the card.
+  - `mobile`: the engine's rows, with no hook, as on the narrow screen the pane is a page of its own.
+    A surface under any other name is not selected by the matchers either, and keeps them too. The
+    engine names only these four: an editor that reports `vscode` gets the cards, and one that runs
+    Claude Code in its own terminal (JetBrains IDEs do) is `terminal`.
   A row the atoms know nothing of, as in a conversation resumed after Claude Code restarted, is
   drawn from what the row carries (`recover.ts`): the worker's name and address from the call's
   input or result, or the name a message's sender has; its colour where the row gives the

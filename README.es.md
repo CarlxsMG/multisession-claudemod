@@ -57,6 +57,22 @@ falla en tiempo real.
   Es solo dibujo: lo que se guarda y lo que lee cualquier modelo no cambia. Con ctrl+o cada una se
   ve entera.
 
+  Qué muestra cada superficie:
+
+  | Dónde | Las filas del equipo en la conversación |
+  | --- | --- |
+  | Terminal | Las burbujas de arriba. Un editor que ejecuta Claude Code en su propia terminal, como los IDE de JetBrains, muestra estas. |
+  | App de escritorio y VS Code | Tarjetas de una línea: la figura del worker, quién a quién, el título, el pie y cómo terminó. Al pulsar `▸` se ve entera la tarea o el informe. |
+  | Móvil | Las filas propias de Claude Code. |
+
+  ```
+  ◆ Nova → Pip · Arreglar tests · nuevo              ▸
+  ◆ Pip → Nova · Pasan los 42 tests; el arreglo…     ▸
+  ◆ Pip → Nova · ✓ listo · 2m 5s · Arreglar tests
+  ```
+
+  El panel muestra el equipo en todas.
+
   El crew no guarda nada de una conversación en disco, así que tras reiniciar Claude Code las
   burbujas anteriores de una conversación reanudada se dibujan con lo que lleva cada fila: el
   nombre del worker en las llamadas del orquestador y en lo que mandan los workers, el título de
@@ -157,7 +173,8 @@ el editor: `r` aleatorio, `l` listo (`d` en inglés) y, en Compartir, `c` copia 
   `USERPROFILE`, aunque no haya `HOME`) y rutas de red (`\\servidor\recurso`); mayúsculas y barras
   distintas cuentan como el mismo repositorio.
 - La terminal dibuja las figuras como celdas y las repinta en su sitio; la app de escritorio, los
-  editores y el móvil las dibujan en SVG. Las burbujas de la conversación son solo de la terminal.
+  editores y el móvil las dibujan en SVG. En **Burbujas en la conversación** está qué dibuja cada
+  uno de las filas del equipo.
 - Se ve igual en Windows Terminal y en el Terminal de macOS: las marcas son caracteres que tienen
   Cascadia Mono, SF Mono y Menlo.
 - En Terminal.app, que Claude Code pinta con 256 colores, cada color de las figuras se toma del
