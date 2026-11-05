@@ -8,6 +8,7 @@ import { quiet } from '../engine'
 import type { Engine } from '../engine'
 import { t } from '../i18n'
 import { beginRun, noteMessage, settleRun } from '../progress/tracker'
+import { runtime } from '../runtime'
 import { readLook, readMembers, readWorkers, updateRelays, updateRoutes } from '../state/atoms'
 import { appendKept, setKept } from '../util/bounded'
 import { ORCH_ID, ROUTES_KEEP, gistOf, headOf, nameOf, say } from './feed'
@@ -17,17 +18,17 @@ import { ACTIVE, findWorker, patchWorker } from './workers'
 
 // Each worker's last SendMessage, by its id: the head of the text, which
 // its send is matched by, and the summary it gave.
-const sendGists = new Map<string, { head: string; gist: string }>()
+const lastSends = runtime.sends
 const SEND_GISTS = 100
 
 /** Keeps a worker's SendMessage summary, which its send's line says in place of the text. */
 export const noteSendGist = (agentId: string, summary: unknown, message: unknown) =>
-  setKept(sendGists, agentId, { head: headOf(String(message ?? '')), gist: gistOf(summary, message) }, SEND_GISTS)
+  setKept(lastSends.gists, agentId, { head: headOf(String(message ?? '')), gist: gistOf(summary, message) }, SEND_GISTS)
 
 // What a worker's send says in a line: the summary its SendMessage gave,
 // else the text's first line.
 function gistOfSend(agentId: string, text: string): string {
-  const s = sendGists.get(agentId)
+  const s = lastSends.gists.get(agentId)
   return s !== undefined && s.head === headOf(text) ? s.gist : gistOf(undefined, text)
 }
 

@@ -1,11 +1,9 @@
 // The pane's feed: the crew's messages, the newest typing out as bubbles,
 // as in a chat.
 import type { Msg } from '../../../types'
-import type { Engine } from '../../engine'
 import { t } from '../../i18n'
 import { oneLine, wrapText } from '../../util/text'
 import { ago } from '../../util/time'
-import { pane, redrawPane } from './animation'
 import type { PaneUi } from './widgets'
 
 const BUBBLE_CHARS = 220
@@ -56,13 +54,14 @@ function revealed(lines: readonly string[], count: number): string[] {
 
 /**
  * The messages under the crew, in the rows it leaves (`feedRows`): the two
- * newest the crew wrote as bubbles, typing out, the rest one line each.
+ * newest the crew wrote as bubbles, typing out, the rest one line each; and
+ * until when the last of them types out (0 when none does).
  */
 export function drawFeed(ui: PaneUi, msgs: readonly Msg[], now: number, width: number, feedRows: number, colorOf: (msg: Msg, side: 'from' | 'to') => string) {
   const { Box, Text } = ui
   const typed = typeSchedule(msgs)
   const lastTyped = typed[typed.length - 1]
-  pane.typingUntil = lastTyped !== undefined && lastTyped.end > now ? lastTyped.end : 0
+  const typingUntil = lastTyped !== undefined && lastTyped.end > now ? lastTyped.end : 0
   const widest = Math.max(FEED_MIN_COLUMNS, Math.floor(width * FEED_SHARE))
   // Text columns: the frame takes four, the typing cursor one.
   const inner = widest - 5
@@ -132,18 +131,8 @@ export function drawFeed(ui: PaneUi, msgs: readonly Msg[], now: number, width: n
     )
   }
 
-  return (
-    picked.length > 0 && (
-      <Box flexDirection="column">{picked.map(({ entry, lines }) => (lines ? bubble({ entry, lines }) : aside(entry.msg)))}</Box>
-    )
+  const feed = picked.length > 0 && (
+    <Box flexDirection="column">{picked.map(({ entry, lines }) => (lines ? bubble({ entry, lines }) : aside(entry.msg)))}</Box>
   )
-}
-
-/** While a bubble types out, each tick of its own timer draws the pane again. */
-export function typeTick($: Engine) {
-  if (pane.typingUntil === 0) return
-  void $.clock.now().then(now => {
-    if (now >= pane.typingUntil) pane.typingUntil = 0
-    return redrawPane($)
-  })
+  return { feed, typingUntil }
 }

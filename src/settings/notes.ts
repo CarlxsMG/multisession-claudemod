@@ -4,6 +4,7 @@
 import type { CrewSettings, Look } from '../../types'
 import type { Engine } from '../engine'
 import { orchestratorPrompt } from '../prompts/orchestrator'
+import { runtime } from '../runtime'
 import { STORE_KEYS, readBrief, readIsOn, readLook, updateBrief, updateIsOn, updatePendingNote } from '../state/atoms'
 import { setKept } from '../util/bounded'
 
@@ -68,13 +69,13 @@ export async function saveTold($: Engine, id: string, told: CrewSettings) {
 // The conversation the last check was for: a new id (a start, a resume, a
 // /clear) is checked once against what that conversation was last told, or,
 // never told, against the brief it reads.
-let checkedSession: string | undefined
+const checks = runtime.told
 
 /** `isLoad`: checked again on a load, whatever the last check was for. */
 export async function checkConversation($: Engine, isLoad = false) {
   const id = await sessionKey($)
-  if (!isLoad && id === checkedSession) return
-  checkedSession = id
+  if (!isLoad && id === checks.checked) return
+  checks.checked = id
   const told = (await toldMap($))[id]
   const look = await readLook($)
   const on = await readIsOn($)

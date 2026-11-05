@@ -53,6 +53,7 @@ the debug log. Its `unrecognized` logs there an engine text the crew reads in no
 | `src/i18n/` | The UI's text in English and Spanish, and the locale. See [docs/i18n.md](docs/i18n.md). |
 | `src/state/atoms.ts` | Every atom and its `readX`/`updateX` pair, and `STORE_KEYS`. |
 | `src/config.ts` | The names the crew registers under, the pane's tick, and the limits the roster and the briefs share. |
+| `src/runtime.ts` | What one load keeps in memory beside the atoms, and `resetRuntime`. See [Runtime state](#runtime-state-srcruntimets). |
 | `src/util/` | Pure helpers: text fitting, time, paths (POSIX and Windows), base64, seeded random, bounded lists, tool-input reading. |
 | `types/index.d.ts` | The state contract (`PluginState.crew`) and the domain types. |
 
@@ -97,6 +98,30 @@ under, so it never changes even where the code name differs.
 
 Every `read`/`update` of an atom is in `src/state/atoms.ts`: the validator finds the state a hook
 touches only in the file that declares the atom.
+
+### Runtime state (`src/runtime.ts`)
+
+What the hooks, the timers and the drawings of one load leave each other in memory, not worth a
+write to `$.state`: delegate's intents, the Agent calls that asked for a worktree, the workers'
+last send summaries, the relay and release flags, the names given, the agents the engine
+listed, the progress tracker's interval, status line, widths, run times and TaskCreate items,
+the tool calls held for the next frame, the usage probe's permission and time, the pane's frame,
+rasters and the redraws it owes, the first title of each end-of-task row, the last `[crew]`
+check, the mood lines asked for, and the kinds of engine wording logged. It is one typed object
+in parts, each read and written only by the module its comment names; another module goes
+through that module's functions. It imports types only.
+
+A reload reads afresh only the modules whose code changed, so `session.start` calls
+`resetRuntime()` first: every part starts as a fresh load has it, whichever modules the reload
+kept. A load starts with the relays due, so messages a reload caught on their way go at the
+first tick. Kept across it (`carried`): the chains that order delegate calls and the calls'
+writes, which work an earlier session started still holds its place in, and the count that keeps
+placed rows' ids apart, as those rows outlive the load.
+
+Outside it: what `register` takes from the plugin's options before the session starts (the
+`language` and `usageProbe` choices), the locale and the 256-colour palette `session.start`
+settles (read on every drawing, through `t()` and `onScreen`), and the colour-fitting memo of
+`src/figure/color256.ts`, which gives the same answer in any session.
 
 ### Store (`STORE_KEYS`)
 
@@ -340,8 +365,9 @@ is noticed in the debug log: `unrecognized($, kind, detail)` (`src/engine.ts`) w
 - The crew's three tool matchers are patterns (`/^mcp__crew__delegate$/`…), so type-checking does
   not depend on which MCP tools the engine's generated list held at the last load.
 - The runtime strips types only: no `enum`, no parameter properties.
-- A module's `let` cannot be assigned from another module; shared mutable state lives in objects
-  (`pane`, `probe`) or behind setters.
+- A module's `let` cannot be assigned from another module; a load's runtime state lives in the
+  parts of `runtime` (`src/runtime.ts`), each written by one module, which others reach through
+  its functions.
 - `tsc` needs `.claude-plugin/types/`, which Claude Code writes when it loads the plugin and which
   is not committed (it is about 1 MB and lists the machine's MCP tools).
 

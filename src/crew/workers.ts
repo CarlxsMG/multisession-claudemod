@@ -5,6 +5,7 @@ import type { AgentStatus } from 'claude-code'
 import type { Member, Worker, WorkerStatus } from '../../types'
 import type { Engine } from '../engine'
 import { freshName, isWorkerName } from '../persona/names'
+import { runtime } from '../runtime'
 import { readDropped, readMembers, readWorkers, updateDropped, updateWorkers } from '../state/atoms'
 import { appendKept } from '../util/bounded'
 import { hash } from '../util/random'
@@ -41,7 +42,7 @@ export const statusOf = (status: string): WorkerStatus | undefined =>
 // The names given in this load, the moment each is chosen: spawns of one
 // response run at once, and each reads the list before the other's worker
 // is on it.
-const claimed = new Set<string>()
+const names = runtime.names
 
 /**
  * What no new worker may be called, lowercase: the name and the address of
@@ -66,17 +67,17 @@ export async function takenNow($: Engine, list: readonly Worker[]): Promise<Set<
  * What it answers is taken from here on.
  */
 export function claimName(taken: ReadonlySet<string>, wanted?: string): { name: string; isWantedFree: boolean } {
-  const isFree = (x: string) => !taken.has(x.toLowerCase()) && !claimed.has(x.toLowerCase())
+  const isFree = (x: string) => !taken.has(x.toLowerCase()) && !names.claimed.has(x.toLowerCase())
   const isWantedFree = wanted !== undefined && isFree(wanted)
-  const name = wanted !== undefined && isWantedFree && isWorkerName(wanted) ? cap(wanted) : freshName(new Set([...taken, ...claimed]))
-  claimed.add(name.toLowerCase())
-  if (wanted !== undefined && isWantedFree) claimed.add(wanted.toLowerCase())
+  const name = wanted !== undefined && isWantedFree && isWorkerName(wanted) ? cap(wanted) : freshName(new Set([...taken, ...names.claimed]))
+  names.claimed.add(name.toLowerCase())
+  if (wanted !== undefined && isWantedFree) names.claimed.add(wanted.toLowerCase())
   return { name, isWantedFree }
 }
 
 /** Gives back the names a spawn that started nothing took. */
-export const unclaimNames = (...names: string[]) => {
-  for (const name of names) claimed.delete(name.toLowerCase())
+export const unclaimNames = (...given: string[]) => {
+  for (const name of given) names.claimed.delete(name.toLowerCase())
 }
 
 /**

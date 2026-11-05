@@ -8,6 +8,7 @@ import { modelAlias } from '../model-label'
 import { beginRun, settleRun } from '../progress/tracker'
 import { renamedAgent } from '../prompts/results'
 import { forkPreamble, gitRules, workerPreamble } from '../prompts/worker'
+import { runtime } from '../runtime'
 import {
   readDropped,
   readIsOn,
@@ -21,26 +22,32 @@ import {
 import { setKept } from '../util/bounded'
 import { samePath } from '../util/path'
 import { cap, oneLine } from '../util/text'
-import { intended } from './delegate'
+import { takeIntent } from './delegate'
 import { ORCH_ID, enlist, say, setJob } from './feed'
 import { FINISHED, claimName, findWorker, makeWorker, patchWorker, prune, shelve, takenNow, unclaimNames, unshelve } from './workers'
 
-/**
- * The Agent calls that asked for a worktree, by tool_use_id: their agent
- * works there, not in the repository the worktree was made from.
- */
-export const isolated = new Set<string>()
-
-// What an Agent call's model reads after its result when the crew named
-// its agent otherwise than the call did, by tool_use_id: the name its card
-// and the roster show, and the address SendMessage reaches it by.
-const renamed = new Map<string, string>()
+// The Agent calls that asked for a worktree, whose agent works there, not
+// in the repository the worktree was made from; and what an Agent call's
+// model reads after its result when the crew named its agent otherwise than
+// the call did: the name its card and the roster show, and the address
+// SendMessage reaches it by. Both by tool_use_id.
+const agentCalls = runtime.spawn
 const RENAMED_KEEP = 50
+
+/** An Agent call asked for a worktree: its agent works there. */
+export function noteIsolated(toolUseId: string) {
+  agentCalls.isolated.add(toolUseId)
+}
+
+/** An Agent call that asked for a worktree spawns nothing. */
+export function forgetIsolated(toolUseId: string) {
+  agentCalls.isolated.delete(toolUseId)
+}
 
 /** The word for an Agent call whose agent the crew named otherwise, once. */
 export function takeRenamed(toolUseId: string): string | undefined {
-  const note = renamed.get(toolUseId)
-  renamed.delete(toolUseId)
+  const note = agentCalls.renamed.get(toolUseId)
+  agentCalls.renamed.delete(toolUseId)
   return note
 }
 
@@ -68,15 +75,12 @@ export async function onSpawn($: Engine, e: Parameters<OnSpawnHook>[1], next: Pa
   const sessionCwd = await $.session.cwd()
   // Only a worker `delegate` started, or handed to the orchestrator to
   // start, is the crew's to hand more work to.
-  const byPrompt = e.name === undefined && !e.fork ? [...intended].find(([, m]) => m.task === e.prompt.trim()) : undefined
-  const key = e.name?.toLowerCase() ?? byPrompt?.[0]
-  const intent = key !== undefined ? intended.get(key) : undefined
+  const { key, intent } = takeIntent(e.name, e.prompt, e.fork)
   const isCrew = intent !== undefined && !e.fork
   // A worker's own spawn reports to it, and runs where it does.
   const parent = e.parentAgentId !== undefined ? list.find(w => w.id === e.parentAgentId) : undefined
   const reportsTo = parent?.name ?? look.name
   const cwd = e.cwd ?? intent?.cwd ?? parent?.cwd ?? sessionCwd
-  if (key !== undefined) intended.delete(key)
   // Delegate's own, or one it handed to the orchestrator to start, has the
   // name delegate gave it; any other takes one no other member has, the
   // name its call gave when that fits.
@@ -87,7 +91,7 @@ export async function onSpawn($: Engine, e: Parameters<OnSpawnHook>[1], next: Pa
   const inWorktree = new Set(await readWorktrees($))
   // Its own worktree, or the one of the worker that starts it, where it
   // starts too unless the call sends it elsewhere.
-  const own = isolated.delete(e.tool_use_id)
+  const own = agentCalls.isolated.delete(e.tool_use_id)
   const shared = !own && e.cwd === undefined && parent !== undefined && inWorktree.has(parent.id)
   const worktree = own || shared
   // Delegate's workers hear the crew's preamble in either mode; with
@@ -118,7 +122,7 @@ export async function onSpawn($: Engine, e: Parameters<OnSpawnHook>[1], next: Pa
   const id = started.agentId
   const address = addressOf(id)
   if (e.name !== undefined && name.toLowerCase() !== e.name.toLowerCase()) {
-    setKept(renamed, e.tool_use_id, renamedAgent(e.name, name, address), RENAMED_KEEP)
+    setKept(agentCalls.renamed, e.tool_use_id, renamedAgent(e.name, name, address), RENAMED_KEEP)
   }
   const now = await $.clock.now()
   const task = e.description || oneLine(e.prompt, 60)

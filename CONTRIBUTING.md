@@ -70,8 +70,10 @@ npx -p typescript tsc -p .
   imports in ASCII order.
 - **The runtime strips types only:** no `enum`, no parameter properties, nothing else in
   TypeScript that emits code.
-- **A module's `let` cannot be assigned from another module.** State shared between modules lives
-  in an object (`pane`, `probe`) or behind a setter.
+- **A module's `let` cannot be assigned from another module.** What a load keeps in memory beside
+  the atoms lives in `src/runtime.ts`, one part per module that reads and writes it; another
+  module goes through that module's functions. `session.start` sets it afresh
+  (`resetRuntime`).
 - **Engine calls that must not break a turn or a timer** go through `quiet()` (`src/engine.ts`),
   which logs the failure to the debug log.
 

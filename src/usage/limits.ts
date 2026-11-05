@@ -4,6 +4,7 @@ import type { Limit } from '../../types'
 import { quiet, unrecognized } from '../engine'
 import type { Engine } from '../engine'
 import { t } from '../i18n'
+import { runtime } from '../runtime'
 import { updateModelLimits } from '../state/atoms'
 import { basename } from '../util/path'
 
@@ -43,16 +44,22 @@ const USAGE_PROBE = [
 ]
 const USAGE_REQUEST = `${JSON.stringify({ type: 'control_request', request_id: 'crew-usage', request: { subtype: 'get_usage' } })}\n`
 const PROBE_MS = 3 * 60_000
-/**
- * Whether this session may ask for the usage, and when it last did. The
- * hooks set `isAllowed`: only the person's own session asks, and only
- * while the crew's `usageProbe` option is not `off` (`isOff`).
- */
-export const probe = { isAllowed: false, isOff: false, at: -Infinity }
+// Whether this session may ask for the usage, and when it last did: only
+// the person's own session asks.
+const probe = runtime.probe
+// The crew's `usageProbe` option is `off`: no session of this load asks.
+let isProbeOff = false
 
 /** Takes the crew's `usageProbe` option as the plugin loads: `off` turns the probe off, anything else leaves it on. */
 export function chooseUsageProbe(option: unknown) {
-  probe.isOff = option === 'off'
+  isProbeOff = option === 'off'
+}
+
+/** Lets this session ask for the usage, as a person is there; true when it could not until now. */
+export function allowUsageProbe(): boolean {
+  if (probe.isAllowed) return false
+  probe.isAllowed = true
+  return true
 }
 
 /**
@@ -96,7 +103,7 @@ export function parseModelLimits(stdout: string, odd: (what: string) => void = (
  */
 export async function probeUsage($: Engine) {
   const now = await $.clock.now()
-  if (probe.isOff || !probe.isAllowed || now - probe.at < PROBE_MS) return
+  if (isProbeOff || !probe.isAllowed || now - probe.at < PROBE_MS) return
   probe.at = now
   const run = (exe: string) =>
     quiet($, $.process.run([exe, ...USAGE_PROBE], { stdin: USAGE_REQUEST, timeoutMs: PROBE_TIMEOUT_MS }), `usage probe ${exe}`)

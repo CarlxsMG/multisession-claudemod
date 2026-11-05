@@ -12,7 +12,7 @@ import type { Picture } from '../../figure/raster'
 import { t } from '../../i18n'
 import { isJustEnded } from '../../progress/runs'
 import { END } from '../labels'
-import { blitted, mounted, pane } from './animation'
+import { drawnAsPage, forgetRasters, keepRaster, pane } from './animation'
 
 type PaneHook = MatchedHook<'ui.render', { component: 'Pane'; requestId: 'crew' }>
 /** The pane's render event. */
@@ -31,16 +31,13 @@ export function startSprites(ui: PaneUi, surface: PaneEvent['surface']) {
   const { Text } = ui
   const Raster = 'Raster' in ui && surface === 'terminal' ? ui.Raster : undefined
   const Svg = 'Svg' in ui && surface !== 'terminal' ? ui.Svg : undefined
-  if (Raster) {
-    mounted.clear()
-    blitted.clear()
-  } else pane.asPage = true
+  if (Raster) forgetRasters()
+  else drawnAsPage()
   return (key: string, make: (f: number) => Picture, scale: number, alt: string, svg = (f: number) => toSvg(make(f), 5 * scale)) => {
     if (Raster) {
       const draw = (f: number) => toCells(make(f), scale)
-      mounted.set(key, draw)
       const cells = draw(pane.frame)
-      blitted.set(key, cells.cells)
+      keepRaster(key, draw, cells.cells)
       return <Raster key={key} columns={cells.columns} rows={cells.rows} cells={cells.cells} />
     }
     if (Svg) return <Svg source={svg(pane.frame)} alt={alt} />

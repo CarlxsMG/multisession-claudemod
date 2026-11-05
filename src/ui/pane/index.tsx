@@ -4,9 +4,10 @@ import type { HookFor } from 'claude-code'
 import { PANE } from '../../config'
 import type { Engine } from '../../engine'
 import { t } from '../../i18n'
+import { runtime } from '../../runtime'
 import { readLook, readPaneTick, readRuns, readView, readWorkers } from '../../state/atoms'
 import { hasApp } from '../../usage/limits'
-import { forgetPane, pane } from './animation'
+import { forgetPane, oweRedraws, pageGone, pane } from './animation'
 import { drawEditor } from './editor'
 import { drawMain } from './main'
 import { drawTeam } from './team'
@@ -20,25 +21,26 @@ export function openPane($: Engine, focus?: boolean) {
 
 // Set when the session started with no surface attached, headless or before
 // the desktop app attached: the pane opens with the first that does.
-let isOpenDue = false
+const opening = runtime.paneOpen
 
 /** Opens the pane where a surface is attached, and with none, once one attaches. */
 export async function openPaneWhenShown($: Engine) {
   const surfaces = await $.session.surfaces().catch(() => [])
-  if (surfaces.length === 0) isOpenDue = true
+  if (surfaces.length === 0) opening.isDue = true
   else void openPane($)
 }
 
 /** A surface attached: the pane opens if the session's start could not open it. */
 export function openPaneOnAttach($: Engine) {
-  if (!isOpenDue) return
-  isOpenDue = false
+  if (!opening.isDue) return
+  opening.isDue = false
   void openPane($)
 }
 
 /**
  * The pane, as the view the person picked: the editor, the whole team, or
- * the orchestrator with its crew and their messages.
+ * the orchestrator with its crew and their messages, whose drawing leaves
+ * the clock the redraws it owes.
  */
 export async function drawPane($: Engine, e: PaneEvent) {
   const ui = $.ui.resolve(e)
@@ -53,7 +55,9 @@ export async function drawPane($: Engine, e: PaneEvent) {
   if (page === 'edit') return drawEditor($, ui, sprite, look, width, height)
   const kit = workerKit($, ui, sprite, look, now, await readWorkers($), await readRuns($))
   if (page === 'crew') return drawTeam($, ui, kit, now, width)
-  return drawMain($, ui, sprite, kit, look, now, width, height)
+  const { view, ...dues } = await drawMain($, ui, sprite, kit, look, now, width, height)
+  oweRedraws(dues)
+  return view
 }
 
 type OnCloseHook = HookFor<'ui.close'>
@@ -71,6 +75,6 @@ type OnDetachHook = HookFor<'session.detach'>
  */
 export async function onDetach($: Engine, e: Parameters<OnDetachHook>[1], next: Parameters<OnDetachHook>[2]) {
   const left = await next(e)
-  if (pane.asPage && !(await hasApp($))) pane.asPage = false
+  if (pane.asPage && !(await hasApp($))) pageGone()
   return left
 }

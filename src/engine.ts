@@ -1,6 +1,8 @@
 // The engine as the crew's helpers take it, every call on `$`.
 import type { EngineInterface } from 'claude-code'
 
+import { runtime } from './runtime'
+
 /** The engine every helper takes as `$`. */
 export type Engine = EngineInterface
 
@@ -18,9 +20,9 @@ export async function quiet<T>($: Engine, work: Promise<T>, where: string): Prom
   }
 }
 
-// The kinds of engine text this load has logged as unrecognized: one line
-// a kind says its wording changed, and the session's later ones add nothing.
-const unrecognizedKinds = new Set<string>()
+// One line a kind says its wording changed, and the load's later ones add
+// nothing.
+const logged = runtime.logged
 
 /**
  * Logs to the debug log, once a load for each `kind`, an engine text or
@@ -28,7 +30,7 @@ const unrecognizedKinds = new Set<string>()
  * came): what reads it falls back, and the line says the wording changed.
  */
 export function unrecognized($: Engine, kind: string, detail: string) {
-  if (unrecognizedKinds.has(kind)) return
-  unrecognizedKinds.add(kind)
+  if (logged.unrecognized.has(kind)) return
+  logged.unrecognized.add(kind)
   $.ui.log(`crew: unrecognized ${kind}: ${detail}`, { to: 'debug' })
 }
