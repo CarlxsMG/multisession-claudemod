@@ -23,11 +23,14 @@ export const CARD_LABEL: Record<WorkerStatus, string> = {
   stopped: 'stop',
 }
 
-/** How a run ended: its mark and its color. */
+/**
+ * How a run ended: its mark and its color. Each end has a mark of its own,
+ * so failed and stopped read apart without color too.
+ */
 export const END: Record<End, { mark: string; color: string }> = {
   done: { mark: '✓', color: 'success' },
   failed: { mark: '×', color: 'error' },
-  stopped: { mark: '×', color: 'warning' },
+  stopped: { mark: '■', color: 'warning' },
 }
 
 /** The verb a line about a run's end takes: `Pip finished`. */

@@ -1,5 +1,6 @@
 // What a figure does in each state, frame by frame: its pose, how it moves,
 // and the mark over its head.
+import { END } from '../ui/labels'
 import { hash } from '../util/random'
 import type { Glyph } from './raster'
 
@@ -137,7 +138,7 @@ function beat(anim: Anim, frame: number, seed: number): Beat {
     case 'sleep':
       return { dy: 0, eyes: 'closed', mark: SNORE[Math.floor(frame / 3) % 4]!, markColor: GREY }
     case 'stopped':
-      return { dy: 0, eyes: 'closed', mark: 'x', markColor: GREY }
+      return { dy: 0, eyes: 'closed', mark: END.stopped.mark, markColor: GREY }
     case 'waiting': {
       // Looks around for whoever it waits on, then taps a foot.
       const at = frame % 16

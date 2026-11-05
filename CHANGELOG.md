@@ -20,6 +20,8 @@ All notable changes to crew are written here. The format follows
 - A worker's tool calls no longer draw the pane again one by one: what it does, its call count
   and its phase are written once per frame of the pane (400 ms), so a card and the team view
   can trail its last call by that much.
+- A stopped run has a mark of its own, `■`, in the status line, the rows, the toasts, the bubbles
+  and on its figure, so it reads apart from a failed one (`×`) without color.
 
 ### Fixed
 

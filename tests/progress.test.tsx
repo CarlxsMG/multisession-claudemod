@@ -657,7 +657,7 @@ test('a worker that declared its plan and said no step more ends with it whole; 
   expect(placed).toHaveLength(2)
   const rows = await lines(placed[1]!, 100)
   expect(rows).toContainEqual(expect.stringMatching(/^  Pip +✓ done +4\/4 +3m +Map code for beehives task$/))
-  expect(rows).toContainEqual(expect.stringMatching(/^  Bolt +× stopped +2\/4 +3m +Revisar README$/))
+  expect(rows).toContainEqual(expect.stringMatching(/^  Bolt +■ stopped +2\/4 +3m +Revisar README$/))
   const texts = await teamTexts($)
   expect(texts).toContain('last 3m 0s · 0 calls · 4/4 steps')
   expect(texts).toContain('last 3m 0s · 0 calls · 2/4 steps')
@@ -798,7 +798,7 @@ test('what a worker does stays whole in the team view and the check-ins', SLOW, 
 test("a run's end toast says who, how, the task and the time; a failed or stopped one the step it stopped on", () => {
   expect(endNotice({ id: 'a', name: 'Pip', end: 'done', doing: 'Arreglar tests', plan: declarePlan(undefined, 4, 4, 'x'), ms: 725_000 })).toBe('✓ Pip finished: Arreglar tests · 12m 5s')
   expect(endNotice({ id: 'b', name: 'Bolt', end: 'failed', doing: 'Revisar README', plan: declarePlan(undefined, 2, 4, 'x'), ms: 180_000 })).toBe('× Bolt failed: Revisar README · step 2/4 · 3m 0s')
-  expect(endNotice({ id: 'c', name: 'Mika', end: 'stopped', doing: '', ms: 4_000 })).toBe('× Mika stopped · 4s')
+  expect(endNotice({ id: 'c', name: 'Mika', end: 'stopped', doing: '', ms: 4_000 })).toBe('■ Mika stopped · 4s')
 })
 
 test("a worker whose report goes to its parent ends in one line of its own here, once the main turn is over; one reporting here, in its bubble alone", async ($, on) => {
@@ -871,7 +871,7 @@ test("a worker's end is seen at once: a toast, and for half a minute its card's 
   await clock.advance(65_000)
   await end('agent-1')
   await end('agent-2', 'aborted')
-  expect(toasts).toEqual(['✓ Pip finished: Arreglar tests · 1m 5s', '× Bolt stopped: Revisar README · step 2/4 · 1m 5s'])
+  expect(toasts).toEqual(['✓ Pip finished: Arreglar tests · 1m 5s', '■ Bolt stopped: Revisar README · step 2/4 · 1m 5s'])
 
   // The engine has Pip free since, yet its card keeps the row, its word in
   // a block of its color, and its figure cheers instead of napping.

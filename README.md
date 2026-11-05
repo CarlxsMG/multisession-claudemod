@@ -16,7 +16,7 @@ happens.
   `week`, and Fable's own weekly window) in green, yellow from 50 % and red from 80 %.
 - **Worker cards.** A row of diamonds, one per worker, each in its colour with its own pair of
   signs. A mark in the corner says what it is doing (`+` starting, `|/-\` working, `?` waiting,
-  `.oO` thinking, `>` delegating, `*` cheering, `✓` done, `zZ` asleep, `!` failed, `x` stopped).
+  `.oO` thinking, `>` delegating, `*` cheering, `✓` done, `zZ` asleep, `!` failed, `■` stopped).
   Under its name: its plan's step (`3/5`), or how long its run has taken, or a four-letter word
   (`init`, `wait`, `done`, `fail`, `stop`). A worker that is free or has finished (done, failed
   or stopped) leaves the row a few seconds later, once its end has stood out, and stays in the

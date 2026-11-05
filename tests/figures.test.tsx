@@ -120,6 +120,8 @@ test('each worker\'s diamond has its accent and its signs, and its state in the 
   const seed = Array.from({ length: 4000 }, (_, k) => k).find(k => signsOf(k)[0] === '○')!
   expect(cellText(toCells(diamond(seed, pink, { anim: 'working', frame: 0, seed: 3, since: 0 })).cells).slice(4)).toBe('○╲╱○')
   expect(cellText(toCells(diamond(seed, pink, { anim: 'failed', frame: 0, seed: 3, since: 0 })).cells)).toMatch(/!/)
+  // Stopped takes the mark its end has everywhere, apart from failed's.
+  expect(cellText(toCells(diamond(seed, pink, { anim: 'stopped', frame: 0, seed: 3, since: 0 })).cells)).toMatch(/■/)
 
   // Where SVG draws: an outlined polygon, stroke only.
   const svg = diamondSvg(seed, pink, { anim: 'working', frame: 0, seed: 3 })
