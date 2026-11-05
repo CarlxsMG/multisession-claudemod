@@ -51,6 +51,9 @@ npx -p typescript tsc -p .
 - `tsc` needs `.claude-plugin/types/`, so it does **not** run on a fresh clone: load the plugin
   once first (see Setup). `validate` and `test` need no generated types, which is why CI runs only
   those two.
+- CI runs `test` on Linux, Windows and macOS. A pull request merges once `validate` and the Linux
+  and Windows tests pass: a macOS runner can take a long time to start, so that job does not hold
+  the merge. It still runs on every pull request and push, and a failed one is a failure to fix.
 
 ## How the code is written
 
