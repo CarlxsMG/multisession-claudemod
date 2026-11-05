@@ -3,7 +3,7 @@ import { expect } from 'claude-code/testing'
 import type { Look, Member } from '../../types'
 import { DEFAULT_LOOK } from '../../src/figure/look'
 import { given, headsUp, heldFor, started } from '../../src/prompts/results'
-import { bubbleRows } from '../../src/ui/transcript/bubble'
+import { bubbleRows, endSeg } from '../../src/ui/transcript/bubble'
 import type { Seg } from '../../src/ui/transcript/bubble'
 import { resultFoots } from '../../src/ui/transcript/foots'
 import { test } from '../support/crew'
@@ -71,4 +71,11 @@ test("a crew call's result reads in the foot: delivered, woken, reused, new, hel
 test('a result the row cannot read keeps the engine\'s own drawing', () => {
   expect(resultFoots('SendMessage', { success: false, message: 'no' }, pip, [pip], l)).toBeUndefined()
   expect(resultFoots('mcp__crew__delegate', 'crew: `task` is required.', pip, [pip], l)).toBeUndefined()
+})
+
+test("a notification's end is marked for the three statuses a subagent's carries, any other word dim as it came", () => {
+  expect(endSeg('completed')?.text).toBe('✓ done')
+  expect(endSeg('killed')?.text).toBe('■ stopped')
+  for (const status of ['timeout', 'constructor', 'toString', '__proto__']) expect(endSeg(status)).toEqual({ text: status, dim: true })
+  expect(endSeg(' ')).toBeUndefined()
 })

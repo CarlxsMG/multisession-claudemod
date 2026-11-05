@@ -17,12 +17,14 @@ const ENDS: Record<string, () => Seg> = {
   failed: () => ({ text: endMarked('failed'), color: END.failed.color }),
   killed: () => ({ text: endMarked('stopped'), color: END.stopped.color }),
 }
+/** Whether a task notification's status is one its bubble marks: only a key of `ENDS`'s, never one every object has. */
+export const isMarkedEnd = (status: string): boolean => Object.hasOwn(ENDS, status)
 /**
  * How a task notification's status reads at the end of its bubble's border,
  * or undefined for none.
  */
 export const endSeg = (status: string | undefined): Seg | undefined =>
-  status === undefined || status.trim() === '' ? undefined : (ENDS[status]?.() ?? { text: oneLine(status, 20), dim: true })
+  status === undefined || status.trim() === '' ? undefined : isMarkedEnd(status) ? ENDS[status]!() : { text: oneLine(status, 20), dim: true }
 
 /** Someone of the crew's color in the conversation, from its id. */
 export const colorOfMember = (m: Member, look: Look): string => accentOf({ seed: hash(m.id) }, look)
