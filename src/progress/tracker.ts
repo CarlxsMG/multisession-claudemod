@@ -13,6 +13,7 @@ import {
   readOrch,
   readCheckins,
   readParents,
+  readPendingRows,
   readRound,
   readRuns,
   readWorkers,
@@ -344,12 +345,15 @@ async function progressTick($: Engine) {
     await followCheckIn($, await readRound($), now)
 
     if (isMainBusy(await readOrch($))) return
-    // The lines that wait, before any summary of their round.
+    // The lines that wait, before any summary of their round; read first,
+    // since a tick that finds none writes nothing.
     let waiting: PendingRow[] = []
-    await updatePendingRows($, queued => {
-      waiting = [...queued]
-      return []
-    })
+    if ((await readPendingRows($)).length > 0) {
+      await updatePendingRows($, queued => {
+        waiting = [...queued]
+        return []
+      })
+    }
     for (const row of waiting) await placeRow($, { id: rowId(now), at: now, roundMs: 0, every: everyMin, isAsked: false, ...row })
 
     const round = await readRound($)

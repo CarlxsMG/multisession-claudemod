@@ -1,7 +1,17 @@
 import { expect } from 'claude-code/testing'
 import type { AgentInfo } from 'claude-code'
-import { COMPOSER, DELEGATE, PANE, engine, isBlank, mountResult, mountRow, test, toolRow, wokenCrew, workerSend } from './support/crew'
+import { COMPOSER, DELEGATE, PANE, crewCommand, engine, isBlank, mountResult, mountRow, test, toolRow, wokenCrew, workerSend } from './support/crew'
 import type { Seen } from './support/crew'
+
+test('/crew msg sends the message with its lines and spacing as the user typed them', async ($, on) => {
+  const seen: Seen = { prompts: [], sends: [] }
+  engine(on, { seen })
+  await $.session.start({ cwd: '/work/main', surface: 'terminal', isInteractive: true })
+  await $.tool.call({ tool: DELEGATE, task: 'Fix the login', title: 'Login', repo: '/work/api' })
+  const text = 'Two things:\n\n1. the logout\n2. the   token refresh'
+  expect((await crewCommand($, `msg pip ${text}`)).text).toBe('Message sent to Pip.')
+  expect(seen.sends[seen.sends.length - 1]).toContain(text)
+})
 
 test('a worker hears not to wait inside its turn: it ends it saying what it waits for, from whom, and a message wakes it', async ($, on) => {
   const { seen } = await wokenCrew($, on)

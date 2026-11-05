@@ -10,7 +10,7 @@ import { onTurnComplete, onTurnStart } from '../src/hooks/turns'
 import { watchCall } from '../src/hooks/watch'
 import { DELEGATE_FAILED, SEND_UNSURE } from '../src/prompts/results'
 import { chooseLocale } from '../src/i18n/locale'
-import { drawPane, onClose } from '../src/ui/pane/index'
+import { drawPane, onClose, onDetach } from '../src/ui/pane/index'
 import { drawPlaced } from '../src/ui/transcript/placed'
 import { drawToolResult, drawToolUse } from '../src/ui/transcript/tool-use'
 import { drawUserMessage } from '../src/ui/transcript/user-message'
@@ -50,6 +50,7 @@ export const register: Register = (on, options) => {
   on('tool.call', ($, e, next) => watchCall($, e, next)).catch(($, e, next) => next(e))
   on('session.measure', ($, e, next) => onMeasure($, e, next))
   on('session.attach', ($, e, next) => onAttach($, e, next))
+  on('session.detach', ($, e, next) => onDetach($, e, next))
 
   on('turn.start', ($, e, next) => onTurnStart($, e, next))
   on('classic.PostModelSwitch', ($, e, next) => onModelSwitch($, e, next)).catch(($, e, next) => next(e))

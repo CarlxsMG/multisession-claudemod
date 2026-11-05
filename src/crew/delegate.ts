@@ -156,14 +156,22 @@ async function delegate($: Engine, input: object, callId?: string): Promise<stri
   const { name } = claimName(await takenNow($, list))
   const address = name.toLowerCase()
   intended.set(address, { cwd, type })
-  const spawned = await $.agent.spawn({
-    prompt: task,
-    description: title,
-    name: address,
-    subagentType: type,
-    ...(!samePath(cwd, sessionCwd) ? { cwd } : {}),
-    ...(model !== '' ? { model } : {}),
-  })
+  let spawned: Awaited<ReturnType<typeof $.agent.spawn>>
+  try {
+    spawned = await $.agent.spawn({
+      prompt: task,
+      description: title,
+      name: address,
+      subagentType: type,
+      ...(!samePath(cwd, sessionCwd) ? { cwd } : {}),
+      ...(model !== '' ? { model } : {}),
+    })
+  } catch (err) {
+    // A spawn that throws started nothing: its name is free again.
+    intended.delete(address)
+    unclaimNames(name)
+    throw err
+  }
   if (spawned.deny !== undefined) {
     // Where auto mode reviews only the calls in the model's own response (the
     // desktop app's), the Agent call made here has no verdict and is refused

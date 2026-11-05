@@ -290,6 +290,10 @@ export function updateCheckins($: StateDollar, change: Change<typeof checkins>) 
   return update($, checkins, change)
 }
 
+export function readPendingRows($: StateDollar) {
+  return read($, pendingRows)
+}
+
 export function updatePendingRows($: StateDollar, change: Change<typeof pendingRows>) {
   return update($, pendingRows, change)
 }
