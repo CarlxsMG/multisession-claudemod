@@ -357,7 +357,7 @@ export const CLICKS = { columns: 80, rows: 40, isFullscreen: true }
 export const mountRow = ($: Parameters<TestBody>[0], props: Row, viewport: { columns: number; rows: number; isFullscreen?: boolean } = CLICKS) =>
   $.ui.mount({ plugin: 'crew', surface: 'terminal', component: 'ToolUse', requestId: props.tool_use_id, props, viewport })
 
-export type Said = { text: string; origin: { kind: 'task-notification' | 'unclassified' | 'composer' }; isExpanded: boolean; from?: { name: string }; task?: { id?: string; status?: string; durationMs?: number } }
+export type Said = { text: string; origin: { kind: 'task-notification' | 'unclassified' | 'composer' | 'peer' }; isExpanded: boolean; from?: { name: string }; task?: { id?: string; status?: string; durationMs?: number } }
 
 export const mountSaid = ($: Parameters<TestBody>[0], id: string, props: Said, viewport: { columns: number; rows: number; isFullscreen?: boolean } = CLICKS) =>
   $.ui.mount({ plugin: 'crew', surface: 'terminal', component: 'UserMessage', requestId: id, props, viewport })

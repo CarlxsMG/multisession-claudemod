@@ -22,10 +22,11 @@ import { ranFor, seeColumns } from '../../progress/tracker'
 import { readJobs, readLook, readMembers, readParents, readRoutes, readRuns } from '../../state/atoms'
 import { setKept } from '../../util/bounded'
 import { took } from '../../util/time'
-import { REPORT_ROWS, bubbleCap, bubbleRows, colorOfMember, endSeg, isMarkedEnd, rowWidth } from './bubble'
+import { REPORT_ROWS, anyWorker, bubbleCap, bubbleRows, colorOfMember, endSeg, isMarkedEnd, rowWidth } from './bubble'
 import type { Seg } from './bubble'
 import { crewBubble } from './draw'
 import { dim } from './foots'
+import { messageSender, notedAgent } from './recover'
 
 // The title each end-of-task line was first drawn with, by its message id,
 // how long the crew measured that run then, and the step a failed or
@@ -46,7 +47,10 @@ export async function drawUserMessage($: Engine, e: Parameters<DrawUserMessageHo
   const key = isNote ? props.task?.id : props.from?.name
   if (key === undefined || key.trim() === '') return next(e)
   const members = await readMembers($)
-  const who = isNote ? members.find(m => m.id === key) : findWorker(members, key)
+  const known = isNote ? members.find(m => m.id === key) : findWorker(members, key)
+  // One the session has no record of may be a worker of a conversation from
+  // before Claude Code restarted: what its row says of it.
+  const who = known ?? (isNote ? notedAgent(key, props.text, props.task?.type) : messageSender(key, props.origin.kind))
   if (who === undefined) return next(e)
   const look = await readLook($)
   const color = colorOfMember(who, look)
@@ -73,7 +77,7 @@ export async function drawUserMessage($: Engine, e: Parameters<DrawUserMessageHo
     const end = endSeg(status)
     const parent = reportsTo !== undefined ? findWorker(members, reportsTo) : undefined
     const names: Seg[] = [
-      { text: who.name, color, bold: true },
+      who.name !== '' ? { text: who.name, color, bold: true } : anyWorker(),
       dim(' → '),
       reportsTo === undefined
         ? { text: look.name, color: nameColorOf(look), bold: true }

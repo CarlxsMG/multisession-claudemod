@@ -47,7 +47,7 @@ const limits = atom({ plugin: 'crew', key: 'limits' } as const, [], { shape: 'li
 const modelLimits = atom({ plugin: 'crew', key: 'modelLimits' } as const, [], { shape: 'limits-1' })
 // What the conversation's crew rows are drawn from. Each changes seldom, as
 // every row that reads one is drawn again when it does: everyone the crew
-// has had, the main conversation's crew calls, where workers' messages went.
+// has had, the calls of the crew's tools, where workers' messages went.
 const members = atom({ plugin: 'crew', key: 'cast' } as const, [], { shape: 'cast-1' })
 const calls = atom({ plugin: 'crew', key: 'calls' } as const, [], { shape: 'calls-1' })
 const routes = atom({ plugin: 'crew', key: 'routes' } as const, [], { shape: 'routes-1' })

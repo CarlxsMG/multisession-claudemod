@@ -82,7 +82,7 @@ under, so it never changes even where the code name differs.
 | `limits` | `limits` | `limits-1` | The engine's usage windows |
 | `modelLimits` | `modelLimits` | `limits-1` | The probed model windows (Fable's) |
 | `cast` | `members` | `cast-1` | Everyone the crew has had this session, so rows keep names and colours |
-| `calls` | `calls` | `calls-1` | The main conversation's crew calls and the worker each reached |
+| `calls` | `calls` | `calls-1` | The crew tools' calls seen, and the worker each of the main conversation's reached |
 | `routes` | `routes` | `routes-1` | Where workers' messages went, by the head of their text |
 | `takeovers` | `takeovers` | `takeovers-1` | Woken agents, who they answer, and their held tasks |
 | `relays` | `relays` | `relays-1` | Workers' messages to free teammates, waiting for the next tick |
@@ -268,6 +268,13 @@ end, or `stopped` when that end never reached the crew and the engine had listed
   only: the stored transcript and what any model reads stay the same. Anything the crew cannot
   place, and errors, keep the engine's drawing. In full-screen mode a cut bubble opens with a
   click on its `…`.
+  A row the atoms know nothing of, as in a conversation resumed after Claude Code restarted, is
+  drawn from what the row carries (`recover.ts`): the worker's name and address from the call's
+  input or result, or the name a message's sender has; its colour where the row gives the
+  agent's id, the plain one (`PLAIN`) where not; no title or time the row does not hold. So
+  that no row of this session is read that way, `calls` marks every delegate of the main
+  conversation and every SendMessage and TaskStop the session sees, a worker's own and one that
+  reached no one of the crew with no worker.
 - **Placed rows** (`$.ui.place`, component `Placed`): check-ins, summaries, end lines and message
   lines. Display only: neither the model nor the transcript file reads them.
 - **The status line** (`$.ui.status`) and **toasts** (`$.ui.toast`).
@@ -293,6 +300,11 @@ is noticed in the debug log: `unrecognized($, kind, detail)` (`src/engine.ts`) w
   A worker's end with another status shows the word as it came and is logged
   (`task notification status`); a row that carries a task under another origin kind keeps the
   engine's drawing and is logged (`task notification origin`).
+- What tells a worker's rows apart where the atoms know none (`src/ui/transcript/recover.ts`):
+  a subagent's notification opening `Agent "`, TaskStop's `task_type` `local_agent`,
+  SendMessage's `resumedAgentId`, and a subagent's message from the name it was started with.
+  A row in no such shape may be no worker's (a shell's end, another session's message), so it
+  keeps the engine's drawing and logs nothing.
 - Model ids, turned into the names people say and into the Agent tool's aliases
   (`src/model-label.ts`). These degrade on their own and log nothing: `modelLabel` shows an
   unknown id as it is, and `modelAlias` gives it no alias, so the Agent call names no model.

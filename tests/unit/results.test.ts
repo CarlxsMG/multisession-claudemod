@@ -1,6 +1,6 @@
 import { expect, test } from 'claude-code/testing'
 
-import { given, headsUp, heldFor, readDelegate, started } from '../../src/prompts/results'
+import { delegatedTo, given, headsUp, heldFor, readDelegate, started } from '../../src/prompts/results'
 
 const pip = { name: 'Pip', address: 'pip' }
 
@@ -21,4 +21,12 @@ test("the workers a heads-up names read back from the result, one or several", (
 test("a result delegate did not write reads as nothing", () => {
   expect(readDelegate('crew: `task` is required.')).toBeUndefined()
   expect(readDelegate('')).toBeUndefined()
+})
+
+test("the worker a delegate result reached reads back from it, with the id a new one's gives", () => {
+  expect(delegatedTo(started('Pip', 'pip', 'agent-1', '/work/api', headsUp(['Bolt'])))).toEqual({ id: 'agent-1', name: 'Pip', address: 'pip' })
+  expect(delegatedTo(started('Pip', 'pip', undefined, '/work/api', ''))).toEqual({ id: '', name: 'Pip', address: 'pip' })
+  expect(delegatedTo(given({ name: 'Bolt', address: 'a1b2c3' }, 'a worktree of /work/api', ''))).toEqual({ id: '', name: 'Bolt', address: 'a1b2c3' })
+  expect(delegatedTo(heldFor(pip, 'Bolt', 2))).toEqual({ id: '', name: 'Pip', address: 'pip' })
+  expect(delegatedTo('crew: no worker "nadie". Workers: none.')).toBeUndefined()
 })

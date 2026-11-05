@@ -126,8 +126,9 @@ export type Limit = { kind: string; percent: number }
 export type Member = { id: string; name: string; address: string }
 
 /**
- * A crew call of the main conversation, by tool_use_id, and the id of the
- * worker it reached ('' until known).
+ * A call of a crew tool, by tool_use_id, and the id of the worker the main
+ * conversation's reached ('' until known, and for one that reached none or
+ * is a worker's own).
  */
 export type CrewCall = { id: string; to: string }
 
