@@ -50,7 +50,11 @@ npx -p typescript tsc -p .
   Claude Code, against the engine's test kit (`claude-code/testing`). It takes under a minute.
 - `tsc` needs `.claude-plugin/types/`, so it does **not** run on a fresh clone: load the plugin
   once first (see Setup). `validate` and `test` need no generated types, which is why CI runs only
-  those two.
+  those two. **`tsc` is a local check**: CI cannot run it, so a type error reaches `main` unless
+  you run it before you push. Claude Code writes the types only when a session loads the plugin,
+  and a runner has no login: a headless `claude --plugin-dir . -p` with none, or with a placeholder
+  API key, ends before it writes them, `validate`, `test` and `plugin init` write none, and no
+  package publishes them (checked on 2.1.318).
 - CI runs `test` on Linux, Windows and macOS. A pull request merges once `validate` and the Linux
   and Windows tests pass: a macOS runner can take a long time to start, so that job does not hold
   the merge. It still runs on every pull request and push, and a failed one is a failure to fix.
