@@ -7,7 +7,7 @@ import type { Engine } from '../engine'
 import { readDropped, readRuns, readWorkers, updateDropped, updateWorkers } from '../state/atoms'
 import { enlist } from './feed'
 import { release } from './takeover'
-import { ACTIVE, FINISHED, STATUS_OF, claimName, makeWorker, prune, shelve, takenNames, takenNow } from './workers'
+import { ACTIVE, FINISHED, claimName, makeWorker, prune, shelve, statusOf, takenNames, takenNow } from './workers'
 
 /** Takes the workers that finished off the list, onto the shelf. */
 export async function clearFinished($: Engine) {
@@ -60,20 +60,26 @@ export async function syncAgents($: Engine) {
   for (const info of infos) everListed.add(info.id)
   const list = await readWorkers($)
   const shelf = new Map((await readDropped($)).map(w => [w.id, w]))
-  const changed = infos.filter(info => {
+  // A status the crew has no word for tells it nothing: the worker keeps the
+  // status it has, one on the shelf stays there, and an agent the crew does
+  // not know waits for one it can read. Taken for working, an agent that
+  // ended in a way the crew cannot read would show busy until the engine
+  // dropped it.
+  const readable = infos.flatMap(info => {
+    const status = statusOf(info.status)
+    return status !== undefined ? [{ info, status }] : []
+  })
+  const changed = readable.filter(({ info, status }) => {
     const w = list.find(x => x.id === info.id)
-    if (w !== undefined) {
-      const status = STATUS_OF[info.status] ?? w.status
-      return w.status !== status && !isRevived(w, status)
-    }
-    return !shelf.has(info.id) || ACTIVE.has(STATUS_OF[info.status] ?? 'working')
+    if (w !== undefined) return w.status !== status && !isRevived(w, status)
+    return !shelf.has(info.id) || ACTIVE.has(status)
   })
   const now = await $.clock.now()
   const ends = await goneEnds($, list, infos, now)
   if (changed.length === 0 && ends.size === 0) return
   // A stranger takes a name no other member has, the engine's when that
   // fits, which stays its address unless another member has it.
-  const strangers = changed.filter(info => !list.some(w => w.id === info.id) && !shelf.has(info.id))
+  const strangers = changed.map(({ info }) => info).filter(info => !list.some(w => w.id === info.id) && !shelf.has(info.id))
   const taken = strangers.length > 0 ? await takenNow($, list) : new Set<string>()
   const named = new Map(strangers.map(info => [info.id, nameOf(taken, info)] as const))
   const cwd = await $.session.cwd()
@@ -83,8 +89,7 @@ export async function syncAgents($: Engine) {
     back.clear()
     out.length = 0
     const next = [...current]
-    for (const info of changed) {
-      const status = STATUS_OF[info.status] ?? 'working'
+    for (const { info, status } of changed) {
       const at = next.findIndex(w => w.id === info.id)
       const kept = shelf.get(info.id)
       if (at >= 0) {

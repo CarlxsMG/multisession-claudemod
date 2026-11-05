@@ -1,5 +1,7 @@
 // The crew's workers: their statuses as the engine reports them, the sets
 // that say what a status allows, their names, and the list kept of them.
+import type { AgentStatus } from 'claude-code'
+
 import type { Member, Worker, WorkerStatus } from '../../types'
 import type { Engine } from '../engine'
 import { freshName, isWorkerName } from '../persona/names'
@@ -16,8 +18,9 @@ export const ACTIVE: ReadonlySet<WorkerStatus> = new Set(['starting', 'working',
 export const REUSABLE: ReadonlySet<WorkerStatus> = new Set(['idle', 'done', 'stopped'])
 export const FINISHED: ReadonlySet<WorkerStatus> = new Set(['done', 'failed', 'stopped'])
 
-/** A worker's status from the engine's name for an agent's state. */
-export const STATUS_OF: Record<string, WorkerStatus> = {
+// A worker's status for each of the engine's names for an agent's state:
+// a name the engine's types add is a compile error here until it has one.
+const STATUS_OF: Record<AgentStatus, WorkerStatus> = {
   pending: 'starting',
   running: 'working',
   waiting: 'waiting',
@@ -26,6 +29,14 @@ export const STATUS_OF: Record<string, WorkerStatus> = {
   failed: 'failed',
   killed: 'stopped',
 }
+
+/**
+ * A worker's status from the engine's name for an agent's state, or
+ * undefined for a name the crew has none for: an engine newer than the types
+ * the crew was built against may report one.
+ */
+export const statusOf = (status: string): WorkerStatus | undefined =>
+  Object.hasOwn(STATUS_OF, status) ? STATUS_OF[status as AgentStatus] : undefined
 
 // The names given in this load, the moment each is chosen: spawns of one
 // response run at once, and each reads the list before the other's worker
