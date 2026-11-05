@@ -59,8 +59,10 @@ falla en tiempo real.
 - **Progreso que no lee ningún modelo.** Una línea de estado bajo el prompt
   (`crew · Pip 3/5 6m Arreglar tests · Bolt leyendo 4m`), un aviso flotante cuando termina una
   ejecución, una línea en la conversación por cada mensaje entre workers y un aviso cada 3 minutos
-  mientras alguien trabaja (solo si algo cambió), cerrado con un resumen de la ronda. Lo único del
-  progreso que lee un modelo es el paso de un worker activo en el roster.
+  mientras alguien trabaja (solo si algo cambió), cerrado con un resumen de la ronda. El aviso más
+  reciente sigue la ronda donde está, con los pasos y las fases según cambian y los tiempos cada
+  minuto; los anteriores se pliegan en una línea con lo que decían. Lo único del progreso que lee
+  un modelo es el paso de un worker activo en el roster.
 - **Tu mascota.** Un editor con pestañas para su carácter, cara, cabeza, cuerpo, extras y
   compartir. Seis personalidades (alegre, zen, pirata, jefe/a, friki, abuela) colorean cómo habla.
   Sus frases fijas van rotando, y Haiku escribe un lote extra una vez por personalidad, que se

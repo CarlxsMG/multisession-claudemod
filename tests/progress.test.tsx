@@ -156,6 +156,43 @@ test("a check-in row comes every 3 minutes of work when something changed, and w
   expect(placed).toHaveLength(4)
 })
 
+test('the newest check-in follows the round in place, its times once a minute; the rows before it keep what they showed', SLOW, async ($, on) => {
+  const { clock, placed, mainTurn, delegate, lines } = await progressCrew($, on)
+  await delegate('Publish the plugin', '/work/api', 'Publicar')
+  await progress($, 'agent-1', 0, 9, 'Plan')
+  await progress($, 'agent-1', 1, 9, 'Fast-forward main')
+  await $.tool.call({ tool: 'Read', file_path: '/work/api/a.ts', agentId: 'agent-1' })
+  await clock.advance(180_000)
+  expect(placed).toHaveLength(1)
+  expect(await lines(placed[0]!)).toEqual(['─ crew · 1 activo · ronda 3m', '  Pip  leyendo  1/9  3m  Fast-forward main'])
+
+  // A step and a phase later, the same row says so, even while the
+  // orchestrator's turn runs; nothing new is placed before the next mark.
+  const done = await mainTurn()
+  await progress($, 'agent-1', 3, 9, 'Write the docs')
+  await $.tool.call({ tool: 'Edit', file_path: '/work/api/a.ts', old_string: 'a', new_string: 'b', agentId: 'agent-1' })
+  await clock.advance(1000)
+  expect(placed).toHaveLength(1)
+  expect(await lines(placed[0]!)).toEqual(['─ crew · 1 activo · ronda 3m', '  Pip  editando  3/9  3m  Write the docs'])
+  await done()
+  // With nothing else new, its times move on once a minute.
+  await clock.advance(59_000)
+  expect(await lines(placed[0]!)).toEqual(['─ crew · 1 activo · ronda 3m', '  Pip  editando  3/9  3m  Write the docs'])
+  await clock.advance(1000)
+  expect(await lines(placed[0]!)).toEqual(['─ crew · 1 activo · ronda 4m', '  Pip  editando  3/9  4m  Write the docs'])
+
+  // The next check-in follows from then on, and the first folds to what it
+  // showed when it was placed.
+  await clock.advance(120_000)
+  expect(placed).toHaveLength(2)
+  expect(await lines(placed[1]!)).toEqual(['─ crew · 1 activo · ronda 6m', '  Pip  editando  3/9  6m  Write the docs'])
+  expect(await lines(placed[0]!)).toEqual(['─ crew · ronda 3m · Pip leyendo 1/9 3m'])
+  await progress($, 'agent-1', 4, 9, 'Push')
+  await clock.advance(1000)
+  expect(await lines(placed[1]!)).toEqual(['─ crew · 1 activo · ronda 6m', '  Pip  editando  4/9  6m  Push'])
+  expect(await lines(placed[0]!)).toEqual(['─ crew · ronda 3m · Pip leyendo 1/9 3m'])
+})
+
 test('with check-ins off, as the store keeps them from an earlier session, no row comes, nor a summary', SLOW, async ($, on) => {
   const { clock, placed, delegate, end } = await progressCrew($, on, { progress: 0 })
   await delegate('Run the tests', '/work/api', 'Arreglar tests')

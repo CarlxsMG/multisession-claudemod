@@ -121,7 +121,7 @@ dropped, missing or invalid ones take the default's value.
 | --- | --- | --- |
 | Pane tick (`tick`) | `TICK_MS`, 400 ms | Advances the figures' frame and blits each changed raster in place. Every 12 frames (4.8 s) redraws the pane for its ages, when it is mounted or shown as a page. Redraws when a nap or an end highlight is due. Sends due relays. Every 8 frames (3.2 s) syncs the crew with the engine's agent list and lifts takeovers; between those, lifts takeovers a turn end asked for. Every 25 frames (10 s) looks for a batch of mood lines to ask Haiku for. |
 | Typing tick (`typeTick`) | 90 ms, 180 ms on Terminal.app | Types out the newest bubbles in the feed. |
-| Progress tick (`progressTick`) | 1 s | Closes runs whose end was missed, writes the status line, places the rows that waited for the main turn, and places check-ins and the round's summary. |
+| Progress tick (`progressTick`) | 1 s | Closes runs whose end was missed, writes the status line, brings the round's newest check-in up to date (`followCheckIn`, even while the main turn runs), places the rows that waited for the main turn, and places check-ins and the round's summary. |
 | Usage probe (`probeUsage`) | At most every 3 min | Runs a headless `claude -p` for Fable's weekly window; started at session start, when the engine measures new windows, and when an app attaches. |
 
 ## Main flows
@@ -200,7 +200,11 @@ agents.
 - A **round** runs from the first worker starting while none ran to the last one ending. While it
   lasts, a **check-in** is placed every interval (3 minutes by default) when something changed;
   when it closes, a **summary** is placed if two or more workers ran or it outlasted the
-  interval.
+  interval. The newest check-in follows the round in place: its lines are read again from the
+  runs into `shown`, written when a phase, step or run changes and for its times once a minute,
+  and its row is drawn again because its render hook reads the list. The engine has no call to
+  replace or remove a placed row; a row is redrawn when state its hook read changes, and a hook
+  that passes draws nothing.
 - Nothing is placed while the orchestrator's turn is streaming: rows wait in `due` and go when
   the turn ends.
 
@@ -316,7 +320,8 @@ These fail silently if Claude Code changes the text they read; each is a known l
   it starts), or read off its todo list.
 - **Round.** The stretch from the first worker starting while none ran to the last one ending.
 - **Check-in.** A row placed in the conversation every interval during a round, when something
-  changed, with a line per worker.
+  changed, with a line per worker. The newest follows the round in place; the earlier ones fold
+  to a line of what they showed when placed.
 - **Summary.** The row that closes a round: each worker, how it ended, its time, step and task.
 - **Placed row.** A row the crew places in the conversation (`$.ui.place`): a check-in, a summary,
   an **end line** (a run whose report went to another worker) or a **message line** (a message

@@ -10,6 +10,8 @@ All notable changes to crew are written here. The format follows
 
 - Finished workers (done, failed or stopped) leave the pane's row a few seconds after their end
   stops standing out, as free ones do; the team view and the roster still list them.
+- The newest check-in in the conversation follows the round in place, its steps and phases as
+  they change and its times once a minute, instead of keeping what it showed when it was placed.
 
 ## [0.1.0] - 2026-11-05
 

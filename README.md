@@ -57,8 +57,10 @@ happens.
 - **Progress that no model reads.** A status line under the prompt
   (`crew · Pip 3/5 6m Fix the tests · Bolt reading 4m`), a toast when a run ends, a line in the
   conversation for each message between workers, and a check-in every 3 minutes while anyone
-  works (only when something changed), closed by a summary of the round. The only progress a model
-  reads is an active worker's step in the roster.
+  works (only when something changed), closed by a summary of the round. The newest check-in
+  follows the round where it stands, its steps and phases as they change and its times once a
+  minute; the ones before it fold to a line of what they showed. The only progress a model reads
+  is an active worker's step in the roster.
 - **Your mascot.** An editor with tabs for its character, face, head, body, extras and sharing.
   Six personalities (cheerful, zen, pirate, boss, geek, granny) colour how it talks. Its fixed
   lines rotate, and Haiku writes an extra batch once per personality, kept across sessions.
