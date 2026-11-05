@@ -1,7 +1,7 @@
 // The account's usage the pane shows: the engine's rate-limit windows, and a
 // model's own weekly window, which only a headless claude's /usage gives.
 import type { Limit } from '../../types'
-import { quiet } from '../engine'
+import { quiet, unrecognized } from '../engine'
 import type { Engine } from '../engine'
 import { t } from '../i18n'
 import { updateModelLimits } from '../state/atoms'
@@ -55,25 +55,38 @@ export function chooseUsageProbe(option: unknown) {
   probe.isOff = option === 'off'
 }
 
-/** The model windows in a get_usage reply, or undefined when it holds none. */
-export function parseModelLimits(stdout: string): Limit[] | undefined {
+/**
+ * The model windows in a get_usage reply, or undefined when it holds none.
+ * `odd` hears what of the reply is in no shape the crew reads; a null
+ * `rate_limits` or `model_scoped` reads as no windows.
+ */
+export function parseModelLimits(stdout: string, odd: (what: string) => void = () => {}): Limit[] | undefined {
   for (const line of stdout.split('\n')) {
     if (!line.includes('"crew-usage"')) continue
     try {
-      const reply = JSON.parse(line) as { response?: { response?: { rate_limits?: { model_scoped?: unknown } | null } } }
+      const reply = JSON.parse(line) as { response?: { error?: unknown; response?: { rate_limits?: { model_scoped?: unknown } | null } } }
       const rates = reply.response?.response?.rate_limits
-      if (rates === undefined) return undefined
+      if (rates === undefined) {
+        const error = reply.response?.error
+        odd(`get_usage answered no rate_limits${typeof error === 'string' ? `: ${error}` : ''}`)
+        return undefined
+      }
+      if (rates !== null && (typeof rates !== 'object' || !('model_scoped' in rates))) odd('get_usage answered rate_limits without model_scoped')
       const scoped = Array.isArray(rates?.model_scoped) ? (rates.model_scoped as unknown[]) : []
-      return scoped.flatMap(x => {
+      const read = scoped.flatMap(x => {
         const w = x as { display_name?: unknown; utilization?: unknown }
         return typeof w.display_name === 'string' && typeof w.utilization === 'number'
           ? [{ kind: w.display_name, percent: Math.round(w.utilization) }]
           : []
       })
+      if (read.length < scoped.length) odd('get_usage answered a model window without display_name or utilization')
+      return read
     } catch {
+      odd('get_usage answered a line that is not JSON')
       return undefined
     }
   }
+  odd('no answer to get_usage')
   return undefined
 }
 
@@ -94,7 +107,7 @@ export async function probeUsage($: Engine) {
     const own = (await $.env.get('CLAUDE_CODE_EXECPATH')) ?? ''
     if (/^claude(\.exe)?$/i.test(basename(own))) result = await run(own)
   }
-  const found = result === undefined ? undefined : parseModelLimits(result.stdout)
+  const found = result === undefined ? undefined : parseModelLimits(result.stdout, what => unrecognized($, 'usage probe answer', what))
   if (found !== undefined) await updateModelLimits($, () => found)
 }
 

@@ -31,7 +31,8 @@ hook.
 
 `src/engine.ts` names the engine type the helpers take (`Engine`) and `quiet($, work, where)`,
 which runs an engine call whose failure must not break a turn or a timer, logging the failure to
-the debug log.
+the debug log. Its `unrecognized` logs there an engine text the crew reads in no shape it knows
+(see [Where the code depends on engine wording](#where-the-code-depends-on-engine-wording)).
 
 ## Module map
 
@@ -273,16 +274,28 @@ end, or `stopped` when that end never reached the crew and the engine had listed
 
 ## Where the code depends on engine wording
 
-These fail silently if Claude Code changes the text they read; each is a known limitation:
+These read text or answers whose shape Claude Code may change; each is a known limitation. What
+reads one falls back when it comes in no shape the crew knows, and nothing breaks, so the change
+is noticed in the debug log: `unrecognized($, kind, detail)` (`src/engine.ts`) writes
+`crew: unrecognized <kind>: <what came>` there, once a load for each kind.
+`tests/engine-wording.test.tsx` pins the shapes the crew reads and that an unknown one logs once.
 
 - The auto-mode refusal of a spawn with no verdict, matched by `UNREVIEWED` in
-  `src/crew/delegate.ts`.
+  `src/crew/delegate.ts`: the engine gives a refusal as text alone. Any other refusal in auto
+  mode's words, which may be that one worded anew, is passed on as it came and logged
+  (`auto-mode spawn refusal`).
 - The usage probe's control protocol: the `get_usage` request and its response
-  (`src/usage/limits.ts`).
+  (`src/usage/limits.ts`). An answer missing, not JSON, without `rate_limits`, with
+  `rate_limits` lacking `model_scoped`, or with a window lacking `display_name` or `utilization`,
+  is logged (`usage probe answer`); Fable's window is then left out.
 - Task notifications: their origin kind and statuses (`completed`, `failed`, `killed`) in
-  `src/ui/transcript/bubble.ts` and `user-message.tsx`.
+  `src/ui/transcript/bubble.ts` and `user-message.tsx`, both fields of the `UserMessage` row.
+  A worker's end with another status shows the word as it came and is logged
+  (`task notification status`); a row that carries a task under another origin kind keeps the
+  engine's drawing and is logged (`task notification origin`).
 - Model ids, turned into the names people say and into the Agent tool's aliases
-  (`src/model-label.ts`).
+  (`src/model-label.ts`). These degrade on their own and log nothing: `modelLabel` shows an
+  unknown id as it is, and `modelAlias` gives it no alias, so the Agent call names no model.
 
 ## Invariants
 

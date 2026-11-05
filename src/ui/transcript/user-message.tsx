@@ -13,6 +13,7 @@ import type { MatchedHook } from 'claude-code'
 
 import { headOf } from '../../crew/feed'
 import { findWorker } from '../../crew/workers'
+import { unrecognized } from '../../engine'
 import type { Engine } from '../../engine'
 import { nameColorOf } from '../../figure/accent'
 import { t } from '../../i18n'
@@ -21,7 +22,7 @@ import { ranFor, seeColumns } from '../../progress/tracker'
 import { readJobs, readLook, readMembers, readParents, readRoutes, readRuns } from '../../state/atoms'
 import { setKept } from '../../util/bounded'
 import { took } from '../../util/time'
-import { REPORT_ROWS, bubbleCap, bubbleRows, colorOfMember, endSeg, rowWidth } from './bubble'
+import { REPORT_ROWS, bubbleCap, bubbleRows, colorOfMember, endSeg, isMarkedEnd, rowWidth } from './bubble'
 import type { Seg } from './bubble'
 import { crewBubble } from './draw'
 import { dim } from './foots'
@@ -39,6 +40,9 @@ export async function drawUserMessage($: Engine, e: Parameters<DrawUserMessageHo
   seeColumns(e.viewport?.columns)
   if (props.origin.kind === 'composer') return next(e)
   const isNote = props.origin.kind === 'task-notification'
+  // Only a notification carries a task: a row with one under another kind
+  // is the engine's to draw, and its kind has a new name.
+  if (!isNote && props.task !== undefined) unrecognized($, 'task notification origin', props.origin.kind)
   const key = isNote ? props.task?.id : props.from?.name
   if (key === undefined || key.trim() === '') return next(e)
   const members = await readMembers($)
@@ -64,7 +68,9 @@ export async function drawUserMessage($: Engine, e: Parameters<DrawUserMessageHo
       setKept(noteFirst, e.requestId, first, NOTE_FIRST)
     }
     const title = first.title
-    const end = endSeg(props.task?.status)
+    const status = props.task?.status ?? ''
+    if (status.trim() !== '' && !isMarkedEnd(status)) unrecognized($, 'task notification status', status)
+    const end = endSeg(status)
     const parent = reportsTo !== undefined ? findWorker(members, reportsTo) : undefined
     const names: Seg[] = [
       { text: who.name, color, bold: true },

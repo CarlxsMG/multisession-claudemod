@@ -42,3 +42,22 @@ test("a window's label is the catalog's, and a kind the catalog does not name ha
   expect(limitLabel('five_hour')).toBe('5h')
   for (const kind of ['other', 'constructor', 'toString', '__proto__', 'hasOwnProperty']) expect(limitLabel(kind)).toBeUndefined()
 })
+
+test('a get_usage reply in a shape the crew does not read says what is odd in it, and the shapes it reads say nothing', () => {
+  const odd = (stdout: string) => {
+    const heard: string[] = []
+    parseModelLimits(stdout, what => heard.push(what))
+    return heard
+  }
+  // As a subscription's account answers: every window named, the ones it lacks null.
+  expect(odd(reply({ five_hour: null, seven_day: { utilization: 94 }, model_scoped: [{ display_name: 'Fable', utilization: 0, resets_at: null }] }))).toEqual([])
+  expect(odd(reply({ five_hour: null, model_scoped: [] }))).toEqual([])
+  expect(odd(reply({ five_hour: null, model_scoped: null }))).toEqual([])
+  expect(odd(reply(null))).toEqual([])
+  expect(odd(reply({ five_hour: { utilization: 12 } }))).toEqual(['get_usage answered rate_limits without model_scoped'])
+  expect(odd(reply({ model_scoped: [{ name: 'Fable', percent: 30 }] }))).toEqual(['get_usage answered a model window without display_name or utilization'])
+  expect(odd('')).toEqual(['no answer to get_usage'])
+  expect(odd('{"crew-usage" broken')).toEqual(['get_usage answered a line that is not JSON'])
+  const refused = { type: 'control_response', response: { subtype: 'error', request_id: 'crew-usage', error: 'Unsupported control request subtype: get_usage' } }
+  expect(odd(JSON.stringify(refused))).toEqual(['get_usage answered no rate_limits: Unsupported control request subtype: get_usage'])
+})
