@@ -3,6 +3,21 @@ import type { AgentSpawnInput } from 'claude-code'
 import { NO_VERDICT, PANE, SURFACES, USAGE, engine, spawnAgent, test } from './support/crew'
 import type { Ask, Seen } from './support/crew'
 
+test('a spawn that throws gives its name back for the next worker', async ($, on) => {
+  let spawns = 0
+  engine(on, {
+    nextId: () => {
+      spawns += 1
+      if (spawns === 1) throw new Error('spawn failed')
+      return `agent-${spawns}`
+    },
+  })
+  await $.session.start({ cwd: '/work/main', surface: 'terminal', isInteractive: true })
+  const delegate = async () => String((await $.tool.call({ tool: 'mcp__crew__delegate', task: 'Fix the tests', title: 'Tests', repo: '/work/api' })).result)
+  expect(await delegate()).not.toMatch(/^Started /)
+  expect(await delegate()).toMatch(/^Started Pip /)
+})
+
 test('a worker appears, works, reports and is reused', async ($, on) => {
   const clock = engine(on)
   await $.session.start({ cwd: '/work/main', surface: 'terminal', isInteractive: true })
