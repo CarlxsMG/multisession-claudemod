@@ -1,9 +1,21 @@
 // What the pane and the conversation's crew rows are drawn from: the
 // messages said, the orchestrator's mood, everyone the crew has had, the
-// calls of the crew's tools, and what each worker was given to do.
-import type { LastJob, Member, Msg, MsgTone, OrchMood } from '../../types'
+// calls of the crew's tools, what each worker was given to do, and what
+// each end-of-task row was first drawn with.
+import type { LastJob, Member, Msg, MsgTone, NoteFirst, OrchMood } from '../../types'
 import type { Engine } from '../engine'
-import { readMembers, readOrch, updateCalls, updateJobs, updateMembers, updateMessages, updateOrch } from '../state/atoms'
+import { runtime } from '../runtime'
+import {
+  readMembers,
+  readNoteFirst,
+  readOrch,
+  updateCalls,
+  updateJobs,
+  updateMembers,
+  updateMessages,
+  updateNoteFirst,
+  updateOrch,
+} from '../state/atoms'
 import { appendKept } from '../util/bounded'
 import { oneLine } from '../util/text'
 import { findWorker } from './workers'
@@ -16,6 +28,35 @@ const CAST_KEEP = 120
 const CALLS_KEEP = 400
 /** The routes of workers' messages kept, the newest. */
 export const ROUTES_KEEP = 60
+const NOTE_FIRST_KEEP = 300
+
+// What end-of-task rows drawn since the pane's last frame were first drawn
+// with: a drawing may not write the state, so the next frame keeps it.
+const firsts = runtime.notes
+
+/** What end-of-task row `id` was first drawn with; undefined before it was. */
+export async function firstDrawn($: Engine, id: string): Promise<NoteFirst | undefined> {
+  return firsts.held.get(id) ?? (await readNoteFirst($)).find(x => x.id === id)
+}
+
+/** What an end-of-task row was first drawn with, held for the pane's next frame (`keepFirstDrawn`). */
+export function holdFirstDrawn(first: NoteFirst) {
+  firsts.held.set(first.id, first)
+}
+
+/** Whether a row's first drawing waits to be kept. */
+export const hasHeldFirsts = (): boolean => firsts.held.size > 0
+
+/**
+ * Keeps in the state what the rows held were first drawn with, so a row
+ * drawn again after a reload names what it named then; one kept already
+ * stays as it was.
+ */
+export async function keepFirstDrawn($: Engine) {
+  const taken = [...firsts.held.values()]
+  await updateNoteFirst($, list => appendKept(list, taken.filter(f => !list.some(x => x.id === f.id)), NOTE_FIRST_KEEP))
+  for (const f of taken) if (firsts.held.get(f.id) === f) firsts.held.delete(f.id)
+}
 
 /** The orchestrator's id in the feed's lines, as the main conversation's address. */
 export const ORCH_ID = 'main'

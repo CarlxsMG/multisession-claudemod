@@ -24,11 +24,11 @@ type WatchCallHook = HookFor<'tool.call'>
 export async function watchCall($: Engine, e: Parameters<WatchCallHook>[1], next: Parameters<WatchCallHook>[2]) {
   if ((e.tool as string) === PROGRESS) return next(e)
   const call: ToolCall = e
-  if (call.tool === 'Agent' && call.isolation === 'worktree') noteIsolated(String(call.tool_use_id))
+  if (call.tool === 'Agent' && call.isolation === 'worktree') await noteIsolated($, String(call.tool_use_id))
   if (e.tool === 'SendMessage' && typeof call.to === 'string') {
     const target = findWorker(await readMembers($), call.to)
     if (target !== undefined) await setJob($, target.id, gistOf(call.summary, call.message))
-    if (e.agentId !== undefined) noteSendGist(e.agentId, call.summary, call.message)
+    if (e.agentId !== undefined) await noteSendGist($, e.agentId, call.summary, call.message)
   }
   if (e.agentId !== undefined) {
     if (e.tool === 'SendMessage' || e.tool === 'TaskStop') await markCall($, e.tool_use_id)
@@ -46,7 +46,7 @@ export async function watchCall($: Engine, e: Parameters<WatchCallHook>[1], next
     // Its spawn ran inside: a name the crew gave in place of the call's is said here.
     const done = await next(e)
     // A denied call spawned nothing: no agent will ask for its worktree.
-    if (done.deny !== undefined) forgetIsolated(String(call.tool_use_id))
+    if (done.deny !== undefined) await forgetIsolated($, String(call.tool_use_id))
     const note = takeRenamed(e.tool_use_id)
     return note === undefined || done.deny !== undefined ? done : { ...done, context: [...(done.context ?? []), note] }
   }

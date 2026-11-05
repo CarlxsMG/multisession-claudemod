@@ -95,6 +95,15 @@ under, so it never changes even where the code name differs.
 | `checkins` | `checkins` | `checkins-1` | The rows placed in the conversation |
 | `due` | `pendingRows` | `due-1` | Rows waiting for the main turn to end |
 | `beat` | `paneTick` | none | A counter whose change redraws the pane |
+| `intents` | `intents` | `intents-1` | What delegate meant each new worker to be, until its spawn, up to 50 |
+| `isolated` | `isolated` | `isolated-1` | Agent calls that asked for a worktree, until their spawn, up to 50 |
+| `sendGists` | `sendGists` | `sendGists-1` | Each worker's last SendMessage: the head of its text and its summary, up to 100 |
+| `taskLists` | `taskLists` | `taskLists-1` | Each worker's TaskCreate items in its run, up to 80 workers of 100 items |
+| `noteFirst` | `noteFirst` | `noteFirst-1` | What each end-of-task row was first drawn with, up to 300 |
+
+The last five hold what a call under way leaves for the hooks that follow it, which a reload of
+the plugin's code may come between: a spawn auto mode handed to the orchestrator, an Agent call
+waiting for the person's yes.
 
 Every `read`/`update` of an atom is in `src/state/atoms.ts`: the validator finds the state a hook
 touches only in the file that declares the atom.
@@ -102,12 +111,12 @@ touches only in the file that declares the atom.
 ### Runtime state (`src/runtime.ts`)
 
 What the hooks, the timers and the drawings of one load leave each other in memory, not worth a
-write to `$.state`: delegate's intents, the Agent calls that asked for a worktree, the workers'
-last send summaries, the relay and release flags, the names given, the agents the engine
-listed, the progress tracker's interval, status line, widths, run times and TaskCreate items,
-the tool calls held for the next frame, the usage probe's permission and time, the pane's frame,
-rasters and the redraws it owes, the first title of each end-of-task row, the last `[crew]`
-check, the mood lines asked for, and the kinds of engine wording logged. It is one typed object
+write to `$.state`: the names Agent calls' agents were renamed to, the relay and release flags,
+the names given, the agents the engine listed, the progress tracker's interval, status line,
+widths and run times, the tool calls and the end-of-task rows' first drawings held for the next
+frame (a drawing may not write the state), the usage probe's permission and time, the pane's
+frame, rasters and the redraws it owes, the last `[crew]` check, the mood lines asked for, and
+the kinds of engine wording logged. It is one typed object
 in parts, each read and written only by the module its comment names; another module goes
 through that module's functions. It imports types only.
 
@@ -145,7 +154,7 @@ dropped, missing or invalid ones take the default's value.
 
 | Timer | Period | What it does |
 | --- | --- | --- |
-| Pane tick (`tick`) | `TICK_MS`, 400 ms | Advances the figures' frame and blits each changed raster in place. Every 12 frames (4.8 s) redraws the pane for its ages, when it is mounted or shown as a page. Redraws when a nap or an end highlight is due. Writes the workers' tool calls held since the last frame. Sends due relays. Every 8 frames (3.2 s) syncs the crew with the engine's agent list and lifts takeovers; between those, lifts takeovers a turn end asked for. Every 25 frames (10 s) looks for a batch of mood lines to ask Haiku for. |
+| Pane tick (`tick`) | `TICK_MS`, 400 ms | Advances the figures' frame and blits each changed raster in place. Every 12 frames (4.8 s) redraws the pane for its ages, when it is mounted or shown as a page. Redraws when a nap or an end highlight is due. Writes the workers' tool calls held since the last frame, and what the end-of-task rows drawn since were first drawn with. Sends due relays. Every 8 frames (3.2 s) syncs the crew with the engine's agent list and lifts takeovers; between those, lifts takeovers a turn end asked for. Every 25 frames (10 s) looks for a batch of mood lines to ask Haiku for. |
 | Typing tick (`typeTick`) | 90 ms, 180 ms on Terminal.app | Types out the newest bubbles in the feed. |
 | Progress tick (`progressTick`) | 1 s | Closes runs whose end was missed, writes the status line, brings the round's newest check-in up to date (`followCheckIn`, even while the main turn runs), places the rows that waited for the main turn, and places check-ins and the round's summary. |
 | Usage probe (`probeUsage`) | At most every 3 min | Runs a headless `claude -p` for Fable's weekly window; started at session start, when the engine measures new windows, and when an app attaches; never with the `usageProbe` option `off`. |
@@ -175,7 +184,7 @@ dropped, missing or invalid ones take the default's value.
    and workers run on haiku only in a session on haiku.
 6. If auto mode refuses the spawn with no verdict (it reviews only calls a model writes), the
    result tells the orchestrator to start the worker itself with the Agent tool; the spawn hook
-   recognizes that agent by its name or task through `intended`.
+   recognizes that agent by its name or task through `intents`.
 7. The result names the worker and its address, and warns (`Heads-up: …`) when another worker
    is busy in the same repository.
 

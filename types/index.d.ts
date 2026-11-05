@@ -248,6 +248,32 @@ export type CheckIn = {
 /** A row that waits for the main session's turn to end, to be placed. */
 export type PendingRow = Pick<CheckIn, 'kind' | 'lines' | 'note'>
 
+/**
+ * What delegate meant a new worker to be, by its address, until the spawn
+ * hook reads it: where it works and its type, and the task of one delegate
+ * handed to the orchestrator to start.
+ */
+export type Intent = { address: string; cwd: string; type: string; task?: string }
+
+/**
+ * A worker's last SendMessage, by its id: the head of its text, which its
+ * send is matched by, and the summary it gave.
+ */
+export type SendGist = { id: string; head: string; gist: string }
+
+/**
+ * A worker's TaskCreate items, by its id: each by the id the engine gave it
+ * (`key`), with its status and text.
+ */
+export type TaskList = { id: string; items: { key: string; status: string; text: string }[] }
+
+/**
+ * What an end-of-task row was first drawn with, by its request id: the
+ * task's title, the run's time as the crew measured it then, and the step
+ * a failed or stopped run stood on ('' for none).
+ */
+export type NoteFirst = { id: string; title: string; ms?: number; step: string }
+
 declare module 'claude-code' {
   interface PluginState {
     crew: {
@@ -279,6 +305,11 @@ declare module 'claude-code' {
       checkins: Shaped<CheckIn[]>
       due: Shaped<PendingRow[]>
       beat: number
+      intents: Shaped<Intent[]>
+      isolated: Shaped<string[]>
+      sendGists: Shaped<SendGist[]>
+      taskLists: Shaped<TaskList[]>
+      noteFirst: Shaped<NoteFirst[]>
     }
   }
 }

@@ -11,7 +11,7 @@
 //  ╰─────────────────────────────────────────────╯
 import type { MatchedHook } from 'claude-code'
 
-import { headOf } from '../../crew/feed'
+import { firstDrawn, headOf, holdFirstDrawn } from '../../crew/feed'
 import { findWorker } from '../../crew/workers'
 import { unrecognized } from '../../engine'
 import type { Engine } from '../../engine'
@@ -19,21 +19,13 @@ import { nameColorOf } from '../../figure/accent'
 import { t } from '../../i18n'
 import { stepText } from '../../progress/plan'
 import { lastRunMs, seeColumns } from '../../progress/tracker'
-import { runtime } from '../../runtime'
 import { readJobs, readLook, readMembers, readParents, readRoutes, readRuns } from '../../state/atoms'
-import { setKept } from '../../util/bounded'
 import { took } from '../../util/time'
 import { REPORT_ROWS, anyWorker, bubbleCap, bubbleRows, colorOfMember, endSeg, isMarkedEnd, rowWidth } from './bubble'
 import type { Seg } from './bubble'
 import { crewBubble } from './draw'
 import { dim } from './foots'
 import { messageSender, notedAgent } from './recover'
-
-// The title each end-of-task line was first drawn with, by its message id,
-// how long the crew measured that run then, and the step a failed or
-// stopped run stood on.
-const { notes } = runtime
-const NOTE_FIRST = 300
 
 type DrawUserMessageHook = MatchedHook<'ui.render', { component: 'UserMessage'; surface: 'terminal' }>
 /** Draws a worker's message or report to the main conversation as a bubble from it. */
@@ -61,16 +53,18 @@ export async function drawUserMessage($: Engine, e: Parameters<DrawUserMessageHo
     // long it took in the top border, what it was on one line inside. The
     // row keeps the title it was first drawn with, so a redraw never names
     // a later task; with none recorded the bubble is its two borders.
-    let first = notes.first.get(e.requestId)
+    let first = await firstDrawn($, e.requestId)
     if (first === undefined) {
       const plan = (await readRuns($)).findLast(r => r.id === who.id)?.plan
       const isCut = props.task?.status === 'failed' || props.task?.status === 'killed'
+      const ran = lastRunMs(who.id)
       first = {
+        id: e.requestId,
         title: (await readJobs($)).find(j => j.id === who.id)?.title ?? '',
-        ms: lastRunMs(who.id),
+        ...(ran !== undefined ? { ms: ran } : {}),
         step: isCut && plan !== undefined ? t().progress.step(stepText(plan)) : '',
       }
-      setKept(notes.first, e.requestId, first, NOTE_FIRST)
+      holdFirstDrawn(first)
     }
     const title = first.title
     const status = props.task?.status ?? ''

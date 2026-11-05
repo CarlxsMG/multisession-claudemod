@@ -1,7 +1,7 @@
 // The delegate tool: the worker a task goes to (a named one, the most recent
 // free one of its kind in that repository, or a new one), the send or the
 // spawn, and a task held for a worker another one woke.
-import type { Takeover, Worker } from '../../types'
+import type { Intent, Takeover, Worker } from '../../types'
 import { quiet, unrecognized } from '../engine'
 import type { Engine } from '../engine'
 import {
@@ -24,15 +24,17 @@ import {
 import { modelAlias } from '../model-label'
 import { heldTasks, taskClose } from '../prompts/worker'
 import { runtime } from '../runtime'
-import type { Intent } from '../runtime'
 import {
+  readIntents,
   readLook,
   readParents,
   readTakeovers,
   readWorkers,
   readWorktrees,
+  updateIntents,
   updateTakeovers,
 } from '../state/atoms'
+import { appendKept } from '../util/bounded'
 import { fieldOf, rawStringArg, stringArg } from '../util/input'
 import { joinPath, samePath } from '../util/path'
 import { oneLine } from '../util/text'
@@ -158,7 +160,7 @@ async function delegate($: Engine, input: object, callId?: string): Promise<stri
 
   const { name } = claimName(await takenNow($, list))
   const address = name.toLowerCase()
-  meant.intended.set(address, { cwd, type })
+  await intend($, { address, cwd, type })
   let spawned: Awaited<ReturnType<typeof $.agent.spawn>>
   try {
     spawned = await $.agent.spawn({
@@ -171,7 +173,7 @@ async function delegate($: Engine, input: object, callId?: string): Promise<stri
     })
   } catch (err) {
     // A spawn that throws started nothing: its name is free again.
-    meant.intended.delete(address)
+    await unintend($, address)
     unclaimNames(name)
     throw err
   }
@@ -181,13 +183,13 @@ async function delegate($: Engine, input: object, callId?: string): Promise<stri
     // however often it is made: the orchestrator's own Agent call is reviewed,
     // and the spawn hook takes its agent as this worker.
     if (UNREVIEWED.test(spawned.deny)) {
-      meant.intended.set(address, { cwd, type, task })
+      await intend($, { address, cwd, type, task })
       return autoModeHandoff(name, address, title, type, model, cwd)
     }
     // Any other refusal is said as it came; one in auto mode's words may be
     // the unreviewed one, worded anew.
     if (AUTO_MODE.test(spawned.deny)) unrecognized($, 'auto-mode spawn refusal', spawned.deny)
-    meant.intended.delete(address)
+    await unintend($, address)
     unclaimNames(name)
     return notStarted(spawned.deny)
   }
@@ -240,18 +242,28 @@ export async function refuseWorker($: Engine, agentId: string): Promise<string> 
 // address: the engine may not carry a spawn's `cwd` or type through to its
 // own hooks. One delegate handed to the orchestrator to start keeps its
 // task, which tells its agent from others if the Agent call names none.
-const meant = runtime.delegate
+// Kept in the state, as the orchestrator may start it after a reload; the
+// newest, as one it never starts stays.
+const INTENTS_KEEP = 50
+
+function intend($: Engine, intent: Intent) {
+  return updateIntents($, list => appendKept(list, [intent], INTENTS_KEEP, x => x.address))
+}
+
+function unintend($: Engine, address: string) {
+  return updateIntents($, list => list.filter(x => x.address !== address))
+}
 
 /**
  * What delegate meant the agent a spawn starts to be, taken: by the name its
  * call gave, else, for one with no name that is no fork, by its task. `key`
  * is the address it was meant under, and nothing is meant under it any more.
  */
-export function takeIntent(name: string | undefined, prompt: string, isFork: boolean): { key: string | undefined; intent: Intent | undefined } {
-  const byPrompt = name === undefined && !isFork ? [...meant.intended].find(([, m]) => m.task === prompt.trim()) : undefined
-  const key = name?.toLowerCase() ?? byPrompt?.[0]
-  const intent = key !== undefined ? meant.intended.get(key) : undefined
-  if (key !== undefined) meant.intended.delete(key)
+export async function takeIntent($: Engine, name: string | undefined, prompt: string, isFork: boolean): Promise<{ key: string | undefined; intent: Intent | undefined }> {
+  const list = await readIntents($)
+  const key = name?.toLowerCase() ?? (name === undefined && !isFork ? list.find(x => x.task === prompt.trim())?.address : undefined)
+  const intent = key !== undefined ? list.find(x => x.address === key) : undefined
+  if (intent !== undefined) await unintend($, intent.address)
   return { key, intent }
 }
 

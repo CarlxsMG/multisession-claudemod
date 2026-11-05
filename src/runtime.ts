@@ -6,32 +6,17 @@
 // read and written only by the module named over it; another module goes
 // through that one's functions. It imports types only, so any module may
 // import it whatever it imports itself.
-import type { Phase } from '../types'
+import type { NoteFirst, Phase } from '../types'
 import type { Cells } from './figure/raster'
-import type { Todo } from './progress/plan'
-
-/** Where and as what type delegate meant a new worker to work, and the task of one it handed to the orchestrator to start. */
-export type Intent = { cwd: string; type: string; task?: string }
 
 /** A worker's tool calls since the pane's last frame: what it does now, and each call's kind and time. */
 export type HeldCalls = { activity: string; calls: { kind: Phase | undefined; at: number }[] }
 
-/** What an end-of-task row was first drawn with: the task's title, the run's time as measured then, a cut run's step. */
-export type NoteFirst = { title: string; ms: number | undefined; step: string }
-
 // Everything a session starts afresh, as a load starts it.
 function fresh() {
   return {
-    /** `src/crew/delegate.ts`: what delegate meant each new worker to be, by its address, until the spawn hook reads it. */
-    delegate: { intended: new Map<string, Intent>() },
-    /**
-     * `src/crew/spawn.ts`: the Agent calls that asked for a worktree, and what
-     * a call whose agent the crew named otherwise reads after its result, both
-     * by tool_use_id.
-     */
-    spawn: { isolated: new Set<string>(), renamed: new Map<string, string>() },
-    /** `src/crew/sends.ts`: each worker's last SendMessage, by its id: the head of its text and the summary it gave. */
-    sends: { gists: new Map<string, { head: string; gist: string }>() },
+    /** `src/crew/spawn.ts`: what an Agent call whose agent the crew named otherwise reads after its result, by tool_use_id. */
+    spawn: { renamed: new Map<string, string>() },
     /**
      * `src/crew/relay.ts` and `src/crew/takeover.ts`: whether the next tick
      * sends on the messages that wait, and lifts the marks of runs that ended.
@@ -49,8 +34,7 @@ function fresh() {
      * status line as last pinned (undefined until the first progress tick
      * pins what is true then), the transcript's width as its rows were last
      * drawn and the terminal's as a command last ran, how long each worker's
-     * last run took, whether a progress tick is under way, and each worker's
-     * TaskCreate items by the id the engine gave.
+     * last run took, and whether a progress tick is under way.
      */
     progress: {
       everyMin: undefined as number | undefined,
@@ -59,7 +43,6 @@ function fresh() {
       commandColumns: 80,
       ranFor: new Map<string, number>(),
       isTicking: false,
-      taskLists: new Map<string, Map<string, Todo>>(),
     },
     /** `src/progress/calls.ts`: the workers' tool calls held for the pane's next frame. */
     calls: { held: new Map<string, HeldCalls>() },
@@ -84,8 +67,11 @@ function fresh() {
     },
     /** `src/ui/pane/index.tsx`: whether the pane opens with the first surface that attaches. */
     paneOpen: { isDue: false },
-    /** `src/ui/transcript/user-message.tsx`: what each end-of-task row was first drawn with, by its message id. */
-    notes: { first: new Map<string, NoteFirst>() },
+    /**
+     * `src/crew/feed.ts`: what end-of-task rows drawn since the pane's last
+     * frame were first drawn with, by request id, until that frame keeps it.
+     */
+    notes: { held: new Map<string, NoteFirst>() },
     /** `src/settings/notes.ts`: the conversation the last `[crew]` check was for. */
     told: { checked: undefined as string | undefined },
     /** `src/settings/mood-lines.ts`: the personality Haiku is writing lines for now, and one it could not. */

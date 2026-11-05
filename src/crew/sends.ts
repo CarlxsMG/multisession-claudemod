@@ -8,27 +8,27 @@ import { quiet } from '../engine'
 import type { Engine } from '../engine'
 import { t } from '../i18n'
 import { beginRun, noteMessage, settleRun } from '../progress/tracker'
-import { runtime } from '../runtime'
-import { readLook, readMembers, readWorkers, updateRelays, updateRoutes } from '../state/atoms'
-import { appendKept, setKept } from '../util/bounded'
+import { readLook, readMembers, readSendGists, readWorkers, updateRelays, updateRoutes, updateSendGists } from '../state/atoms'
+import { appendKept } from '../util/bounded'
 import { ORCH_ID, ROUTES_KEEP, gistOf, headOf, nameOf, say } from './feed'
 import { RELAYS_KEEP, isAgentOf, relaySoon } from './relay'
 import { takeOver } from './takeover'
 import { ACTIVE, findWorker, patchWorker } from './workers'
 
-// Each worker's last SendMessage, by its id: the head of the text, which
-// its send is matched by, and the summary it gave.
-const lastSends = runtime.sends
+// Each worker's last SendMessage, the newest: kept in the state, as a
+// reload may come between the call and its send.
 const SEND_GISTS = 100
 
 /** Keeps a worker's SendMessage summary, which its send's line says in place of the text. */
-export const noteSendGist = (agentId: string, summary: unknown, message: unknown) =>
-  setKept(lastSends.gists, agentId, { head: headOf(String(message ?? '')), gist: gistOf(summary, message) }, SEND_GISTS)
+export function noteSendGist($: Engine, agentId: string, summary: unknown, message: unknown) {
+  const sent = { id: agentId, head: headOf(String(message ?? '')), gist: gistOf(summary, message) }
+  return updateSendGists($, list => appendKept(list, [sent], SEND_GISTS, x => x.id))
+}
 
 // What a worker's send says in a line: the summary its SendMessage gave,
 // else the text's first line.
-function gistOfSend(agentId: string, text: string): string {
-  const s = lastSends.gists.get(agentId)
+async function gistOfSend($: Engine, agentId: string, text: string): Promise<string> {
+  const s = (await readSendGists($)).find(x => x.id === agentId)
   return s !== undefined && s.head === headOf(text) ? s.gist : gistOf(undefined, text)
 }
 
@@ -53,7 +53,7 @@ export async function onSend($: Engine, e: Parameters<OnSendHook>[1], next: Para
   if (starts && e.agentId !== undefined) {
     if (!(await isAgentOf($, addressee.id, sender))) {
       const by = nameOf(e.agentId, sender, await readMembers($))
-      const item: Relay = { id: addressee.id, by, byId: e.agentId, address: sender?.address ?? e.agentId, text: e.text, gist: gistOfSend(e.agentId, e.text) }
+      const item: Relay = { id: addressee.id, by, byId: e.agentId, address: sender?.address ?? e.agentId, text: e.text, gist: await gistOfSend($, e.agentId, e.text) }
       await updateRelays($, list => appendKept(list, [item], RELAYS_KEEP))
       relaySoon()
       if (sender !== undefined) await quiet($, patchWorker($, sender.id, (_, now) => ({ lastMsgAt: now, lastMsgIn: false })), 'sender')
@@ -110,7 +110,7 @@ async function recordSend(
       from: author.name,
       toId: to?.id ?? '',
       to: to?.name ?? e.to,
-      gist: gistOfSend(author.id, e.text),
+      gist: await gistOfSend($, author.id, e.text),
       wakes: wakes && sent.isDelivered,
       isLost: !sent.isDelivered,
     }
