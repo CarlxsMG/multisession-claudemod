@@ -37,7 +37,7 @@ All notable changes to crew are written here. The format follows
   of sleeping from the start until its first turn.
 - A worker or fork the engine ends a while after its last turn no longer shows as working for
   good: it stays done, and a busy one the engine no longer lists, silent for a minute, is
-  closed with its run's end, or as stopped.
+  closed with its run's end, or as stopped, also when the engine drops it around a reload.
 - No two workers share a name any more: two forks started in one response, an agent a worker
   starts, and a worker cleared with `/crew clear` each keep a name of their own. Names are 2 to
   4 characters, so a card shows them whole; a name an Agent call gives that is longer, shorter

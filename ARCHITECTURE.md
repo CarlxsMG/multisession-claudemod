@@ -95,6 +95,7 @@ under, so it never changes even where the code name differs.
 | `checkins` | `checkins` | `checkins-1` | The rows placed in the conversation |
 | `due` | `pendingRows` | `due-1` | Rows waiting for the main turn to end |
 | `beat` | `paneTick` | none | A counter whose change redraws the pane |
+| `listed` | `listed` | `listed-1` | The agents the engine has listed, up to 200 |
 | `intents` | `intents` | `intents-1` | What delegate meant each new worker to be, until its spawn, up to 50 |
 | `isolated` | `isolated` | `isolated-1` | Agent calls that asked for a worktree, until their spawn, up to 50 |
 | `sendGists` | `sendGists` | `sendGists-1` | Each worker's last SendMessage: the head of its text and its summary, up to 100 |
@@ -286,7 +287,8 @@ work it owns is over) and then drops it from the list. So the list never sets a 
 saw finish back to busy: a status read in that gap would outlive the agent. What does wake a
 finished worker (a message, a resume, a turn's start, a tool call) has a hook. A busy worker
 the engine lists no more, with nothing heard from it for a minute (`GONE_MS`), takes its run's
-end, or `stopped` when that end never reached the crew and the engine had listed it.
+end, or `stopped` when that end never reached the crew and the engine had listed it. Which agents
+it listed is an atom: the engine may drop one around a reload, where no sync of the next load sees it.
 
 ## Rendering
 

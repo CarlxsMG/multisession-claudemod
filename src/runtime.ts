@@ -26,8 +26,6 @@ function fresh() {
     due: { relay: true, release: false },
     /** `src/crew/workers.ts`: the names given in this load, the moment each is chosen. */
     names: { claimed: new Set<string>() },
-    /** `src/crew/sync.ts`: the agents the engine listed in this load. */
-    sync: { everListed: new Set<string>() },
     /**
      * `src/progress/tracker.ts`: the check-in interval in minutes (0 for off)
      * as the store keeps it (undefined before it is read: the default), the
