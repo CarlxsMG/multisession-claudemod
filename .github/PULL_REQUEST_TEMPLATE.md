@@ -12,6 +12,6 @@ Closes #
 
 - [ ] `claude plugin test .` passes.
 - [ ] `claude plugin validate .` passes.
-- [ ] `npx -p typescript tsc -p .` reports no errors.
+- [ ] `npx -p typescript tsc -p .` reports no errors (a local check: CI does not run it).
 - [ ] Text people see is in English, and the Spanish translation says the same.
 - [ ] My contribution can be released under the MIT License.
