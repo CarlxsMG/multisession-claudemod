@@ -134,6 +134,27 @@ test("a worker on the session's model is asked for it by the alias the Agent too
   expect(seen.spawns.map(s => s.model)).toEqual(['opus', 'sonnet', undefined, undefined])
 })
 
+test("a worker runs on the session's model, haiku in a session on haiku, and a haiku request gets the session's", async ($, on) => {
+  let spawned = 0
+  // The orchestrator's Agent call carries the session's model as its parent's,
+  // which the test kit leaves out of a spawn the plugin makes itself.
+  const seen = { prompts: [] as string[], sends: [] as string[], spawns: [] as AgentSpawnInput[], refuse: NO_VERDICT }
+  engine(on, { nextId: () => `agent-${++spawned}`, seen })
+  await $.session.start({ cwd: '/work/main', surface: 'desktop', isInteractive: false })
+  const start = async (repo: string, parentModel: string, model?: string) => {
+    const result = String((await $.tool.call({ tool: 'mcp__crew__delegate', task: 'Run the tests', title: 'Tests', repo, ...(model ? { model } : {}) })).result)
+    expect(result).not.toMatch(/model "/)
+    const name = /name "(\w+)"/.exec(result)![1]!
+    await spawnAgent($, { prompt: 'Run the tests', description: 'Tests', subagentType: 'general-purpose', name, tool_use_id: `toolu_${name}`, background: false, parentModel })
+  }
+
+  await start('/work/api', 'claude-haiku-4-5')
+  await start('/work/web', 'claude-haiku-4-5', 'haiku')
+  await start('/work/docs', 'claude-opus-5-5', 'haiku')
+  await start('/work/app', 'claude-sonnet-5-5', 'claude-haiku-4-5')
+  expect(seen.spawns.map(s => s.model)).toEqual(['haiku', 'haiku', 'opus', 'sonnet'])
+})
+
 test('a spawn auto mode refused is said as it is, and nothing is handed on', async ($, on) => {
   engine(on, { seen: { prompts: [], sends: [], refuse: 'Auto mode blocked this action: it deletes the repository.' } })
   await $.session.start({ cwd: '/work/main', surface: 'terminal', isInteractive: true })
@@ -343,7 +364,7 @@ test('a blank worker names no one: a free worker it cannot reach gives way to a 
   expect(await delegate({ task: 'Design the cache', repo: '/work/api', worker: '  ' })).toMatch(/^Started Bolt/)
 })
 
-test('a worker never runs on haiku', async ($, on) => {
+test('a haiku request asks the Agent tool for no model, as one with none does', async ($, on) => {
   const seen = { prompts: [] as string[], sends: [] as string[], models: [] as (string | undefined)[] }
   let spawned = 0
   engine(on, { nextId: () => `agent-${++spawned}`, seen })
