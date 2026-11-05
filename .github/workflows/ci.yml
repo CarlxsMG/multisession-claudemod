@@ -38,7 +38,9 @@ jobs:
         run: claude plugin validate --strict --profile directory .
 
   test:
-    # crew runs on macOS, Linux and Windows, and its paths and rendering differ on each.
+    # crew runs on macOS, Linux and Windows, and its paths and rendering differ on each. The
+    # ruleset requires the Linux and Windows jobs only: a macOS runner can take a long time to
+    # start, so that job reports its result without holding a merge.
     name: Plugin tests (${{ matrix.os }})
     strategy:
       fail-fast: false
