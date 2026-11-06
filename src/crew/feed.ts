@@ -3,6 +3,7 @@
 // calls of the crew's tools, what each worker was given to do, and what
 // each end-of-task row was first drawn with.
 import type { LastJob, Member, Msg, MsgTone, NoteFirst, OrchMood } from '../../types'
+import { MAIN_ADDRESS } from '../config'
 import type { Engine } from '../engine'
 import { runtime } from '../runtime'
 import {
@@ -59,7 +60,7 @@ export async function keepFirstDrawn($: Engine) {
 }
 
 /** The orchestrator's id in the feed's lines, as the main conversation's address. */
-export const ORCH_ID = 'main'
+export const ORCH_ID = MAIN_ADDRESS
 /** The person's id in the feed's lines: no agent's id or address can be it. */
 export const USER_ID = 'user'
 

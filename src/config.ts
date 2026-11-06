@@ -1,12 +1,22 @@
-// The names the crew registers under, the tick its pane moves on, and the
-// limits the roster and the briefs share.
+// The names the crew shares with the engine, the tick its pane moves on, and
+// the limits the roster and the briefs share.
 
+/**
+ * The plugin's name, as its manifest gives it: what the engine marks the
+ * crew's own calls and rows with. The atoms and the hook matchers spell it out,
+ * as the validator reads those only as written.
+ */
+export const PLUGIN = 'crew'
 /** The pane's request id, which its render hook and every redraw name. */
 export const PANE = 'crew'
 /** The crew's tools as the engine names them: `mcp__<plugin>__<tool>`. */
 export const DELEGATE = 'mcp__crew__delegate'
 export const ROSTER = 'mcp__crew__roster'
 export const PROGRESS = 'mcp__crew__progress'
+/** The main conversation's address, which an agent's SendMessage names it by. */
+export const MAIN_ADDRESS = 'main'
+/** The agent type of a worker nobody asked another type for: the engine's default, which the roster leaves unsaid. */
+export const DEFAULT_TYPE = 'general-purpose'
 /** The pane's timer: one frame of the figures, and the beat the rest of the tick counts in. */
 export const TICK_MS = 400
 /** The teammates a worker's brief lists; the orchestrator gives it any other address. */

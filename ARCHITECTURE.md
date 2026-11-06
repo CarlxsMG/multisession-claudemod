@@ -52,7 +52,7 @@ the debug log. Its `unrecognized` logs there an engine text the crew reads in no
 | `src/usage/limits.ts` | The account's usage windows, and the usage probe. |
 | `src/i18n/` | The UI's text in English and Spanish, and the locale. See [docs/i18n.md](docs/i18n.md). |
 | `src/state/atoms.ts` | Every atom and its `readX`/`updateX` pair, and `STORE_KEYS`. |
-| `src/config.ts` | The names the crew registers under, the pane's tick, and the limits the roster and the briefs share. |
+| `src/config.ts` | The names the crew shares with the engine, the pane's tick, and the limits the roster and the briefs share. |
 | `src/runtime.ts` | What one load keeps in memory beside the atoms, and `resetRuntime`. See [Runtime state](#runtime-state-srcruntimets). |
 | `src/util/` | Pure helpers: text fitting, time, paths (POSIX and Windows), base64, seeded random, bounded lists, tool-input reading. |
 | `types/index.d.ts` | The state contract (`PluginState.crew`) and the domain types. |

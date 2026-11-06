@@ -3,11 +3,14 @@
 import { expect, mock, test as kitTest } from 'claude-code/testing'
 import type { TestBody, TestRest } from 'claude-code/testing'
 import type { AgentInfo, AgentSpawnInput, On } from 'claude-code'
+import { DEFAULT_TYPE, DELEGATE, PLUGIN } from '../../src/config'
 import type { Anim } from '../../src/figure/anim'
 import { DIAMOND_W } from '../../src/figure/diamond'
 import { DEFAULT_LOOK } from '../../src/figure/look'
 import { DEFAULT_COLOR } from '../../src/figure/raster'
 import { JUST_ENDED_MS } from '../../src/progress/runs'
+
+export { DELEGATE }
 
 /** The kit's `test`, with the plugin under test speaking English unless a test asks for another language. */
 export function test(name: string, ...rest: TestRest) {
@@ -16,7 +19,7 @@ export function test(name: string, ...rest: TestRest) {
 }
 
 export const PANE = {
-  plugin: 'crew',
+  plugin: PLUGIN,
   component: 'Pane',
   requestId: 'crew',
   props: {
@@ -105,7 +108,7 @@ export function engine(on: On, options: EngineOptions = {}) {
   on('session.start', (_, e) => ({ cwd: e.cwd }))
   on('agent.spawn', (_, e, next) => {
     // Auto mode's answer to a spawn the plugin makes.
-    if (seen?.refuse !== undefined && next.origin.plugin === 'crew') return { deny: seen.refuse }
+    if (seen?.refuse !== undefined && next.origin.plugin === PLUGIN) return { deny: seen.refuse }
     seen?.spawns?.push(e)
     seen?.prompts.push(e.prompt)
     seen?.models?.push(e.model)
@@ -209,7 +212,7 @@ export const composeBrief = async ($: Parameters<TestBody>[0]) =>
       model: 'test-model',
       promptModel: 'test-model',
       surfaces: ['terminal'],
-      tools: ['mcp__crew__delegate'],
+      tools: [DELEGATE],
       outputStyle: null,
       traits: [],
     })
@@ -267,7 +270,7 @@ export async function wokenCrew($: Parameters<TestBody>[0], on: On, agents?: () 
     $.turn.complete({ answer: `Hecho ${agentId}`, durationMs: 1, isAborted: false, turnId: `t-${agentId}-${seen.sends.length}`, agentId, reason: 'answer' })
   const message = (to: string, text: string, agentId: string) => workerSend($, to, text, agentId)
   await delegate({ task: 'Build the remote channel', title: 'Remote channel', repo: '/work/api' })
-  await spawnAgent($, { prompt: 'Build the session bus step', description: 'Session bus', subagentType: 'general-purpose', parentAgentId: 'agent-1' })
+  await spawnAgent($, { prompt: 'Build the session bus step', description: 'Session bus', subagentType: DEFAULT_TYPE, parentAgentId: 'agent-1' })
   // To a busy agent a message changes nothing.
   await message('bolt', 'Pip: are you on router.ts?', 'agent-1')
   expect(await roster('bolt')).not.toMatch(/answering/)
@@ -286,7 +289,7 @@ export async function napCrew($: Parameters<TestBody>[0], on: On, n: number) {
   const states = new Map<string, AgentInfo['status']>()
   const agents = (): AgentInfo[] =>
     Array.from({ length: spawned }, (_, i) => `agent-${i + 1}`).map(id => ({
-      id, name: id, description: 'x', type: 'general-purpose', status: states.get(id) ?? 'running',
+      id, name: id, description: 'x', type: DEFAULT_TYPE, status: states.get(id) ?? 'running',
     }))
   const clock = engine(on, { nextId: () => `agent-${++spawned}`, agents })
   await $.session.start({ cwd: '/work/main', surface: 'terminal', isInteractive: true })
@@ -325,7 +328,8 @@ export async function freeCrew($: Parameters<TestBody>[0], on: On) {
 
 // How long a worker the engine has free takes to leave the row when the end
 // of its turn never reached the crew: the end is seen five seconds after its
-// last sign of life, and then stands out for half a minute.
+// last sign of life (`MISSED_MS` in src/progress/tracker.ts, not the time a
+// free worker naps after), and then stands out for half a minute.
 export const AWAY_MS = 5000 + JUST_ENDED_MS
 
 // The characters a Raster's cells hold: a word of three per cell, the first
@@ -353,8 +357,6 @@ export const usageReply = (fable: number) =>
 
 // ---- the conversation's crew rows ----
 
-export const DELEGATE = 'mcp__crew__delegate'
-
 export type Row = { tool: string; tool_use_id: string; input: Record<string, unknown>; isRunning: boolean; isErrored: boolean; isInterrupted: boolean; isExpanded?: boolean; output?: unknown }
 
 export const toolRow = (tool: string, id: string, input: Record<string, unknown>, extra: Partial<Row> = {}): Row => ({
@@ -372,12 +374,12 @@ export const toolRow = (tool: string, id: string, input: Record<string, unknown>
 export const CLICKS = { columns: 80, rows: 40, isFullscreen: true }
 
 export const mountRow = ($: Parameters<TestBody>[0], props: Row, viewport: { columns: number; rows: number; isFullscreen?: boolean } = CLICKS) =>
-  $.ui.mount({ plugin: 'crew', surface: 'terminal', component: 'ToolUse', requestId: props.tool_use_id, props, viewport })
+  $.ui.mount({ plugin: PLUGIN, surface: 'terminal', component: 'ToolUse', requestId: props.tool_use_id, props, viewport })
 
 export type Said = { text: string; origin: { kind: 'task-notification' | 'unclassified' | 'composer' | 'peer' }; isExpanded: boolean; from?: { name: string }; task?: { id?: string; status?: string; durationMs?: number } }
 
 export const mountSaid = ($: Parameters<TestBody>[0], id: string, props: Said, viewport: { columns: number; rows: number; isFullscreen?: boolean } = CLICKS) =>
-  $.ui.mount({ plugin: 'crew', surface: 'terminal', component: 'UserMessage', requestId: id, props, viewport })
+  $.ui.mount({ plugin: PLUGIN, surface: 'terminal', component: 'UserMessage', requestId: id, props, viewport })
 
 // A bubble's rows as drawn: its top border, its lines and its bottom one,
 // each a Text, or a row Box where it holds the glyph that opens or closes
@@ -389,7 +391,7 @@ export type Result = { tool: string; tool_use_id: string; output: unknown; isErr
 
 // The block under a tool row, where the engine draws the call's result.
 export const mountResult = ($: Parameters<TestBody>[0], props: Result) =>
-  $.ui.mount({ plugin: 'crew', surface: 'terminal', component: 'ToolResult', requestId: props.tool_use_id, props })
+  $.ui.mount({ plugin: PLUGIN, surface: 'terminal', component: 'ToolResult', requestId: props.tool_use_id, props })
 
 // Drawn as nothing: an empty Box.
 export const isBlank = async (ui: { drawn: () => Promise<{ type: string }>; find: (q: { type: string }) => Promise<unknown> }) =>
@@ -412,7 +414,7 @@ export async function progressCrew($: Parameters<TestBody>[0], on: On, stored: R
   const states = new Map<string, AgentInfo['status']>()
   const agents = (): AgentInfo[] =>
     Array.from({ length: spawned }, (_, i) => `agent-${i + 1}`).map(id => ({
-      id, name: id, description: 'x', type: 'general-purpose', status: states.get(id) ?? 'running',
+      id, name: id, description: 'x', type: DEFAULT_TYPE, status: states.get(id) ?? 'running',
     }))
   const seen = { prompts: [] as string[], sends: [] as string[], tools: [] as string[] }
   const clock = engine(on, { nextId: () => `agent-${++spawned}`, agents, seen, rateLimits: [], stored })
@@ -459,7 +461,7 @@ export async function progressCrew($: Parameters<TestBody>[0], on: On, stored: R
   const status = () => statuses[statuses.length - 1]
   // A placed row's lines as drawn in a terminal `columns` wide.
   const lines = async (id: string, columns = 80) => {
-    const ui = await $.ui.mount({ plugin: 'crew', surface: 'terminal', component: 'Placed', requestId: id, props: { id, plugin: 'crew' }, viewport: { columns, rows: 40 } })
+    const ui = await $.ui.mount({ plugin: PLUGIN, surface: 'terminal', component: 'Placed', requestId: id, props: { id, plugin: PLUGIN }, viewport: { columns, rows: 40 } })
     const box = await ui.find({ type: 'Box' })
     await ui.unmount()
     return (box?.children ?? []).map(textIn)
