@@ -6,27 +6,31 @@ All notable changes to crew are written here. The format follows
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-11-06
+
 ### Added
 
 - In the desktop app and VS Code the crew's rows in the conversation are one-line cards: the
-  worker's figure, who to whom, the title, the foot and how it ended, and a press on `▸` shows the
-  task or the report whole. The terminal keeps its bubbles and the phone Claude Code's own rows.
+  worker's figure, who to whom, the title, what the call's result says and how it ended, and a
+  press on `▸` shows the task or the report whole. The terminal keeps its bubbles and the phone
+  Claude Code's own rows.
 - A `usageProbe` option (`on` or `off`, `on` by default) that turns off the headless `claude -p`
-  the crew runs for Fable's weekly window; with `off` the pane shows the engine's windows only.
+  the crew runs for Fable's weekly window; with `off` the pane shows only the 5-hour and weekly
+  windows, which come from Claude Code.
 - A `napAfter` option (`5s`, `30s`, `2m` or `never`, `5s` by default) that sets how long a free
   or finished worker stays in the pane's row; a finished one still stays while its end stands out.
 
 ### Changed
 
-- Finished workers (done, failed or stopped) leave the pane's row a few seconds after their end
-  stops standing out, as free ones do; the team view and the roster still list them.
+- Finished workers (done, failed or stopped) leave the pane's row as free ones do, at the soonest
+  once their end stops standing out (30 seconds); the team view and the roster still list them.
 - The newest check-in in the conversation follows the round in place, its steps and phases as
   they change and its times once a minute, instead of keeping what it showed when it was placed.
 - A worker's tool calls no longer draw the pane again one by one: what it does, its call count
   and its phase are written once per frame of the pane (400 ms), so a card and the team view
   can trail its last call by that much.
 - A stopped run has a mark of its own, `■`, in the status line, the rows, the toasts, the bubbles
-  and on its figure, so it reads apart from a failed one (`×`) without color.
+  and on its figure, so it reads apart from a failed one (`×`) without colour.
 - The editor's figure cheers only for a change to the look: a press on the value already chosen
   leaves it as it was.
 - The timer that types out the pane's bubbles runs only while one types, instead of waking the
@@ -47,24 +51,25 @@ All notable changes to crew are written here. The format follows
   and time it first showed.
 - The orchestrator greets a new session awake, and naps after three idle minutes of it, instead
   of sleeping from the start until its first turn.
-- A worker or fork the engine ends a while after its last turn no longer shows as working for
-  good: it stays done, and a busy one the engine no longer lists, silent for a minute, is
-  closed with its run's end, or as stopped, also when the engine drops it around a reload.
+- A worker or fork that Claude Code ends a while after its last turn no longer shows as working
+  for good: it stays done, and a busy one Claude Code no longer lists, silent for a minute, is
+  closed with its run's end, or as stopped, also when Claude Code drops it around a reload.
 - No two workers share a name any more: two forks started in one response, an agent a worker
   starts, and a worker cleared with `/crew clear` each keep a name of their own. Names are 2 to
   4 characters, so a card shows them whole; a name an Agent call gives that is longer, shorter
   or taken is replaced, and the call is told the name and the address. Past the last name of the
   pool, workers take a letter and a number (`A1`).
 - A full model id given to `delegate` (`claude-sonnet-4-5`) starts the worker on its family's
-  alias, and reuses one asked for that alias, instead of failing the spawn; a model that names
-  no family is turned down with the aliases it takes.
+  alias, and reuses one asked for that alias, instead of failing the spawn; a haiku id gives the
+  session's model, as `haiku` does, and a model that names no family is turned down with the
+  aliases it takes.
 - A worker's message to a free teammate that failed on its way no longer loses the messages
   queued after it: each is sent on by itself.
 - The orchestrator no longer cheers for a turn that was stopped or failed; `/crew msg` sends the
   message with its lines and spacing as typed; and once the desktop app or an editor leaves the
   session, the pane is no longer drawn again every few seconds for it.
 - After Claude Code restarts, a resumed conversation's crew bubbles draw as the crew's again,
-  not as the engine's rows: from what each row holds (names, delegate titles, how a run ended
+  not as Claude Code's own rows: from what each row holds (names, delegate titles, how a run ended
   and its time), with nothing kept on disk. A worker's colour comes back only where the row
   carries its id; elsewhere the bubble is grey.
 - A blank name submitted in the editor keeps the orchestrator's name instead of resetting it to
@@ -102,5 +107,6 @@ The first public release.
 - macOS, Linux and Windows support, with figures drawn as cells on the terminal and SVG in the
   desktop app, the editors and on the phone.
 
-[Unreleased]: https://github.com/CarlxsMG/multisession-claudemod/compare/v0.1.0...HEAD
-[0.1.0]: https://github.com/CarlxsMG/multisession-claudemod/releases/tag/v0.1.0
+[Unreleased]: https://github.com/CarlxsMG/multisession-claudemod/compare/v0.2.0...HEAD
+[0.2.0]: https://github.com/CarlxsMG/multisession-claudemod/compare/ff806e592bc0656773bfd943528f6ab9b9b43900...v0.2.0
+[0.1.0]: https://github.com/CarlxsMG/multisession-claudemod/tree/ff806e592bc0656773bfd943528f6ab9b9b43900
