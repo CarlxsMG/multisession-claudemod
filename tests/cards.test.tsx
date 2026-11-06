@@ -56,6 +56,22 @@ async function opensTo(ui: Drawn, id: string, whole: string) {
 const REPORT = 'Tests verdes: 42 ok.\n\n- Cambié src/app.ts\n- Añadí un test\n- Nada pendiente'
 const TASK = 'Run the tests and fix what fails.\nThe suite lives in api/.\nThird line.'
 
+test('the terminal keeps its own ctrl+o, which says nothing of a card', async ($, on) => {
+  engine(on)
+  await $.session.start({ cwd: '/work/main', surface: 'terminal', isInteractive: true })
+  const input = { task: TASK, title: 'Arreglar tests', repo: '/work/api' }
+  const output = String((await $.tool.call({ tool: DELEGATE, tool_use_id: 'toolu_o1', ...input })).result)
+  const asked = { tool: DELEGATE, tool_use_id: 'toolu_o1', output, isErrored: false, isExpanded: true }
+  const terminal = await mountResultOn($, 'terminal', asked)
+  expect((await terminal.drawn()).type).toBe('engine')
+  await terminal.unmount()
+  for (const surface of CARD_SURFACES) {
+    const blank = await mountResultOn($, surface, asked)
+    expect(await isBlank(blank)).toBe(true)
+    await blank.unmount()
+  }
+})
+
 for (const surface of CARD_SURFACES) {
   test(`on ${surface} a delegate call is a one-line card with the figure, and a press opens the task whole`, async ($, on) => {
     engine(on)
@@ -349,22 +365,6 @@ for (const surface of SURFACES) {
     await lineMatches(rows[3]!, /^Pip → Nova · ✓ done · 4s · Pregunta$/)
   })
 }
-
-test('the terminal keeps its own ctrl+o, which says nothing of a card', async ($, on) => {
-  engine(on)
-  await $.session.start({ cwd: '/work/main', surface: 'terminal', isInteractive: true })
-  const input = { task: TASK, title: 'Arreglar tests', repo: '/work/api' }
-  const output = String((await $.tool.call({ tool: DELEGATE, tool_use_id: 'toolu_o1', ...input })).result)
-  const asked = { tool: DELEGATE, tool_use_id: 'toolu_o1', output, isErrored: false, isExpanded: true }
-  const terminal = await mountResultOn($, 'terminal', asked)
-  expect((await terminal.drawn()).type).toBe('engine')
-  await terminal.unmount()
-  for (const surface of CARD_SURFACES) {
-    const blank = await mountResultOn($, surface, asked)
-    expect(await isBlank(blank)).toBe(true)
-    await blank.unmount()
-  }
-})
 
 test('a text the surface refuses keeps the engine\'s row', async ($, on) => {
   engine(on)

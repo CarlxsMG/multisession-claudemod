@@ -4,6 +4,45 @@ import { given, headsUp, heldFor, started } from '../src/prompts/results'
 import { CLICKS, DELEGATE, PANE, engine, frameRows, isBlank, mountResult, mountRow, mountSaid, spawnAgent, test, toolRow } from './support/crew'
 import type { Said } from './support/crew'
 
+test("a resumed conversation's reports and end notices draw as the crew's from what each row says", async ($, on) => {
+  engine(on)
+  await $.session.start({ cwd: '/work/main', surface: 'terminal', isInteractive: true })
+  // A worker's message names it by its address, its name in lowercase; the
+  // id that would color it is not in the row.
+  const back = await mountSaid($, 'r-m1', { text: 'Tests verdes: 42 ok.', origin: { kind: 'unclassified' }, isExpanded: false, from: { name: 'pip' } })
+  expect(await frameRows(back)).toEqual([
+    expect.stringMatching(/^╭─ Pip → Nova ─+╮$/),
+    expect.stringMatching(/^│ Tests verdes: 42 ok\. +│$/),
+    expect.stringMatching(/^╰─+╯$/),
+  ])
+  expect((await back.find({ type: 'Text', text: /^Pip$/ }))?.props.color).toBe('inactive')
+
+  // An end notice gives the agent's id, so its color, how it ended and how
+  // long it ran. Not its name, nor its title: the engine's is the task the
+  // agent was started with, not the one it ended.
+  const note = await mountSaid($, 'r-m2', {
+    text: 'Agent "Arreglar tests" completed',
+    origin: { kind: 'task-notification' },
+    isExpanded: false,
+    task: { id: 'agent-7', status: 'completed', durationMs: 125_000 },
+  })
+  expect(await frameRows(note)).toEqual([expect.stringMatching(/^╭─ crew → Nova · ✓ done · 2m 5s ─+╮$/), expect.stringMatching(/^╰─+╯$/)])
+  expect((await note.find({ type: 'Text', text: /^╭─ $/ }))?.props.color).not.toBe('inactive')
+  expect(await note.find({ type: 'Text', text: /Arreglar/ })).toBeUndefined()
+
+  // A sender no worker could be, another session's message and a shell's
+  // end keep the engine's row.
+  for (const props of [
+    { text: 'Hola', origin: { kind: 'unclassified' }, isExpanded: false, from: { name: 'otra-sesion' } },
+    { text: 'Hola', origin: { kind: 'peer' }, isExpanded: false, from: { name: 'api' } },
+    { text: 'Background command "npm test" completed', origin: { kind: 'task-notification' }, isExpanded: false, task: { id: 'b1x2', status: 'completed' } },
+  ] as const) {
+    const ui = await mountSaid($, 'r-m3', props)
+    expect((await ui.drawn()).type).toBe('engine')
+    await ui.unmount()
+  }
+})
+
 test("the orchestrator's delegate row names the worker in the panel's color, once known", async ($, on) => {
   engine(on)
   await $.session.start({ cwd: '/work/main', surface: 'terminal', isInteractive: true })
@@ -485,43 +524,4 @@ test("a resumed conversation's crew calls, which no state of this session knows,
   expect(await colorOf(now, /^Pip$/)).toBe(pipColor)
   await sent.redraw(toolRow('SendMessage', 'toolu_r4', ask, { output: inbox }))
   expect(await colorOf(sent, /^Pip$/)).toBe('inactive')
-})
-
-test("a resumed conversation's reports and end notices draw as the crew's from what each row says", async ($, on) => {
-  engine(on)
-  await $.session.start({ cwd: '/work/main', surface: 'terminal', isInteractive: true })
-  // A worker's message names it by its address, its name in lowercase; the
-  // id that would color it is not in the row.
-  const back = await mountSaid($, 'r-m1', { text: 'Tests verdes: 42 ok.', origin: { kind: 'unclassified' }, isExpanded: false, from: { name: 'pip' } })
-  expect(await frameRows(back)).toEqual([
-    expect.stringMatching(/^╭─ Pip → Nova ─+╮$/),
-    expect.stringMatching(/^│ Tests verdes: 42 ok\. +│$/),
-    expect.stringMatching(/^╰─+╯$/),
-  ])
-  expect((await back.find({ type: 'Text', text: /^Pip$/ }))?.props.color).toBe('inactive')
-
-  // An end notice gives the agent's id, so its color, how it ended and how
-  // long it ran. Not its name, nor its title: the engine's is the task the
-  // agent was started with, not the one it ended.
-  const note = await mountSaid($, 'r-m2', {
-    text: 'Agent "Arreglar tests" completed',
-    origin: { kind: 'task-notification' },
-    isExpanded: false,
-    task: { id: 'agent-7', status: 'completed', durationMs: 125_000 },
-  })
-  expect(await frameRows(note)).toEqual([expect.stringMatching(/^╭─ crew → Nova · ✓ done · 2m 5s ─+╮$/), expect.stringMatching(/^╰─+╯$/)])
-  expect((await note.find({ type: 'Text', text: /^╭─ $/ }))?.props.color).not.toBe('inactive')
-  expect(await note.find({ type: 'Text', text: /Arreglar/ })).toBeUndefined()
-
-  // A sender no worker could be, another session's message and a shell's
-  // end keep the engine's row.
-  for (const props of [
-    { text: 'Hola', origin: { kind: 'unclassified' }, isExpanded: false, from: { name: 'otra-sesion' } },
-    { text: 'Hola', origin: { kind: 'peer' }, isExpanded: false, from: { name: 'api' } },
-    { text: 'Background command "npm test" completed', origin: { kind: 'task-notification' }, isExpanded: false, task: { id: 'b1x2', status: 'completed' } },
-  ] as const) {
-    const ui = await mountSaid($, 'r-m3', props)
-    expect((await ui.drawn()).type).toBe('engine')
-    await ui.unmount()
-  }
 })

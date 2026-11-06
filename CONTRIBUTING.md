@@ -146,6 +146,9 @@ request and someone will translate it.
   Spanish passes `{ options: { language: 'es' } }` and says why.
 - `tests/unit/` tests pure modules; `tests/golden/` holds the model-facing texts.
 - Every bug fix comes with a test that fails without it.
+- A file's first tests to load the plugin meet the machine at its busiest, with every other file
+  doing the same, and they are the ones a loaded run times out. A file opens with a light test or
+  one with the kit's `SLOW` limit, and a heavier test goes towards its end.
 
 ## Commits and pull requests
 

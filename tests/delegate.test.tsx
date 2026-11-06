@@ -5,6 +5,16 @@ import { WORKER_NAMES } from '../src/persona/names'
 import { DELEGATE, NO_VERDICT, PANE, SURFACES, USAGE, crewCommand, engine, spawnAgent, test } from './support/crew'
 import type { Ask, Seen } from './support/crew'
 
+test('a haiku request asks the Agent tool for no model, as one with none does', async ($, on) => {
+  const seen = { prompts: [] as string[], sends: [] as string[], models: [] as (string | undefined)[] }
+  let spawned = 0
+  engine(on, { nextId: () => `agent-${++spawned}`, seen })
+  await $.session.start({ cwd: '/work/main', surface: 'terminal', isInteractive: true })
+  await $.tool.call({ tool: 'mcp__crew__delegate', task: 'Count the lines', repo: '/work/api', model: 'haiku' })
+  await $.tool.call({ tool: 'mcp__crew__delegate', task: 'Review the login', repo: '/work/web', model: 'sonnet' })
+  expect(seen.models).toEqual([undefined, 'sonnet'])
+})
+
 test('a spawn that throws gives its name back for the next worker', async ($, on) => {
   let spawns = 0
   engine(on, {
@@ -18,65 +28,6 @@ test('a spawn that throws gives its name back for the next worker', async ($, on
   const delegate = async () => String((await $.tool.call({ tool: 'mcp__crew__delegate', task: 'Fix the tests', title: 'Tests', repo: '/work/api' })).result)
   expect(await delegate()).not.toMatch(/^Started /)
   expect(await delegate()).toMatch(/^Started Pip /)
-})
-
-test('a worker appears, works, reports and is reused', async ($, on) => {
-  const clock = engine(on)
-  await $.session.start({ cwd: '/work/main', surface: 'terminal', isInteractive: true })
-
-  const first = await $.tool.call({
-    tool: 'mcp__crew__delegate',
-    task: 'Run the tests and fix what fails',
-    title: 'Arreglar tests',
-    repo: '/work/api',
-  })
-  expect(String(first.result)).toMatch(/Started Pip/)
-
-  await $.tool.call({ tool: 'Read', file_path: '/work/api/src/app.ts', agentId: 'agent-1' })
-
-  // Under the name, its run's time: what it does is the team view's.
-  for (const surface of SURFACES) {
-    const ui = await $.ui.mount({ ...PANE, surface })
-    expect((await ui.find({ type: 'Text', text: /^Pip$/ }))?.text).toBe('Pip')
-    expect((await ui.find({ type: 'Text', text: /^0s$/ }))?.text).toBe('0s')
-    expect(await ui.find({ type: 'Text', text: /Read app\.ts/ })).toBeUndefined()
-    await ui.unmount()
-  }
-
-  await $.turn.complete({
-    answer: 'Tests verdes: 42 ok',
-    durationMs: 1000,
-    isAborted: false,
-    turnId: 't1',
-    agentId: 'agent-1',
-    reason: 'answer',
-  })
-
-  const again = await $.tool.call({
-    tool: 'mcp__crew__delegate',
-    task: 'Now add a test for the login',
-    repo: '/work/api',
-  })
-  expect(String(again.result)).toMatch(/Given to Pip/)
-
-  const roster = await $.tool.call({ tool: 'mcp__crew__roster' })
-  expect(String(roster.result)).toMatch(/Pip: address "pip"/)
-
-  await $.turn.complete({
-    answer: 'Login cubierto',
-    durationMs: 1000,
-    isAborted: false,
-    turnId: 't2',
-    agentId: 'agent-1',
-    reason: 'answer',
-  })
-  // Past the cheer, a finished worker stands still with its tick.
-  await clock.advance(20_000)
-  const ui = await $.ui.mount({ ...PANE, surface: 'terminal' })
-  expect(await ui.find({ type: 'Text', text: /Tests verdes/ })).toBeDefined()
-  expect((await ui.find({ type: 'Text', text: /^done$/ }))?.text).toBe('done')
-  expect(await ui.find({ type: 'Raster', key: 'w-agent-1' })).toBeDefined()
-  await ui.unmount()
 })
 
 test("where auto mode reviews only the model's own calls, the orchestrator starts delegate's worker and the crew takes it", async ($, on) => {
@@ -366,16 +317,6 @@ test('a blank worker names no one: a free worker it cannot reach gives way to a 
   expect(await delegate({ task: 'Design the cache', repo: '/work/api', worker: '  ' })).toMatch(/^Started Bolt/)
 })
 
-test('a haiku request asks the Agent tool for no model, as one with none does', async ($, on) => {
-  const seen = { prompts: [] as string[], sends: [] as string[], models: [] as (string | undefined)[] }
-  let spawned = 0
-  engine(on, { nextId: () => `agent-${++spawned}`, seen })
-  await $.session.start({ cwd: '/work/main', surface: 'terminal', isInteractive: true })
-  await $.tool.call({ tool: 'mcp__crew__delegate', task: 'Count the lines', repo: '/work/api', model: 'haiku' })
-  await $.tool.call({ tool: 'mcp__crew__delegate', task: 'Review the login', repo: '/work/web', model: 'sonnet' })
-  expect(seen.models).toEqual([undefined, 'sonnet'])
-})
-
 test('a full model id goes as the alias the Agent tool takes, to start a worker and to reuse one', async ($, on) => {
   const seen = { prompts: [] as string[], sends: [] as string[], models: [] as (string | undefined)[] }
   let spawned = 0
@@ -488,4 +429,63 @@ test('a worker the user cleared keeps its name: no new worker or fork takes it',
   expect(next).toMatch(/^Started Bolt \(address "bolt"/)
   await spawnAgent($, { prompt: 'Split it', description: 'Split', subagentType: 'fork', fork: true, parentAgentId: 'agent-2' })
   expect(rowOf(await roster($), 'Mika')).toMatch(/ fork of Bolt, /)
+})
+
+test('a worker appears, works, reports and is reused', async ($, on) => {
+  const clock = engine(on)
+  await $.session.start({ cwd: '/work/main', surface: 'terminal', isInteractive: true })
+
+  const first = await $.tool.call({
+    tool: 'mcp__crew__delegate',
+    task: 'Run the tests and fix what fails',
+    title: 'Arreglar tests',
+    repo: '/work/api',
+  })
+  expect(String(first.result)).toMatch(/Started Pip/)
+
+  await $.tool.call({ tool: 'Read', file_path: '/work/api/src/app.ts', agentId: 'agent-1' })
+
+  // Under the name, its run's time: what it does is the team view's.
+  for (const surface of SURFACES) {
+    const ui = await $.ui.mount({ ...PANE, surface })
+    expect((await ui.find({ type: 'Text', text: /^Pip$/ }))?.text).toBe('Pip')
+    expect((await ui.find({ type: 'Text', text: /^0s$/ }))?.text).toBe('0s')
+    expect(await ui.find({ type: 'Text', text: /Read app\.ts/ })).toBeUndefined()
+    await ui.unmount()
+  }
+
+  await $.turn.complete({
+    answer: 'Tests verdes: 42 ok',
+    durationMs: 1000,
+    isAborted: false,
+    turnId: 't1',
+    agentId: 'agent-1',
+    reason: 'answer',
+  })
+
+  const again = await $.tool.call({
+    tool: 'mcp__crew__delegate',
+    task: 'Now add a test for the login',
+    repo: '/work/api',
+  })
+  expect(String(again.result)).toMatch(/Given to Pip/)
+
+  const roster = await $.tool.call({ tool: 'mcp__crew__roster' })
+  expect(String(roster.result)).toMatch(/Pip: address "pip"/)
+
+  await $.turn.complete({
+    answer: 'Login cubierto',
+    durationMs: 1000,
+    isAborted: false,
+    turnId: 't2',
+    agentId: 'agent-1',
+    reason: 'answer',
+  })
+  // Past the cheer, a finished worker stands still with its tick.
+  await clock.advance(20_000)
+  const ui = await $.ui.mount({ ...PANE, surface: 'terminal' })
+  expect(await ui.find({ type: 'Text', text: /Tests verdes/ })).toBeDefined()
+  expect((await ui.find({ type: 'Text', text: /^done$/ }))?.text).toBe('done')
+  expect(await ui.find({ type: 'Raster', key: 'w-agent-1' })).toBeDefined()
+  await ui.unmount()
 })

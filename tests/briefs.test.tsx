@@ -4,6 +4,39 @@ import { lookCode } from '../src/figure/share-code'
 import { VIBES } from '../src/persona/vibes'
 import { COMMENT_LINE, COMPOSER, GIT_LINE, NOVA_OFF, NOVA_ON, PANE, composeBrief, crewCommand, engine, spawnAgent, startTold, test } from './support/crew'
 
+test('the brief is part of the system prompt and of the delegate tool', async ($, on) => {
+  const seen = { prompts: [] as string[], sends: [] as string[], tools: [] as string[] }
+  engine(on, { seen })
+  on('prompt.compose', () => ({ sections: [{ id: 'intro', text: 'You are Claude Code.', scope: 'shared' as const }] }))
+  await $.session.start({ cwd: '/work/main', surface: 'terminal', isInteractive: true })
+
+  const section = await composeBrief($)
+  expect(section?.scope).toBe('session')
+  expect(section?.text).toMatch(/^This brief is for the main assistant; a worker or fork reading it ignores it and does its own task\.\nCrew: delegation was ON when this brief was written\. A "\[crew\]" note beside a user message/)
+  expect(section?.text).toMatch(/Delegation OFF: do the work yourself; use the crew only when the user asks\./)
+  expect(section?.text).not.toMatch(/If you are a subagent reading this/)
+  expect(seen.tools).toHaveLength(1)
+  expect(seen.tools[0]!.endsWith(`\n\n${section?.text}`)).toBe(true)
+  expect(section?.text).toMatch(/You are Nova/)
+  expect(section?.text).toMatch(/- Delegate everything but answers from what you already know: reading files, running commands, edits, reviews, tests\. Doing it yourself looks quicker, but sessions run long/)
+  expect(section?.text).not.toMatch(/more than a couple of tool calls|run the tests, a diffstat/)
+  expect(section?.text).toMatch(/several mcp__crew__delegate calls in one message, each with `fresh: true` or naming its own free worker/)
+  expect(section?.text).toMatch(/or give each a git worktree \(Agent tool, `isolation: "worktree"`\)\.\n- Git: workers commit their own work, never on the main branch; merge into it, or push, only once the user says so\. A comment says why the code is as it is now, never its history\.\n/)
+  expect(section?.text).toMatch(/\n- Workers are models: write to them tersely, with no pleasantries, persona or prose\. A brief is complete in facts \(a new worker has not seen this conversation\); a follow-up carries only what is new\.\n/)
+  expect(section?.text).toMatch(/Reuse context: a worker keeps all it read, also after it reports/)
+  expect(section?.text).toMatch(/subagent_type: "Explore"/)
+  expect(section?.text).toMatch(/A fork \(Agent tool, `subagent_type: "fork"`\) inherits and rereads this whole conversation, so its prompt is just the directive: /)
+  expect(section?.text).toMatch(/- For a larger build, have one worker investigate and then fork itself once per part \(say frontend, backend and the Jira tickets\)/)
+  expect(section?.text).toMatch(/Name the parts and the files each owns; it reports once its forks have\./)
+  expect(section?.text).toMatch(/Steer with SendMessage \(addresses in mcp__crew__roster\)/)
+  expect(section?.text).toMatch(/a finished worker wakes with its context/)
+  expect(section?.text).toMatch(/TaskStop a worker heading the wrong way/)
+  expect(section?.text).toMatch(/don't poll mcp__crew__roster for them/)
+  expect(section?.text).toMatch(/To check a report, have a worker run the check/)
+  // What left the brief lives in the delegate tool's parameters.
+  expect(section?.text).not.toMatch(/haiku|`title`/)
+})
+
 test('workers are told to report in a few lines, and who to talk to', async ($, on) => {
   let spawned = 0
   const seen = { prompts: [] as string[], sends: [] as string[] }
@@ -198,39 +231,6 @@ test('an agent a worktree worker starts works in that worktree too', async ($, o
   const started = String((await $.tool.call({ tool: 'mcp__crew__delegate', task: 'Update the docs' })).result)
   expect(started).toMatch(/^Started Tito/)
   expect(started).not.toMatch(/Heads-up/)
-})
-
-test('the brief is part of the system prompt and of the delegate tool', async ($, on) => {
-  const seen = { prompts: [] as string[], sends: [] as string[], tools: [] as string[] }
-  engine(on, { seen })
-  on('prompt.compose', () => ({ sections: [{ id: 'intro', text: 'You are Claude Code.', scope: 'shared' as const }] }))
-  await $.session.start({ cwd: '/work/main', surface: 'terminal', isInteractive: true })
-
-  const section = await composeBrief($)
-  expect(section?.scope).toBe('session')
-  expect(section?.text).toMatch(/^This brief is for the main assistant; a worker or fork reading it ignores it and does its own task\.\nCrew: delegation was ON when this brief was written\. A "\[crew\]" note beside a user message/)
-  expect(section?.text).toMatch(/Delegation OFF: do the work yourself; use the crew only when the user asks\./)
-  expect(section?.text).not.toMatch(/If you are a subagent reading this/)
-  expect(seen.tools).toHaveLength(1)
-  expect(seen.tools[0]!.endsWith(`\n\n${section?.text}`)).toBe(true)
-  expect(section?.text).toMatch(/You are Nova/)
-  expect(section?.text).toMatch(/- Delegate everything but answers from what you already know: reading files, running commands, edits, reviews, tests\. Doing it yourself looks quicker, but sessions run long/)
-  expect(section?.text).not.toMatch(/more than a couple of tool calls|run the tests, a diffstat/)
-  expect(section?.text).toMatch(/several mcp__crew__delegate calls in one message, each with `fresh: true` or naming its own free worker/)
-  expect(section?.text).toMatch(/or give each a git worktree \(Agent tool, `isolation: "worktree"`\)\.\n- Git: workers commit their own work, never on the main branch; merge into it, or push, only once the user says so\. A comment says why the code is as it is now, never its history\.\n/)
-  expect(section?.text).toMatch(/\n- Workers are models: write to them tersely, with no pleasantries, persona or prose\. A brief is complete in facts \(a new worker has not seen this conversation\); a follow-up carries only what is new\.\n/)
-  expect(section?.text).toMatch(/Reuse context: a worker keeps all it read, also after it reports/)
-  expect(section?.text).toMatch(/subagent_type: "Explore"/)
-  expect(section?.text).toMatch(/A fork \(Agent tool, `subagent_type: "fork"`\) inherits and rereads this whole conversation, so its prompt is just the directive: /)
-  expect(section?.text).toMatch(/- For a larger build, have one worker investigate and then fork itself once per part \(say frontend, backend and the Jira tickets\)/)
-  expect(section?.text).toMatch(/Name the parts and the files each owns; it reports once its forks have\./)
-  expect(section?.text).toMatch(/Steer with SendMessage \(addresses in mcp__crew__roster\)/)
-  expect(section?.text).toMatch(/a finished worker wakes with its context/)
-  expect(section?.text).toMatch(/TaskStop a worker heading the wrong way/)
-  expect(section?.text).toMatch(/don't poll mcp__crew__roster for them/)
-  expect(section?.text).toMatch(/To check a report, have a worker run the check/)
-  // What left the brief lives in the delegate tool's parameters.
-  expect(section?.text).not.toMatch(/haiku|`title`/)
 })
 
 // Claude Code cuts a tool description at 4096 characters: the delegate

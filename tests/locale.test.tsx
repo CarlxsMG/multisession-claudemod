@@ -12,6 +12,29 @@ async function orchAlt($: Parameters<TestBody>[0]) {
   return alt
 }
 
+test('Haiku writes the mood lines in the language the crew speaks, and again in another', { ...SLOW, options: { language: 'auto' } }, async ($, on) => {
+  const clock = engine(on, { stored: { look: { ...DEFAULT_LOOK, phrase: 'Ship it' } } })
+  let language = 'english'
+  on('settings.read', () => ({ value: { language } }))
+  const prompts: string[] = []
+  on('model.complete', (_, e) => {
+    prompts.push(e.prompt)
+    return { value: { isAnswered: true as const, text: WRITTEN, usage: { input_tokens: 1, output_tokens: 1, cache_read_input_tokens: 0, cache_creation_input_tokens: 0 } } }
+  })
+  await $.session.start({ cwd: '/work/main', surface: 'terminal', isInteractive: true })
+  await clock.advance(60_000)
+  expect(prompts).toHaveLength(1)
+  expect(prompts[0]).toMatch(/^Write short status lines in English for Nova, /)
+
+  // The batch kept is the English one: a session in Spanish asks anew,
+  // the same look as before.
+  language = 'spanish'
+  await $.session.start({ cwd: '/work/main', surface: 'terminal', isInteractive: true })
+  await clock.advance(60_000)
+  expect(prompts).toHaveLength(2)
+  expect(prompts[1]).toBe(prompts[0]!.replace(' in English ', ' in Spanish '))
+})
+
 test('with `auto` and no language set in Claude Code the crew speaks English', { options: { language: 'auto' } }, async ($, on) => {
   engine(on)
   await $.session.start({ cwd: '/work/main', surface: 'desktop', isInteractive: true })
@@ -69,27 +92,4 @@ test('/crew answers in English and takes the verbs of either language', { option
   expect((await crewCommand($, 'equipo')).text).toBe("Nova's crew is open.")
   expect((await crewCommand($, 'msg Pip')).text).toBe('Usage: /crew msg <worker> <text>')
   expect((await crewCommand($, 'mode off')).text).toBe('Nova will work without delegating.')
-})
-
-test('Haiku writes the mood lines in the language the crew speaks, and again in another', { ...SLOW, options: { language: 'auto' } }, async ($, on) => {
-  const clock = engine(on, { stored: { look: { ...DEFAULT_LOOK, phrase: 'Ship it' } } })
-  let language = 'english'
-  on('settings.read', () => ({ value: { language } }))
-  const prompts: string[] = []
-  on('model.complete', (_, e) => {
-    prompts.push(e.prompt)
-    return { value: { isAnswered: true as const, text: WRITTEN, usage: { input_tokens: 1, output_tokens: 1, cache_read_input_tokens: 0, cache_creation_input_tokens: 0 } } }
-  })
-  await $.session.start({ cwd: '/work/main', surface: 'terminal', isInteractive: true })
-  await clock.advance(60_000)
-  expect(prompts).toHaveLength(1)
-  expect(prompts[0]).toMatch(/^Write short status lines in English for Nova, /)
-
-  // The batch kept is the English one: a session in Spanish asks anew,
-  // the same look as before.
-  language = 'spanish'
-  await $.session.start({ cwd: '/work/main', surface: 'terminal', isInteractive: true })
-  await clock.advance(60_000)
-  expect(prompts).toHaveLength(2)
-  expect(prompts[1]).toBe(prompts[0]!.replace(' in English ', ' in Spanish '))
 })

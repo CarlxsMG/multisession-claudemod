@@ -5,52 +5,6 @@ import { expect } from 'claude-code/testing'
 import { notePieces } from '../src/progress/text/note'
 import { DELEGATE, SLOW, crewCommand, progress, progressCrew, test, workerSend } from './support/crew'
 
-test("a check-in row comes every 3 minutes of work when something changed, and waits for the orchestrator's turn to end", SLOW, async ($, on) => {
-  const { clock, placed, mainTurn, delegate, lines } = await progressCrew($, on)
-  await delegate('Run the tests', '/work/api', 'Arreglar tests')
-  await $.tool.call({ tool: 'Read', file_path: '/work/api/a.ts', agentId: 'agent-1' })
-  // None before three minutes, so a short task never gets one.
-  await clock.advance(179_000)
-  expect(placed).toHaveLength(0)
-  await clock.advance(1000)
-  expect(placed).toHaveLength(1)
-  expect(await lines(placed[0]!)).toEqual(['─ crew · 1 active · round 3m', '  Pip  reading  3m  Read a.ts'])
-
-  // Three more minutes with nothing new: no row.
-  await clock.advance(180_000)
-  expect(placed).toHaveLength(1)
-  // A phase that changes is news at the next mark.
-  await $.tool.call({ tool: 'Edit', file_path: '/work/api/a.ts', old_string: 'a', new_string: 'b', agentId: 'agent-1' })
-  await clock.advance(180_000)
-  expect(placed).toHaveLength(2)
-
-  // A worker starts while the orchestrator's turn runs: the row waits for
-  // the turn to end, and comes right after.
-  const done = await mainTurn()
-  await $.tool.call({ tool: DELEGATE, task: 'Review the README', title: 'Revisar README', repo: '/work/web' })
-  await clock.advance(180_000)
-  expect(placed).toHaveLength(2)
-  await done()
-  await clock.advance(1000)
-  expect(placed).toHaveLength(3)
-  expect(await lines(placed[2]!)).toEqual([
-    '─ crew · 2 active · round 12m',
-    '  Pip   editing   12m  Edit a.ts',
-    '  Bolt  thinking   3m',
-  ])
-  // The rows before it fold to one line each, as they were.
-  expect(await lines(placed[0]!)).toEqual(['─ crew · round 3m · Pip reading 3m'])
-  expect(await lines(placed[1]!)).toEqual(['─ crew · round 9m · Pip editing 9m'])
-
-  // Many more calls are news even in the same phase.
-  for (let k = 0; k < 25; k++) await $.tool.call({ tool: 'Edit', file_path: '/work/api/a.ts', old_string: 'a', new_string: 'b', agentId: 'agent-1' })
-  await $.tool.call({ tool: 'Read', file_path: '/work/web/README.md', agentId: 'agent-2' })
-  await clock.advance(180_000)
-  expect(placed).toHaveLength(4)
-  await clock.advance(180_000)
-  expect(placed).toHaveLength(4)
-})
-
 test('the newest check-in follows the round in place, its times once a minute; the rows before it keep what they showed', SLOW, async ($, on) => {
   const { clock, placed, mainTurn, delegate, lines } = await progressCrew($, on)
   await delegate('Publish the plugin', '/work/api', 'Publicar')
@@ -195,6 +149,52 @@ test("a round of two workers, or one longer than the interval, ends in one summa
   expect(await lines(placed[0]!)).toEqual(['─ crew · round of 1m · × Bolt 40s · ✓ Pip 1m 0s'])
   await clock.advance(200_000)
   expect(placed).toHaveLength(3)
+})
+
+test("a check-in row comes every 3 minutes of work when something changed, and waits for the orchestrator's turn to end", SLOW, async ($, on) => {
+  const { clock, placed, mainTurn, delegate, lines } = await progressCrew($, on)
+  await delegate('Run the tests', '/work/api', 'Arreglar tests')
+  await $.tool.call({ tool: 'Read', file_path: '/work/api/a.ts', agentId: 'agent-1' })
+  // None before three minutes, so a short task never gets one.
+  await clock.advance(179_000)
+  expect(placed).toHaveLength(0)
+  await clock.advance(1000)
+  expect(placed).toHaveLength(1)
+  expect(await lines(placed[0]!)).toEqual(['─ crew · 1 active · round 3m', '  Pip  reading  3m  Read a.ts'])
+
+  // Three more minutes with nothing new: no row.
+  await clock.advance(180_000)
+  expect(placed).toHaveLength(1)
+  // A phase that changes is news at the next mark.
+  await $.tool.call({ tool: 'Edit', file_path: '/work/api/a.ts', old_string: 'a', new_string: 'b', agentId: 'agent-1' })
+  await clock.advance(180_000)
+  expect(placed).toHaveLength(2)
+
+  // A worker starts while the orchestrator's turn runs: the row waits for
+  // the turn to end, and comes right after.
+  const done = await mainTurn()
+  await $.tool.call({ tool: DELEGATE, task: 'Review the README', title: 'Revisar README', repo: '/work/web' })
+  await clock.advance(180_000)
+  expect(placed).toHaveLength(2)
+  await done()
+  await clock.advance(1000)
+  expect(placed).toHaveLength(3)
+  expect(await lines(placed[2]!)).toEqual([
+    '─ crew · 2 active · round 12m',
+    '  Pip   editing   12m  Edit a.ts',
+    '  Bolt  thinking   3m',
+  ])
+  // The rows before it fold to one line each, as they were.
+  expect(await lines(placed[0]!)).toEqual(['─ crew · round 3m · Pip reading 3m'])
+  expect(await lines(placed[1]!)).toEqual(['─ crew · round 9m · Pip editing 9m'])
+
+  // Many more calls are news even in the same phase.
+  for (let k = 0; k < 25; k++) await $.tool.call({ tool: 'Edit', file_path: '/work/api/a.ts', old_string: 'a', new_string: 'b', agentId: 'agent-1' })
+  await $.tool.call({ tool: 'Read', file_path: '/work/web/README.md', agentId: 'agent-2' })
+  await clock.advance(180_000)
+  expect(placed).toHaveLength(4)
+  await clock.advance(180_000)
+  expect(placed).toHaveLength(4)
 })
 
 test("a message's line says who to whom, its gist, and whether it woke the recipient or never got there; the gist gives way first", () => {

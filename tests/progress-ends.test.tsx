@@ -34,35 +34,6 @@ test("a run's end toast says who, how, the task and the time; a failed or stoppe
   expect(endNotice({ id: 'c', name: 'Mika', end: 'stopped', doing: '', ms: 4_000 })).toBe('■ Mika stopped · 4s')
 })
 
-test("a worker whose report goes to its parent ends in one line of its own here, once the main turn is over; one reporting here, in its bubble alone", async ($, on) => {
-  const { clock, placed, toasts, delegate, end, mainTurn, lines } = await progressCrew($, on)
-  await delegate('Investigate the checkout', '/work/shop', 'Checkout')
-  await spawnAgent($, { prompt: 'File the tickets', description: 'Tickets', subagentType: 'general-purpose', parentAgentId: 'agent-1' })
-  await spawnAgent($, { prompt: 'Fix the cart', description: 'Carrito', subagentType: 'general-purpose', parentAgentId: 'agent-1' })
-  await progress($, 'agent-3', 2, 4, 'Probar')
-  await clock.advance(65_000)
-
-  // Their reports go to Pip, so their ends wait for Nova's turn to end.
-  const done = await mainTurn()
-  await end('agent-2')
-  await end('agent-3', 'error')
-  await clock.advance(3000)
-  expect(placed).toEqual([])
-  await done()
-  await clock.advance(1000)
-  expect(placed).toHaveLength(2)
-  expect(await lines(placed[0]!)).toEqual(['✓ Bolt finished: Tickets · 1m 5s'])
-  expect(await lines(placed[1]!)).toEqual(['× Mika failed: Carrito · step 2/4 · 1m 5s'])
-
-  // Pip's report comes here: its bubble is its line. What is placed is the
-  // round's summary, now that nobody works, and no line of Pip's end.
-  await end('agent-1')
-  await clock.advance(5000)
-  const after = await Promise.all(placed.slice(2).map(id => lines(id)))
-  expect(after.map(rows => rows[0])).toEqual([expect.stringMatching(/^─ crew · round over · /)])
-  expect(toasts).toEqual(['✓ Bolt finished: Tickets · 1m 5s', '× Mika failed: Carrito · step 2/4 · 1m 5s', '✓ Pip finished: Checkout · 1m 9s'])
-})
-
 test('an agent its worker woke ends in one line here, its report going to that worker', async ($, on) => {
   const placed: string[] = []
   on('ui.place', (_, e) => {
@@ -127,4 +98,33 @@ test("a worker's end is seen at once: a toast, and for half a minute its card's 
   expect((await ui.find({ type: 'Text', text: /^stop$/ }))?.props.inverse).not.toBe(true)
   await ui.unmount()
   expect(toasts).toHaveLength(2)
+})
+
+test("a worker whose report goes to its parent ends in one line of its own here, once the main turn is over; one reporting here, in its bubble alone", async ($, on) => {
+  const { clock, placed, toasts, delegate, end, mainTurn, lines } = await progressCrew($, on)
+  await delegate('Investigate the checkout', '/work/shop', 'Checkout')
+  await spawnAgent($, { prompt: 'File the tickets', description: 'Tickets', subagentType: 'general-purpose', parentAgentId: 'agent-1' })
+  await spawnAgent($, { prompt: 'Fix the cart', description: 'Carrito', subagentType: 'general-purpose', parentAgentId: 'agent-1' })
+  await progress($, 'agent-3', 2, 4, 'Probar')
+  await clock.advance(65_000)
+
+  // Their reports go to Pip, so their ends wait for Nova's turn to end.
+  const done = await mainTurn()
+  await end('agent-2')
+  await end('agent-3', 'error')
+  await clock.advance(3000)
+  expect(placed).toEqual([])
+  await done()
+  await clock.advance(1000)
+  expect(placed).toHaveLength(2)
+  expect(await lines(placed[0]!)).toEqual(['✓ Bolt finished: Tickets · 1m 5s'])
+  expect(await lines(placed[1]!)).toEqual(['× Mika failed: Carrito · step 2/4 · 1m 5s'])
+
+  // Pip's report comes here: its bubble is its line. What is placed is the
+  // round's summary, now that nobody works, and no line of Pip's end.
+  await end('agent-1')
+  await clock.advance(5000)
+  const after = await Promise.all(placed.slice(2).map(id => lines(id)))
+  expect(after.map(rows => rows[0])).toEqual([expect.stringMatching(/^─ crew · round over · /)])
+  expect(toasts).toEqual(['✓ Bolt finished: Tickets · 1m 5s', '× Mika failed: Carrito · step 2/4 · 1m 5s', '✓ Pip finished: Checkout · 1m 9s'])
 })
