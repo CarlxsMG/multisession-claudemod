@@ -132,8 +132,10 @@ request and someone will translate it.
 
 ## Tests
 
-- `tests/support/crew.ts` is the shared kit: an `engine(on)` that answers beneath the plugin,
-  fixtures and helpers. A test that loads the plugin imports `test` from it rather than from
+- `tests/support/crew.ts` is the shared kit, the one import a test needs. It gathers `engine.ts`
+  (an `engine(on)` that answers beneath the plugin, and the kit's `test`), `fixtures.ts` (crews at
+  work, inputs, and what mounts and reads their drawings) and `raster.ts` (what reads a figure's
+  cells back). A test that loads the plugin imports `test` from it rather than from
   `claude-code/testing`, because its `test` passes the plugin under test its options.
 - **Tests read the English UI**, the product's default: the kit passes `language: 'en'` to the
   plugin, and what a test imports from `src` speaks English too unless its file calls `setLocale`
