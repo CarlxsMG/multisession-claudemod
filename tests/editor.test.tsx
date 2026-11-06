@@ -42,53 +42,18 @@ const lookNow = async (ui: { press: (target: { key: string }) => Promise<unknown
   return parseLookCode(copies[copies.length - 1]!.text)
 }
 
-test('the editor shows one group at a time and the figure follows each press', async ($, on) => {
-  engine(on)
-  await $.session.start({ cwd: '/work/main', surface: 'terminal', isInteractive: true })
-
-  for (const surface of ['terminal', 'desktop'] as const) {
-    const ui = await $.ui.mount({ ...PANE, surface })
-    await ui.press({ key: 'edit' })
-    expect(await ui.find({ key: 'vibe-cheerful' })).toBeDefined()
-    expect(await ui.find({ key: 'look-phrase' })).toBeUndefined()
-    expect(await ui.find({ key: 'look-voice' })).toBeUndefined()
-    await ui.press({ key: 'tab-face' })
-    expect(await ui.find({ key: 'next-eyes' })).toBeDefined()
-    expect(await ui.find({ key: 'next-hair' })).toBeUndefined()
-
-    await ui.press({ key: 'tab-hair' })
-    expect(await ui.find({ key: 'next-eyes' })).toBeUndefined()
-    const before = await ui.find({ type: 'Raster', key: 'preview' })
-    await ui.press({ key: 'next-hair' })
-    expect(await ui.find({ type: 'Text', text: /^Tuft\s*$/ })).toBeDefined()
-    if (surface === 'terminal') {
-      const after = await ui.find({ type: 'Raster', key: 'preview' })
-      expect(after?.props.cells).not.toEqual(before?.props.cells)
-    }
-    await ui.press({ key: 'hairColor-3' })
-    expect(await ui.find({ type: 'Text', text: /^Ginger$/ })).toBeDefined()
-
-    await ui.press({ key: 'tab-persona' })
-    await ui.press({ key: 'vibe-pirate' })
-    expect(await ui.find({ type: 'Text', text: /^Nova · Pirate · customize$/ })).toBeDefined()
-    await ui.press({ key: 'next-nameColor' })
-    expect((await ui.find({ type: 'Text', text: /^Nova · Pirate · customize$/ }))?.props.color).toBe('#4fc3f7')
-    await ui.press({ key: 'tab-share' })
-    expect(await ui.find({ key: 'look-copy' })).toBeDefined()
-    expect(await ui.find({ type: 'Text', text: /CREW1\./ })).toBeUndefined()
-
-    await ui.press({ key: 'look-done' })
-    expect((await ui.find({ type: 'Text', text: /^Nova · Pirate · Opus 5\.5$/ }))?.props.color).toBe('#4fc3f7')
-    await ui.press({ key: 'edit' })
-    await ui.press({ key: 'look-random' })
-    await ui.press({ key: 'look-reset' })
-    await ui.press({ key: 'look-done' })
-    expect(await ui.find({ key: 'edit' })).toBeDefined()
-    await ui.press({ key: 'edit' })
-    await ui.press({ key: 'tab-persona' })
-    await ui.press({ key: 'look-done' })
-    await ui.unmount()
-  }
+test('Random gives the figure new parts and keeps who the orchestrator is', async ($, on) => {
+  const { copies } = watched(on, LUNA)
+  await $.session.start(TERMINAL)
+  const ui = await $.ui.mount({ ...PANE, surface: 'terminal' })
+  await ui.press({ key: 'edit' })
+  await ui.press({ key: 'look-random' })
+  expect(await heading(ui)).toEqual(['Luna · Pirate · customize', LUNA_GREEN])
+  expect(await ui.find({ type: 'Text', text: /^Arr!$/ })).toBeDefined()
+  const after = await lookNow(ui, copies)
+  expect(after).toMatchObject({ name: 'Luna', nameColor: 2, phrase: 'Arr!', vibe: 'pirate' })
+  expect(after).not.toEqual(LUNA)
+  await ui.unmount()
 })
 
 test('Copy code hands the surface pressed the code of the look as it stands, and says whose it is', async ($, on) => {
@@ -233,16 +198,51 @@ test('r and d answer on every tab, c only on Share, and d goes back to the main 
   await ui.unmount()
 })
 
-test('Random gives the figure new parts and keeps who the orchestrator is', async ($, on) => {
-  const { copies } = watched(on, LUNA)
-  await $.session.start(TERMINAL)
-  const ui = await $.ui.mount({ ...PANE, surface: 'terminal' })
-  await ui.press({ key: 'edit' })
-  await ui.press({ key: 'look-random' })
-  expect(await heading(ui)).toEqual(['Luna · Pirate · customize', LUNA_GREEN])
-  expect(await ui.find({ type: 'Text', text: /^Arr!$/ })).toBeDefined()
-  const after = await lookNow(ui, copies)
-  expect(after).toMatchObject({ name: 'Luna', nameColor: 2, phrase: 'Arr!', vibe: 'pirate' })
-  expect(after).not.toEqual(LUNA)
-  await ui.unmount()
+test('the editor shows one group at a time and the figure follows each press', async ($, on) => {
+  engine(on)
+  await $.session.start({ cwd: '/work/main', surface: 'terminal', isInteractive: true })
+
+  for (const surface of ['terminal', 'desktop'] as const) {
+    const ui = await $.ui.mount({ ...PANE, surface })
+    await ui.press({ key: 'edit' })
+    expect(await ui.find({ key: 'vibe-cheerful' })).toBeDefined()
+    expect(await ui.find({ key: 'look-phrase' })).toBeUndefined()
+    expect(await ui.find({ key: 'look-voice' })).toBeUndefined()
+    await ui.press({ key: 'tab-face' })
+    expect(await ui.find({ key: 'next-eyes' })).toBeDefined()
+    expect(await ui.find({ key: 'next-hair' })).toBeUndefined()
+
+    await ui.press({ key: 'tab-hair' })
+    expect(await ui.find({ key: 'next-eyes' })).toBeUndefined()
+    const before = await ui.find({ type: 'Raster', key: 'preview' })
+    await ui.press({ key: 'next-hair' })
+    expect(await ui.find({ type: 'Text', text: /^Tuft\s*$/ })).toBeDefined()
+    if (surface === 'terminal') {
+      const after = await ui.find({ type: 'Raster', key: 'preview' })
+      expect(after?.props.cells).not.toEqual(before?.props.cells)
+    }
+    await ui.press({ key: 'hairColor-3' })
+    expect(await ui.find({ type: 'Text', text: /^Ginger$/ })).toBeDefined()
+
+    await ui.press({ key: 'tab-persona' })
+    await ui.press({ key: 'vibe-pirate' })
+    expect(await ui.find({ type: 'Text', text: /^Nova · Pirate · customize$/ })).toBeDefined()
+    await ui.press({ key: 'next-nameColor' })
+    expect((await ui.find({ type: 'Text', text: /^Nova · Pirate · customize$/ }))?.props.color).toBe('#4fc3f7')
+    await ui.press({ key: 'tab-share' })
+    expect(await ui.find({ key: 'look-copy' })).toBeDefined()
+    expect(await ui.find({ type: 'Text', text: /CREW1\./ })).toBeUndefined()
+
+    await ui.press({ key: 'look-done' })
+    expect((await ui.find({ type: 'Text', text: /^Nova · Pirate · Opus 5\.5$/ }))?.props.color).toBe('#4fc3f7')
+    await ui.press({ key: 'edit' })
+    await ui.press({ key: 'look-random' })
+    await ui.press({ key: 'look-reset' })
+    await ui.press({ key: 'look-done' })
+    expect(await ui.find({ key: 'edit' })).toBeDefined()
+    await ui.press({ key: 'edit' })
+    await ui.press({ key: 'tab-persona' })
+    await ui.press({ key: 'look-done' })
+    await ui.unmount()
+  }
 })

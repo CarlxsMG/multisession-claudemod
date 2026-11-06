@@ -8,6 +8,22 @@ import { VIBES, vibeOf } from '../src/persona/vibes'
 import { JUST_ENDED_MS } from '../src/progress/runs'
 import { AWAY_MS, DELEGATE, PANE, SLOW, cellText, crewCommand, doneCrew, engine, freeCrew, napCrew, switchTo, test, workerSend } from './support/crew'
 
+test('a worker that left the row at its napAfter is still in the team view and the roster, and comes back when woken', { ...SLOW, options: { napAfter: '30s' } }, async ($, on) => {
+  const { clock, states, roster, ui, card } = await freeCrew($, on)
+  await clock.advance(30_000)
+  expect(await card('agent-1')).toBeUndefined()
+  expect(await roster()).toMatch(/^- Pip: address "pip", idle, /m)
+  await crewCommand($, 'team')
+  expect(await card('agent-1')).toBeDefined()
+  await ui.press({ key: 'crew-back' })
+
+  const given = await $.tool.call({ tool: DELEGATE, task: 'Fix the flaky test', repo: '/work/r1' })
+  expect(String(given.result)).toMatch(/^Given to Pip /)
+  states.set('agent-1', 'running')
+  expect(await card('agent-1')).toBeDefined()
+  await ui.unmount()
+})
+
 test('the figures are cells on the terminal and SVG on the desktop, the editor and the phone', async ($, on) => {
   engine(on)
   await $.session.start({ cwd: '/work/main', surface: 'terminal', isInteractive: true })
@@ -419,22 +435,6 @@ test('a longer napAfter moves the redraw that takes a worker off the row with it
   // No redraw from the test: the pane's timer draws it away by itself.
   await clock.advance(400)
   expect(await ui.find({ type: 'Raster', key: 'w-agent-1' })).toBeUndefined()
-  await ui.unmount()
-})
-
-test('a worker that left the row at its napAfter is still in the team view and the roster, and comes back when woken', { ...SLOW, options: { napAfter: '30s' } }, async ($, on) => {
-  const { clock, states, roster, ui, card } = await freeCrew($, on)
-  await clock.advance(30_000)
-  expect(await card('agent-1')).toBeUndefined()
-  expect(await roster()).toMatch(/^- Pip: address "pip", idle, /m)
-  await crewCommand($, 'team')
-  expect(await card('agent-1')).toBeDefined()
-  await ui.press({ key: 'crew-back' })
-
-  const given = await $.tool.call({ tool: DELEGATE, task: 'Fix the flaky test', repo: '/work/r1' })
-  expect(String(given.result)).toMatch(/^Given to Pip /)
-  states.set('agent-1', 'running')
-  expect(await card('agent-1')).toBeDefined()
   await ui.unmount()
 })
 

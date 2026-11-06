@@ -16,6 +16,34 @@ function unrecognizedLines(on: On, kind: string) {
   return lines
 }
 
+test('a usage probe answer without the model windows is logged once, and the answer the crew reads is not', SLOW, async ($, on) => {
+  let answer = usageReply(30)
+  const clock = engine(on, { rateLimits: [{ kind: 'five_hour', percentUsed: 12 }], probe: () => answer })
+  const logged = unrecognizedLines(on, 'usage probe answer')
+  await $.session.start({ cwd: '/work/main', surface: 'terminal', isInteractive: true })
+  const ui = await $.ui.mount({ ...PANE, surface: 'terminal' })
+  const fable = async () => {
+    await ui.redraw()
+    return (await ui.find({ type: 'Text', text: /^fable\s+\d+%$/ }))?.text.replace(/\s+/g, ' ')
+  }
+  expect(await fable()).toBe('fable 30%')
+  expect(logged).toEqual([])
+
+  // The next probe finds Fable's week under a name the crew does not read.
+  const measure = async () => {
+    await clock.advance(3 * 60_000)
+    await $.session.measure({ context: { window: 200_000 }, rateLimits: [{ kind: 'five_hour', percentUsed: 13 }], changed: ['rateLimits'] })
+  }
+  answer = renamedReply
+  await measure()
+  expect(await fable()).toBeUndefined()
+  answer = ''
+  await measure()
+  await fable()
+  expect(logged).toEqual(['crew: unrecognized usage probe answer: get_usage answered rate_limits without model_scoped'])
+  await ui.unmount()
+})
+
 test("a spawn refusal in auto mode's words the crew does not know is said as it came, and logged once", async ($, on) => {
   const seen: Seen = { prompts: [], sends: [], refuse: NO_VERDICT }
   engine(on, { seen })
@@ -45,34 +73,6 @@ const renamedReply = JSON.stringify({
     request_id: 'crew-usage',
     response: { rate_limits: { five_hour: null, model_windows: [{ display_name: 'Fable', utilization: 30 }] } },
   },
-})
-
-test('a usage probe answer without the model windows is logged once, and the answer the crew reads is not', SLOW, async ($, on) => {
-  let answer = usageReply(30)
-  const clock = engine(on, { rateLimits: [{ kind: 'five_hour', percentUsed: 12 }], probe: () => answer })
-  const logged = unrecognizedLines(on, 'usage probe answer')
-  await $.session.start({ cwd: '/work/main', surface: 'terminal', isInteractive: true })
-  const ui = await $.ui.mount({ ...PANE, surface: 'terminal' })
-  const fable = async () => {
-    await ui.redraw()
-    return (await ui.find({ type: 'Text', text: /^fable\s+\d+%$/ }))?.text.replace(/\s+/g, ' ')
-  }
-  expect(await fable()).toBe('fable 30%')
-  expect(logged).toEqual([])
-
-  // The next probe finds Fable's week under a name the crew does not read.
-  const measure = async () => {
-    await clock.advance(3 * 60_000)
-    await $.session.measure({ context: { window: 200_000 }, rateLimits: [{ kind: 'five_hour', percentUsed: 13 }], changed: ['rateLimits'] })
-  }
-  answer = renamedReply
-  await measure()
-  expect(await fable()).toBeUndefined()
-  answer = ''
-  await measure()
-  await fable()
-  expect(logged).toEqual(['crew: unrecognized usage probe answer: get_usage answered rate_limits without model_scoped'])
-  await ui.unmount()
 })
 
 test("a worker's end with a status its bubble does not mark, or under another kind, is logged once", async ($, on) => {

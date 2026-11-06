@@ -33,6 +33,20 @@ const recording = (): Seen => ({ prompts: [], sends: [], specs: [] })
 const composed = (on: On) =>
   on('prompt.compose', () => ({ sections: [{ id: 'intro', text: 'You are Claude Code.', scope: 'shared' as const }] }))
 
+// The one text here that follows the UI's language: it names the language and
+// the catchphrase, and the golden holds it as a crew in Spanish asks it.
+test('what Haiku is asked for the mood lines', { ...SLOW, options: { language: 'es' } }, async ($, on) => {
+  const clock = engine(on)
+  const prompts: string[] = []
+  on('model.complete', (_, e) => {
+    prompts.push(e.prompt)
+    return { value: { isAnswered: true as const, text: '{}', usage: { input_tokens: 1, output_tokens: 1, cache_read_input_tokens: 0, cache_creation_input_tokens: 0 } } }
+  })
+  await start($)
+  await clock.advance(12_000)
+  expectText('haiku.prompt', prompts[0])
+})
+
 for (const isOn of [true, false]) {
   const mode = isOn ? 'on' : 'off'
   test(`the orchestrator's brief, the delegate description and the tool specs, with delegation ${isOn ? 'ON' : 'OFF'}`, async ($, on) => {
@@ -257,20 +271,6 @@ test('the answer to a send that failed on its way', async ($, on) => {
   const { seen, message } = await wokenCrew($, on)
   seen.failSends = true
   expectText('send.failed', await message('pip', 'Bolt: the lock is free', 'agent-2').catch((err: unknown) => String(err)))
-})
-
-// The one text here that follows the UI's language: it names the language and
-// the catchphrase, and the golden holds it as a crew in Spanish asks it.
-test('what Haiku is asked for the mood lines', { ...SLOW, options: { language: 'es' } }, async ($, on) => {
-  const clock = engine(on)
-  const prompts: string[] = []
-  on('model.complete', (_, e) => {
-    prompts.push(e.prompt)
-    return { value: { isAnswered: true as const, text: '{}', usage: { input_tokens: 1, output_tokens: 1, cache_read_input_tokens: 0, cache_creation_input_tokens: 0 } } }
-  })
-  await start($)
-  await clock.advance(12_000)
-  expectText('haiku.prompt', prompts[0])
 })
 
 test('the usage probe: the command it runs and what it writes to it', async ($, on) => {

@@ -1,7 +1,41 @@
 import { expect } from 'claude-code/testing'
 import { DEFAULT_LOOK } from '../src/figure/look'
+import { lookCode } from '../src/figure/share-code'
 import { VIBES } from '../src/persona/vibes'
-import { COMMENT_LINE, GIT_LINE, composeBrief, engine, spawnAgent, test } from './support/crew'
+import { COMMENT_LINE, COMPOSER, GIT_LINE, NOVA_OFF, NOVA_ON, PANE, composeBrief, crewCommand, engine, spawnAgent, startTold, test } from './support/crew'
+
+test('the brief is part of the system prompt and of the delegate tool', async ($, on) => {
+  const seen = { prompts: [] as string[], sends: [] as string[], tools: [] as string[] }
+  engine(on, { seen })
+  on('prompt.compose', () => ({ sections: [{ id: 'intro', text: 'You are Claude Code.', scope: 'shared' as const }] }))
+  await $.session.start({ cwd: '/work/main', surface: 'terminal', isInteractive: true })
+
+  const section = await composeBrief($)
+  expect(section?.scope).toBe('session')
+  expect(section?.text).toMatch(/^This brief is for the main assistant; a worker or fork reading it ignores it and does its own task\.\nCrew: delegation was ON when this brief was written\. A "\[crew\]" note beside a user message/)
+  expect(section?.text).toMatch(/Delegation OFF: do the work yourself; use the crew only when the user asks\./)
+  expect(section?.text).not.toMatch(/If you are a subagent reading this/)
+  expect(seen.tools).toHaveLength(1)
+  expect(seen.tools[0]!.endsWith(`\n\n${section?.text}`)).toBe(true)
+  expect(section?.text).toMatch(/You are Nova/)
+  expect(section?.text).toMatch(/- Delegate everything but answers from what you already know: reading files, running commands, edits, reviews, tests\. Doing it yourself looks quicker, but sessions run long/)
+  expect(section?.text).not.toMatch(/more than a couple of tool calls|run the tests, a diffstat/)
+  expect(section?.text).toMatch(/several mcp__crew__delegate calls in one message, each with `fresh: true` or naming its own free worker/)
+  expect(section?.text).toMatch(/or give each a git worktree \(Agent tool, `isolation: "worktree"`\)\.\n- Git: workers commit their own work, never on the main branch; merge into it, or push, only once the user says so\. A comment says why the code is as it is now, never its history\.\n/)
+  expect(section?.text).toMatch(/\n- Workers are models: write to them tersely, with no pleasantries, persona or prose\. A brief is complete in facts \(a new worker has not seen this conversation\); a follow-up carries only what is new\.\n/)
+  expect(section?.text).toMatch(/Reuse context: a worker keeps all it read, also after it reports/)
+  expect(section?.text).toMatch(/subagent_type: "Explore"/)
+  expect(section?.text).toMatch(/A fork \(Agent tool, `subagent_type: "fork"`\) inherits and rereads this whole conversation, so its prompt is just the directive: /)
+  expect(section?.text).toMatch(/- For a larger build, have one worker investigate and then fork itself once per part \(say frontend, backend and the Jira tickets\)/)
+  expect(section?.text).toMatch(/Name the parts and the files each owns; it reports once its forks have\./)
+  expect(section?.text).toMatch(/Steer with SendMessage \(addresses in mcp__crew__roster\)/)
+  expect(section?.text).toMatch(/a finished worker wakes with its context/)
+  expect(section?.text).toMatch(/TaskStop a worker heading the wrong way/)
+  expect(section?.text).toMatch(/don't poll mcp__crew__roster for them/)
+  expect(section?.text).toMatch(/To check a report, have a worker run the check/)
+  // What left the brief lives in the delegate tool's parameters.
+  expect(section?.text).not.toMatch(/haiku|`title`/)
+})
 
 test('workers are told to report in a few lines, and who to talk to', async ($, on) => {
   let spawned = 0
@@ -199,39 +233,6 @@ test('an agent a worktree worker starts works in that worktree too', async ($, o
   expect(started).not.toMatch(/Heads-up/)
 })
 
-test('the brief is part of the system prompt and of the delegate tool', async ($, on) => {
-  const seen = { prompts: [] as string[], sends: [] as string[], tools: [] as string[] }
-  engine(on, { seen })
-  on('prompt.compose', () => ({ sections: [{ id: 'intro', text: 'You are Claude Code.', scope: 'shared' as const }] }))
-  await $.session.start({ cwd: '/work/main', surface: 'terminal', isInteractive: true })
-
-  const section = await composeBrief($)
-  expect(section?.scope).toBe('session')
-  expect(section?.text).toMatch(/^This brief is for the main assistant; a worker or fork reading it ignores it and does its own task\.\nCrew: delegation was ON when this brief was written\. A "\[crew\]" note beside a user message/)
-  expect(section?.text).toMatch(/Delegation OFF: do the work yourself; use the crew only when the user asks\./)
-  expect(section?.text).not.toMatch(/If you are a subagent reading this/)
-  expect(seen.tools).toHaveLength(1)
-  expect(seen.tools[0]!.endsWith(`\n\n${section?.text}`)).toBe(true)
-  expect(section?.text).toMatch(/You are Nova/)
-  expect(section?.text).toMatch(/- Delegate everything but answers from what you already know: reading files, running commands, edits, reviews, tests\. Doing it yourself looks quicker, but sessions run long/)
-  expect(section?.text).not.toMatch(/more than a couple of tool calls|run the tests, a diffstat/)
-  expect(section?.text).toMatch(/several mcp__crew__delegate calls in one message, each with `fresh: true` or naming its own free worker/)
-  expect(section?.text).toMatch(/or give each a git worktree \(Agent tool, `isolation: "worktree"`\)\.\n- Git: workers commit their own work, never on the main branch; merge into it, or push, only once the user says so\. A comment says why the code is as it is now, never its history\.\n/)
-  expect(section?.text).toMatch(/\n- Workers are models: write to them tersely, with no pleasantries, persona or prose\. A brief is complete in facts \(a new worker has not seen this conversation\); a follow-up carries only what is new\.\n/)
-  expect(section?.text).toMatch(/Reuse context: a worker keeps all it read, also after it reports/)
-  expect(section?.text).toMatch(/subagent_type: "Explore"/)
-  expect(section?.text).toMatch(/A fork \(Agent tool, `subagent_type: "fork"`\) inherits and rereads this whole conversation, so its prompt is just the directive: /)
-  expect(section?.text).toMatch(/- For a larger build, have one worker investigate and then fork itself once per part \(say frontend, backend and the Jira tickets\)/)
-  expect(section?.text).toMatch(/Name the parts and the files each owns; it reports once its forks have\./)
-  expect(section?.text).toMatch(/Steer with SendMessage \(addresses in mcp__crew__roster\)/)
-  expect(section?.text).toMatch(/a finished worker wakes with its context/)
-  expect(section?.text).toMatch(/TaskStop a worker heading the wrong way/)
-  expect(section?.text).toMatch(/don't poll mcp__crew__roster for them/)
-  expect(section?.text).toMatch(/To check a report, have a worker run the check/)
-  // What left the brief lives in the delegate tool's parameters.
-  expect(section?.text).not.toMatch(/haiku|`title`/)
-})
-
 // Claude Code cuts a tool description at 4096 characters: the delegate
 // tool's, which carries the brief, keeps a margin below that at its longest.
 for (const isOn of [true, false]) {
@@ -249,3 +250,96 @@ for (const isOn of [true, false]) {
     expect(seen.tools[0]!.length).toBeLessThanOrEqual(3950)
   })
 }
+
+test('switching the mode or the name leaves the brief and the delegate tool as they were', async ($, on) => {
+  const seen = { prompts: [] as string[], sends: [] as string[], tools: [] as string[] }
+  engine(on, { seen })
+  on('prompt.compose', () => ({ sections: [] }))
+  await $.session.start({ cwd: '/work/main', surface: 'terminal', isInteractive: true })
+  const before = (await composeBrief($))?.text
+  expect(before).toMatch(/\nCrew: delegation was ON when this brief was written/)
+
+  const ui = await $.ui.mount({ ...PANE, surface: 'terminal' })
+  await ui.press({ key: 'mode' })
+  expect((await composeBrief($))?.text).toBe(before)
+  await ui.press({ key: 'mode' })
+  await ui.unmount()
+  await crewCommand($, 'mode off')
+  await crewCommand($, `import ${lookCode({ ...DEFAULT_LOOK, name: 'Luna' })}`)
+  expect((await composeBrief($))?.text).toBe(before)
+  expect(seen.tools).toHaveLength(1)
+})
+
+test('the next message carries one "[crew]" note with the latest state, and the one after none', async ($, on) => {
+  engine(on)
+  const contexts: (readonly string[] | undefined)[] = []
+  on('prompt.submit', (_, e) => {
+    contexts.push(e.context)
+    return { text: e.text }
+  })
+  await $.session.start({ cwd: '/work/main', surface: 'terminal', isInteractive: true })
+  const submit = (text: string) => $.prompt.submit({ text, wait: false, origin: COMPOSER })
+
+  await submit('Hola')
+  expect(contexts[0]).toBeUndefined()
+  await crewCommand($, 'mode off')
+  await crewCommand($, `import ${lookCode({ ...DEFAULT_LOOK, name: 'Luna', vibe: 'pirate' })}`)
+  expect((await submit('Arregla el login')).text).toBe('Arregla el login')
+  expect(contexts[1]).toHaveLength(1)
+  expect(contexts[1]![0]).toBe(
+    '[crew] The user changed the crew settings. Delegation is OFF: do the work yourself; use the crew only when the user asks. ' +
+      'You are Luna. Persona: Luna is a jolly pirate captain (a light "arr" now and then, never in code or technical text). ' +
+      'Let it color greetings and short status lines only; technical content stays precise and plain.',
+  )
+  await submit('Y los tests')
+  expect(contexts[2]).toBeUndefined()
+
+  // A switch to the mode it already has says nothing; back on, it does.
+  await crewCommand($, 'mode off')
+  await submit('Sigue')
+  expect(contexts[3]).toBeUndefined()
+  await crewCommand($, 'mode on')
+  await submit('Reparte')
+  expect(contexts[4]![0]).toMatch(/^\[crew\] The user changed the crew settings\. Delegation is ON: you orchestrate, per the crew brief\. You are Luna\./)
+})
+
+test('settings changed after the last note went out are told with the first message of the next load', async ($, on) => {
+  const { contexts, submit } = await startTold($, on, { 'sess-1': NOVA_ON }, false)
+  await submit('Hola')
+  await submit('Sigue')
+  expect(contexts[0]).toHaveLength(1)
+  expect(contexts[0]![0]).toMatch(/^\[crew\] The user changed the crew settings\. Delegation is OFF: do the work yourself; .* You are Nova\./)
+  expect(contexts[1]).toBeUndefined()
+  // The note sent is now the last one told: another load says nothing.
+  await $.session.start({ cwd: '/work/main', surface: 'terminal', isInteractive: true })
+  await submit('Otra vez')
+  expect(contexts[2]).toBeUndefined()
+})
+
+test('settings that match the last note sent are not told again', async ($, on) => {
+  const { contexts, submit } = await startTold($, on, { 'sess-1': NOVA_ON }, true)
+  await submit('Hola')
+  expect(contexts).toEqual([undefined])
+})
+
+test('each conversation is told against its own last note', async ($, on) => {
+  // A got OFF last, then B got ON: back in A, ON is news.
+  const id = { now: 'sess-A' }
+  const { contexts, submit } = await startTold($, on, { 'sess-A': NOVA_OFF, 'sess-B': NOVA_ON }, true, id)
+  await submit('Hola')
+  expect(contexts[0]![0]).toMatch(/^\[crew\] The user changed the crew settings\. Delegation is ON/)
+  // A new conversation reads a brief that already says ON: no note.
+  id.now = 'sess-C'
+  await $.session.start({ cwd: '/work/main', surface: 'terminal', isInteractive: true })
+  await submit('Empezamos')
+  expect(contexts[1]).toBeUndefined()
+  // After a /clear (another id, no new load) the brief still says ON: OFF is news.
+  await crewCommand($, 'mode off')
+  await submit('Sin equipo')
+  expect(contexts[2]![0]).toMatch(/Delegation is OFF/)
+  id.now = 'sess-D'
+  await submit('Otra conversación')
+  expect(contexts[3]![0]).toMatch(/Delegation is OFF/)
+  await submit('Sigue')
+  expect(contexts[4]).toBeUndefined()
+})

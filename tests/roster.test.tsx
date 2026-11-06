@@ -2,32 +2,6 @@ import { expect } from 'claude-code/testing'
 import type { AgentInfo } from 'claude-code'
 import { SLOW, USAGE, crewCommand, engine, test } from './support/crew'
 
-test('the roster keeps to the active in full and cuts old reports', async ($, on) => {
-  let spawned = 0
-  const clock = engine(on, { nextId: () => `agent-${++spawned}` })
-  await $.session.start({ cwd: '/work/main', surface: 'terminal', isInteractive: true })
-  for (let i = 1; i <= 14; i++) {
-    await $.tool.call({ tool: 'mcp__crew__delegate', task: `Task ${i}`, repo: `/work/r${i}` })
-  }
-  for (let i = 1; i <= 13; i++) {
-    await clock.advance(1000)
-    await $.turn.complete({ answer: `Informe ${i}: ${'x'.repeat(300)}`, durationMs: 1000, isAborted: false, turnId: `t${i}`, agentId: `agent-${i}`, reason: 'answer', usage: USAGE })
-  }
-
-  const text = String((await $.tool.call({ tool: 'mcp__crew__roster' })).result)
-  const lines = text.split('\n')
-  expect(lines[0]).toBe("Nova's crew (14):")
-  expect(lines[1]).toMatch(/^- \S+: address "\S+", starting, repo \/work\/r14, model test-model, 1 task, 0 tokens, last task "Task 14"/)
-  expect(lines[2]).toMatch(/^- \S+: address "\S+", done, repo \/work\/r13, model test-model, 1 task, ~45k tokens, last task "Task 13"$/)
-  const reports = lines.filter(x => x.startsWith('  last report: '))
-  expect(reports).toHaveLength(3)
-  expect(reports[0]).toMatch(/^ {2}last report: Informe 13: x+…$/)
-  expect(reports[0]!.length).toBe('  last report: '.length + 120)
-  expect(text).not.toMatch(/Informe 10:/)
-  expect(lines.filter(x => x.startsWith('- '))).toHaveLength(12)
-  expect(lines[lines.length - 1]).toBe('+2 more')
-})
-
 test('workers the user clears or the list lets go stay off until they wake, and come back whole', SLOW, async ($, on) => {
   let spawned = 0
   const running = new Set<string>()
@@ -111,4 +85,30 @@ test('an agent status the crew has no word for leaves each worker as the crew kn
   expect(text.split('\n')[0]).toBe("Nova's crew (3):")
   expect(text).toMatch(/\n- Bolt: address "bolt", working, repo \/work\/web, /)
   expect(text).toMatch(/\n- \w+: address "agent-9", idle, /)
+})
+
+test('the roster keeps to the active in full and cuts old reports', async ($, on) => {
+  let spawned = 0
+  const clock = engine(on, { nextId: () => `agent-${++spawned}` })
+  await $.session.start({ cwd: '/work/main', surface: 'terminal', isInteractive: true })
+  for (let i = 1; i <= 14; i++) {
+    await $.tool.call({ tool: 'mcp__crew__delegate', task: `Task ${i}`, repo: `/work/r${i}` })
+  }
+  for (let i = 1; i <= 13; i++) {
+    await clock.advance(1000)
+    await $.turn.complete({ answer: `Informe ${i}: ${'x'.repeat(300)}`, durationMs: 1000, isAborted: false, turnId: `t${i}`, agentId: `agent-${i}`, reason: 'answer', usage: USAGE })
+  }
+
+  const text = String((await $.tool.call({ tool: 'mcp__crew__roster' })).result)
+  const lines = text.split('\n')
+  expect(lines[0]).toBe("Nova's crew (14):")
+  expect(lines[1]).toMatch(/^- \S+: address "\S+", starting, repo \/work\/r14, model test-model, 1 task, 0 tokens, last task "Task 14"/)
+  expect(lines[2]).toMatch(/^- \S+: address "\S+", done, repo \/work\/r13, model test-model, 1 task, ~45k tokens, last task "Task 13"$/)
+  const reports = lines.filter(x => x.startsWith('  last report: '))
+  expect(reports).toHaveLength(3)
+  expect(reports[0]).toMatch(/^ {2}last report: Informe 13: x+…$/)
+  expect(reports[0]!.length).toBe('  last report: '.length + 120)
+  expect(text).not.toMatch(/Informe 10:/)
+  expect(lines.filter(x => x.startsWith('- '))).toHaveLength(12)
+  expect(lines[lines.length - 1]).toBe('+2 more')
 })

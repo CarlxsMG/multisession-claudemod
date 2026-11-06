@@ -17,6 +17,29 @@ test('a look survives its share code', async () => {
   expect(parseLookCode('nada')).toBeUndefined()
 })
 
+test('a worker is an outlined diamond in 4 columns by 2 rows, its marks beside it, and keeps mostly still', () => {
+  const pink = 0xf06292
+  for (const seed of [1, 200, 3000, 40_000, 500_000, 6_000_000]) {
+    for (const anim of ANIMS) {
+      for (let f = 0; f < 60; f++) {
+        const pic = diamond(seed, pink, { anim, frame: f, seed: 3, mail: f % 2 === 0 ? 'in' : 'out' })
+        const cells = toCells(pic)
+        expect(cells).toMatchObject({ columns: DIAMOND_W, rows: DIAMOND_ROWS })
+        // Lines only: no cell paints a background.
+        expect(cellsOf(cells.cells).every(([, , bg]) => bg === DEFAULT_COLOR)).toBe(true)
+      }
+    }
+  }
+  const text = (anim: Anim, f = 0, seed = 1) => cellText(toCells(diamond(seed, pink, { anim, frame: f, seed: 3, since: 0 })).cells)
+  expect(text('working').replace(/[^╱╲]/g, '')).toBe('╱╲╲╱')
+  const sleep = Array.from({ length: 300 }, (_, f) => text('sleep', f))
+  expect(sleep.filter((x, i) => i > 0 && x !== sleep[i - 1]).length).toBeLessThan(sleep.length / 2)
+  expect(new Set(sleep).size).toBeGreaterThan(2)
+  // One starting draws itself in a side at a time.
+  expect(text('starting', 0).replace(/[^╱╲]/g, '')).toBe('╱')
+  expect(text('starting', 3).replace(/[^╱╲]/g, '')).toBe('╱╲╲╱')
+})
+
 test('a share code or a stored look naming a key every object inherits gets the default part, and the pane and the brief stay whole', async ($, on) => {
   const hostile = { ...DEFAULT_LOOK, name: 'Luna', vibe: 'constructor', hair: 'toString', eyes: '__proto__', mouth: 'valueOf', facial: 'hasOwnProperty', shirt: 'constructor', acc: 'isPrototypeOf' }
   const parts = { vibe: DEFAULT_LOOK.vibe, hair: DEFAULT_LOOK.hair, eyes: DEFAULT_LOOK.eyes, mouth: DEFAULT_LOOK.mouth, facial: DEFAULT_LOOK.facial, shirt: DEFAULT_LOOK.shirt, acc: DEFAULT_LOOK.acc }
@@ -78,29 +101,6 @@ test('the orchestrator fits in 8 columns by 6 rows, and no frame loses a pixel o
   // Twice as big in the editor, and five CSS pixels a pixel where SVG draws.
   expect(toCells(picture(DEFAULT_LOOK, { anim: 'idle', frame: 0, seed: 7, podium: true }), 2)).toMatchObject({ columns: 16, rows: 12 })
   expect(toSvg(picture(DEFAULT_LOOK, { anim: 'idle', frame: 0, seed: 7, podium: true }), 5)).toMatch(/ width="40" height="60" /)
-})
-
-test('a worker is an outlined diamond in 4 columns by 2 rows, its marks beside it, and keeps mostly still', () => {
-  const pink = 0xf06292
-  for (const seed of [1, 200, 3000, 40_000, 500_000, 6_000_000]) {
-    for (const anim of ANIMS) {
-      for (let f = 0; f < 60; f++) {
-        const pic = diamond(seed, pink, { anim, frame: f, seed: 3, mail: f % 2 === 0 ? 'in' : 'out' })
-        const cells = toCells(pic)
-        expect(cells).toMatchObject({ columns: DIAMOND_W, rows: DIAMOND_ROWS })
-        // Lines only: no cell paints a background.
-        expect(cellsOf(cells.cells).every(([, , bg]) => bg === DEFAULT_COLOR)).toBe(true)
-      }
-    }
-  }
-  const text = (anim: Anim, f = 0, seed = 1) => cellText(toCells(diamond(seed, pink, { anim, frame: f, seed: 3, since: 0 })).cells)
-  expect(text('working').replace(/[^╱╲]/g, '')).toBe('╱╲╲╱')
-  const sleep = Array.from({ length: 300 }, (_, f) => text('sleep', f))
-  expect(sleep.filter((x, i) => i > 0 && x !== sleep[i - 1]).length).toBeLessThan(sleep.length / 2)
-  expect(new Set(sleep).size).toBeGreaterThan(2)
-  // One starting draws itself in a side at a time.
-  expect(text('starting', 0).replace(/[^╱╲]/g, '')).toBe('╱')
-  expect(text('starting', 3).replace(/[^╱╲]/g, '')).toBe('╱╲╲╱')
 })
 
 test('each worker\'s diamond has its accent and its signs, and its state in the outline and the mark', () => {

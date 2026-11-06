@@ -44,6 +44,30 @@ const ES_SLOW = { ...SLOW, ...ES }
 
 // ---- the pane, the editor and /crew ----
 
+test("the team view in Spanish: how each worker stands, and a plan's step, share and guess", ES_SLOW, async ($, on) => {
+  const { clock, states, delegate, end } = await progressCrew($, on)
+  for (let i = 1; i <= 6; i++) await delegate(`Task ${i}`, `/work/r${i}`, `Tarea ${i}`)
+  // Pip on a step of a plan that grew, Bolt waiting, the third failed, the
+  // fourth stopped, the fifth still starting and the sixth free.
+  await $.tool.call({ tool: 'Read', file_path: '/work/r1/a.ts', agentId: 'agent-1' })
+  await progress($, 'agent-1', 1, 4, 'Leer')
+  states.set('agent-2', 'waiting')
+  states.set('agent-5', 'pending')
+  await clock.advance(120_000)
+  await progress($, 'agent-1', 3, 6, 'Escribir tests')
+  await end('agent-3', 'error')
+  await end('agent-4', 'aborted')
+  await end('agent-6')
+  states.set('agent-6', 'completed')
+  await clock.advance(1000)
+  const texts = await teamTexts($)
+  for (const word of ['esperando', 'falló', 'detenido', 'arrancando', 'listo']) expect(texts).toContain(word)
+  expect(texts).toContain('paso 3/6 · el plan creció · leyendo · 2m')
+  expect(texts).toContain('██░░░░ 33 % de los pasos')
+  expect(texts).toContain('≈4m más (estimado)')
+  expect(texts).toContain('última 2m 0s · 0 llamadas')
+})
+
 test('the pane in Spanish: its top line, its count, its controls and its figures', ES, async ($, on) => {
   let spawned = 0
   engine(on, { nextId: () => `agent-${++spawned}` })
@@ -147,7 +171,7 @@ test("the team view in Spanish: each worker's phase, calls and time, or its last
   await $.tool.call({ tool: 'Bash', command: 'npm test', agentId: 'agent-1' })
   await $.tool.call({ tool: 'Read', file_path: '/work/web/README.md', agentId: 'agent-2' })
   await $.tool.call({ tool: 'Edit', file_path: '/work/web/README.md', old_string: 'a', new_string: 'b', agentId: 'agent-2' })
-  await clock.advance(372_000)
+  await clock.advance(72_000)
   await end('agent-2')
   states.set('agent-2', 'completed')
   await clock.advance(4000)
@@ -158,33 +182,9 @@ test("the team view in Spanish: each worker's phase, calls and time, or its last
   expect((await ui.find({ key: 'crew-clear' }))?.props.label).toBe('Limpiar terminados')
   expect(await ui.find({ type: 'Text', text: /^probando$/ })).toBeDefined()
   expect(await ui.find({ type: 'Text', text: /^listo$/ })).toBeDefined()
-  expect(await ui.find({ type: 'Text', text: /^6m · 1 llamada$/ })).toBeDefined()
-  expect(await ui.find({ type: 'Text', text: /^última 6m 12s · 2 llamadas$/ })).toBeDefined()
+  expect(await ui.find({ type: 'Text', text: /^1m · 1 llamada$/ })).toBeDefined()
+  expect(await ui.find({ type: 'Text', text: /^última 1m 12s · 2 llamadas$/ })).toBeDefined()
   await ui.unmount()
-})
-
-test("the team view in Spanish: how each worker stands, and a plan's step, share and guess", ES_SLOW, async ($, on) => {
-  const { clock, states, delegate, end } = await progressCrew($, on)
-  for (let i = 1; i <= 6; i++) await delegate(`Task ${i}`, `/work/r${i}`, `Tarea ${i}`)
-  // Pip on a step of a plan that grew, Bolt waiting, the third failed, the
-  // fourth stopped, the fifth still starting and the sixth free.
-  await $.tool.call({ tool: 'Read', file_path: '/work/r1/a.ts', agentId: 'agent-1' })
-  await progress($, 'agent-1', 1, 4, 'Leer')
-  states.set('agent-2', 'waiting')
-  states.set('agent-5', 'pending')
-  await clock.advance(120_000)
-  await progress($, 'agent-1', 3, 6, 'Escribir tests')
-  await end('agent-3', 'error')
-  await end('agent-4', 'aborted')
-  await end('agent-6')
-  states.set('agent-6', 'completed')
-  await clock.advance(1000)
-  const texts = await teamTexts($)
-  for (const word of ['esperando', 'falló', 'detenido', 'arrancando', 'listo']) expect(texts).toContain(word)
-  expect(texts).toContain('paso 3/6 · el plan creció · leyendo · 2m')
-  expect(texts).toContain('██░░░░ 33 % de los pasos')
-  expect(texts).toContain('≈4m más (estimado)')
-  expect(texts).toContain('última 2m 0s · 0 llamadas')
 })
 
 // ---- what is placed in the conversation, the toasts and the status line ----

@@ -4,41 +4,33 @@ import { DEFAULT_LOOK } from '../src/figure/look'
 import { parseMoodLines, pickLine } from '../src/persona/lines'
 import { PANE, SLOW, WRITTEN, engine, spawnAgent, test } from './support/crew'
 
-test('messages type out in bubbles, one after another', async ($, on) => {
-  const clock = engine(on)
+test('the two newest messages are bubbles and older ones one line each', SLOW, async ($, on) => {
+  let spawned = 0
+  const clock = engine(on, { nextId: () => `agent-${++spawned}` })
+  on('prompt.submit', (_, e) => ({ text: e.text }))
   await $.session.start({ cwd: '/work/main', surface: 'terminal', isInteractive: true })
-  await $.tool.call({
-    tool: 'mcp__crew__delegate',
-    task: 'Run the tests and fix what fails',
-    title: 'Arreglar tests',
-    repo: '/work/api',
-  })
-  await $.turn.complete({
-    answer: 'Tests verdes: 42 ok',
-    durationMs: 1000,
-    isAborted: false,
-    turnId: 't1',
-    agentId: 'agent-1',
-    reason: 'answer',
-  })
+  await $.prompt.submit({ text: 'Repartid el trabajo', wait: false, origin: { kind: 'composer' } })
+  for (let i = 1; i <= 3; i++) {
+    await $.tool.call({ tool: 'mcp__crew__delegate', task: `Task ${i}`, title: `Tarea ${i}`, repo: `/work/r${i}` })
+  }
+  for (let i = 1; i <= 3; i++) {
+    await $.turn.complete({ answer: `Informe ${i}`, durationMs: 1000, isAborted: false, turnId: `t${i}`, agentId: `agent-${i}`, reason: 'answer' })
+  }
+  await clock.advance(60_000)
 
-  const ui = await $.ui.mount({ ...PANE, surface: 'terminal' })
-  expect(await ui.find({ type: 'Text', text: /^Arreglar tests\s*$/ })).toBeUndefined()
-  expect(await ui.find({ type: 'Text', text: /Tests verdes/ })).toBeUndefined()
-
-  await clock.advance(300)
-  await ui.redraw()
-  expect((await ui.find({ type: 'Text', text: /^Arreglar t\S*▌\s*$/ }))?.text).toBeDefined()
-  expect(await ui.find({ type: 'Text', text: /Tests verdes/ })).toBeUndefined()
-
-  // The worker's report waits for the brief to finish typing, then types out.
-  await clock.advance(5000)
-  await ui.redraw()
-  expect(await ui.find({ type: 'Text', text: /^Arreglar tests\s*$/ })).toBeDefined()
-  expect(await ui.find({ type: 'Text', text: /^Tests verdes: 42 ok\s*$/ })).toBeDefined()
-  expect(await ui.find({ type: 'Text', text: /▌/ })).toBeUndefined()
-  expect(await ui.find({ type: 'Text', text: /^╭─ Nova → Pip · \S+ ─+╮$/ })).toBeDefined()
-  expect(await ui.find({ type: 'Text', text: /^╭─ Pip → Nova · \S+ ─+╮$/ })).toBeDefined()
+  const ui = await $.ui.mount({ ...PANE, surface: 'terminal', props: { ...PANE.props, scroll: { offset: 0, bodyRows: 40 } } })
+  const bubbles = (await ui.findAll({ type: 'Text', text: /^╭─ \S+ → / })).map(x => x.text)
+  expect(bubbles).toHaveLength(2)
+  expect(bubbles[0]).toMatch(/^╭─ Bolt → Nova/)
+  expect(bubbles[1]).toMatch(/^╭─ Mika → Nova/)
+  const lines = (await ui.findAll({ type: 'Text', text: /^ ─ \S+ → / })).map(x => x.text)
+  expect(lines[0]).toMatch(/^ ─ you → Nova · .*“Repartid el trabajo”$/)
+  expect(lines.filter(x => /^ ─ Nova → /.test(x))).toHaveLength(3)
+  expect(lines.filter(x => /^ ─ Pip → Nova · .*“Informe 1”$/.test(x))).toHaveLength(1)
+  expect(bubbles.length + lines.length).toBeGreaterThanOrEqual(6)
+  // Every bubble sits on the left, whoever wrote it.
+  const frame = await ui.find({ type: 'Box', text: /^╭─ Mika → Nova/ })
+  expect(frame?.props.alignItems).toBe('flex-start')
   await ui.unmount()
 })
 
@@ -70,36 +62,6 @@ test('what the person pasted in the desktop app is marked as pasted, not shown i
   const line = (await ui.find({ type: 'Text', text: /^ ─ you → Nova · / }))?.text
   expect(line).toMatch(/“Mira esto: \[pasted\] Zod can exhaust memory y arréglalo”$/)
   expect(line).not.toMatch(/pasted_content/)
-  await ui.unmount()
-})
-
-test('the two newest messages are bubbles and older ones one line each', SLOW, async ($, on) => {
-  let spawned = 0
-  const clock = engine(on, { nextId: () => `agent-${++spawned}` })
-  on('prompt.submit', (_, e) => ({ text: e.text }))
-  await $.session.start({ cwd: '/work/main', surface: 'terminal', isInteractive: true })
-  await $.prompt.submit({ text: 'Repartid el trabajo', wait: false, origin: { kind: 'composer' } })
-  for (let i = 1; i <= 3; i++) {
-    await $.tool.call({ tool: 'mcp__crew__delegate', task: `Task ${i}`, title: `Tarea ${i}`, repo: `/work/r${i}` })
-  }
-  for (let i = 1; i <= 3; i++) {
-    await $.turn.complete({ answer: `Informe ${i}`, durationMs: 1000, isAborted: false, turnId: `t${i}`, agentId: `agent-${i}`, reason: 'answer' })
-  }
-  await clock.advance(60_000)
-
-  const ui = await $.ui.mount({ ...PANE, surface: 'terminal', props: { ...PANE.props, scroll: { offset: 0, bodyRows: 40 } } })
-  const bubbles = (await ui.findAll({ type: 'Text', text: /^╭─ \S+ → / })).map(x => x.text)
-  expect(bubbles).toHaveLength(2)
-  expect(bubbles[0]).toMatch(/^╭─ Bolt → Nova/)
-  expect(bubbles[1]).toMatch(/^╭─ Mika → Nova/)
-  const lines = (await ui.findAll({ type: 'Text', text: /^ ─ \S+ → / })).map(x => x.text)
-  expect(lines[0]).toMatch(/^ ─ you → Nova · .*“Repartid el trabajo”$/)
-  expect(lines.filter(x => /^ ─ Nova → /.test(x))).toHaveLength(3)
-  expect(lines.filter(x => /^ ─ Pip → Nova · .*“Informe 1”$/.test(x))).toHaveLength(1)
-  expect(bubbles.length + lines.length).toBeGreaterThanOrEqual(6)
-  // Every bubble sits on the left, whoever wrote it.
-  const frame = await ui.find({ type: 'Box', text: /^╭─ Mika → Nova/ })
-  expect(frame?.props.alignItems).toBe('flex-start')
   await ui.unmount()
 })
 
@@ -180,5 +142,43 @@ test('someone outside the crew named like the orchestrator is drawn plain, not i
   const head = await ui.find({ type: 'Text', text: /^╭─ Nova → Nova · / })
   const names = (head?.children as { props: { bold?: boolean; color?: string } }[]).filter(c => c.props.bold === true).map(c => c.props.color)
   expect(names).toEqual([nameColorOf(DEFAULT_LOOK), 'text'])
+  await ui.unmount()
+})
+
+test('messages type out in bubbles, one after another', async ($, on) => {
+  const clock = engine(on, { typing: true })
+  await $.session.start({ cwd: '/work/main', surface: 'terminal', isInteractive: true })
+  await $.tool.call({
+    tool: 'mcp__crew__delegate',
+    task: 'Run the tests and fix what fails',
+    title: 'Arreglar tests',
+    repo: '/work/api',
+  })
+  await $.turn.complete({
+    answer: 'Tests verdes: 42 ok',
+    durationMs: 1000,
+    isAborted: false,
+    turnId: 't1',
+    agentId: 'agent-1',
+    reason: 'answer',
+  })
+
+  const ui = await $.ui.mount({ ...PANE, surface: 'terminal' })
+  expect(await ui.find({ type: 'Text', text: /^Arreglar tests\s*$/ })).toBeUndefined()
+  expect(await ui.find({ type: 'Text', text: /Tests verdes/ })).toBeUndefined()
+
+  await clock.advance(300)
+  await ui.redraw()
+  expect((await ui.find({ type: 'Text', text: /^Arreglar t\S*▌\s*$/ }))?.text).toBeDefined()
+  expect(await ui.find({ type: 'Text', text: /Tests verdes/ })).toBeUndefined()
+
+  // The worker's report waits for the brief to finish typing, then types out.
+  await clock.advance(5000)
+  await ui.redraw()
+  expect(await ui.find({ type: 'Text', text: /^Arreglar tests\s*$/ })).toBeDefined()
+  expect(await ui.find({ type: 'Text', text: /^Tests verdes: 42 ok\s*$/ })).toBeDefined()
+  expect(await ui.find({ type: 'Text', text: /▌/ })).toBeUndefined()
+  expect(await ui.find({ type: 'Text', text: /^╭─ Nova → Pip · \S+ ─+╮$/ })).toBeDefined()
+  expect(await ui.find({ type: 'Text', text: /^╭─ Pip → Nova · \S+ ─+╮$/ })).toBeDefined()
   await ui.unmount()
 })
