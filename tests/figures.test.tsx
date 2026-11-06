@@ -8,6 +8,7 @@ import { DEFAULT_LOOK, randomLook } from '../src/figure/look'
 import { DEFAULT_COLOR, toCells, toSvg } from '../src/figure/raster'
 import type { Picture } from '../src/figure/raster'
 import { lookCode, parseLookCode } from '../src/figure/share-code'
+import type { Look } from '../types'
 import { ANIMS, PALETTE_CASES, PANE, cellText, cellsOf, composeBrief, engine, pixelsOf, test, xtermColor, xtermIndex } from './support/crew'
 
 test('a look survives its share code', async () => {
@@ -15,6 +16,19 @@ test('a look survives its share code', async () => {
   expect(parseLookCode(`mira: ${lookCode(look)} `)).toEqual(look)
   expect(parseLookCode(lookCode(look))?.nameColor).toBe(7)
   expect(parseLookCode('nada')).toBeUndefined()
+})
+
+test('a share code with no field of a look holds no look, and one with some of them does', async () => {
+  const codeOf = (value: unknown) => lookCode(value as Look)
+  expect(codeOf(null)).toBe('CREW1.bnVsbA')
+  // JSON makes `__proto__` a key of its own, so the name in it is no field of the code.
+  const inherited: unknown = JSON.parse('{"__proto__":{"name":"Luna"}}')
+  const empty = [null, 0, 1, 'Luna', true, [], [DEFAULT_LOOK], {}, { nombre: 'Luna' }, inherited]
+  expect(empty.filter(value => parseLookCode(codeOf(value)) !== undefined)).toEqual([])
+
+  expect(parseLookCode(codeOf({ name: 'Luna' }))).toEqual({ ...DEFAULT_LOOK, name: 'Luna' })
+  expect(parseLookCode(codeOf({ hair: 'fringe', nombre: 'Luna' }))).toEqual({ ...DEFAULT_LOOK, hair: 'fringe' })
+  expect(parseLookCode(codeOf(DEFAULT_LOOK))).toEqual(DEFAULT_LOOK)
 })
 
 test('a worker is an outlined diamond in 4 columns by 2 rows, its marks beside it, and keeps mostly still', () => {

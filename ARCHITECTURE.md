@@ -150,7 +150,8 @@ settles (read on every drawing, through `t()` and `onScreen`), and the colour-fi
 (`src/figure/share-code.ts`). Codes circulate outside the plugin, so old ones must keep
 importing: the prefix, the `Look` field names and the catalog's part keys and colour positions
 never change. An imported or stored look is normalized (`normalizeLook`): unknown fields are
-dropped, missing or invalid ones take the default's value.
+dropped, missing or invalid ones take the default's value. A code with no field of a look in it
+holds no look, and is turned down as a bad code.
 
 ## Timers
 

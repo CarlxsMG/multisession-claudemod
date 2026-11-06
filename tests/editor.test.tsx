@@ -3,7 +3,7 @@ import type { On, UiCopyResult } from 'claude-code'
 import { DEFAULT_LOOK } from '../src/figure/look'
 import { lookCode, parseLookCode } from '../src/figure/share-code'
 import type { Look } from '../types'
-import { PANE, SURFACES, engine, test } from './support/crew'
+import { PANE, SURFACES, crewCommand, engine, test } from './support/crew'
 
 const TERMINAL = { cwd: '/work/main', surface: 'terminal', isInteractive: true } as const
 
@@ -112,6 +112,13 @@ for (const surface of ['terminal', 'desktop'] as const) {
   })
 }
 
+test('/crew import turns down a code with no look in it, and the look stays as it was', async ($, on) => {
+  watched(on, LUNA)
+  await $.session.start(TERMINAL)
+  expect((await crewCommand($, 'import CREW1.bnVsbA')).text).toBe('That code is not valid (it starts with CREW1.).')
+  expect(parseLookCode((await crewCommand($, 'code')).text ?? '')).toEqual(LUNA)
+})
+
 test('a bad code says so, and the look stays as it was', async ($, on) => {
   const { copies, toasts } = watched(on, LUNA)
   await $.session.start(TERMINAL)
@@ -120,9 +127,10 @@ test('a bad code says so, and the look stays as it was', async ($, on) => {
   await ui.press({ key: 'tab-share' })
   const before = await ui.find({ type: 'Raster', key: 'preview' })
 
-  // Not a code, and one cut short on the way here.
-  for (const text of ['no code here', lookCode(DEFAULT_LOOK).slice(0, 40)]) await ui.input({ key: 'look-import', text })
-  expect(toasts).toEqual(['That code is not valid', 'That code is not valid'])
+  // Not a code, one cut short on the way here, and one that holds no look.
+  const bad = ['no code here', lookCode(DEFAULT_LOOK).slice(0, 40), 'CREW1.bnVsbA']
+  for (const text of bad) await ui.input({ key: 'look-import', text })
+  expect(toasts).toEqual(bad.map(() => 'That code is not valid'))
   expect(await heading(ui)).toEqual(['Luna · Pirate · customize', LUNA_GREEN])
   // A change would have the figure cheer.
   expect((await ui.find({ type: 'Raster', key: 'preview' }))?.props.cells).toEqual(before?.props.cells)
