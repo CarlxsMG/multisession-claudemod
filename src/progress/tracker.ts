@@ -174,7 +174,7 @@ export async function noteTodos($: Engine, id: string, call: Record<string, unkn
   let todos: Todo[]
   if (call.tool === 'TodoWrite') {
     if (!Array.isArray(call.todos)) return
-    todos = (call.todos as Record<string, unknown>[]).map(t => ({ status: String(t.status), text: firstText(t.activeForm, t.content) }))
+    todos = (call.todos as Record<string, unknown>[]).map(todo => ({ status: String(todo.status), text: firstText(todo.activeForm, todo.content) }))
   } else {
     // Worked out inside the write: two calls of one response may run at once.
     let items: TaskItem[] | undefined

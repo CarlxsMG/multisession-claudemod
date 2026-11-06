@@ -14,10 +14,10 @@ export const finishPlan = (p: Plan): Plan => ({ ...p, step: p.total, done: p.tot
  * The plan a progress call declares. Step 0 declares it; starting a step
  * means the ones before it are done. A step past the total stretches it.
  */
-export function declarePlan(prev: Plan | undefined, step: number, total: number, doing: string): Plan {
+export function declarePlan(prev: Plan | undefined, step: number, declared: number, doing: string): Plan {
   const s = Math.max(0, Math.floor(step))
-  const t = Math.max(1, Math.floor(total), s)
-  return { step: s, total: t, done: Math.max(0, s - 1), first: prev?.from === 'tool' ? prev.first : t, doing: flat(doing), from: 'tool' }
+  const total = Math.max(1, Math.floor(declared), s)
+  return { step: s, total, done: Math.max(0, s - 1), first: prev?.from === 'tool' ? prev.first : total, doing: flat(doing), from: 'tool' }
 }
 
 /**
@@ -33,10 +33,10 @@ export type Todo = { status: string; text: string }
  */
 export function todoPlan(prev: Plan | undefined, todos: readonly Todo[]): Plan | undefined {
   if (prev?.from === 'tool') return prev
-  const list = todos.filter(t => t.status !== 'deleted')
+  const list = todos.filter(todo => todo.status !== 'deleted')
   if (list.length === 0) return undefined
-  const done = list.filter(t => t.status === 'completed').length
-  const current = list.find(t => t.status === 'in_progress')
+  const done = list.filter(todo => todo.status === 'completed').length
+  const current = list.find(todo => todo.status === 'in_progress')
   return {
     step: Math.min(list.length, done + (current === undefined ? 0 : 1)),
     total: list.length,

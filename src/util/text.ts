@@ -93,4 +93,4 @@ export function textOf(output: unknown, depth = 0): string {
 }
 
 /** The first of the values that is a string with something in it, else an empty one. */
-export const firstText = (...texts: unknown[]): string => String(texts.find(t => typeof t === 'string' && t.trim() !== '') ?? '')
+export const firstText = (...texts: unknown[]): string => String(texts.find(text => typeof text === 'string' && text.trim() !== '') ?? '')
