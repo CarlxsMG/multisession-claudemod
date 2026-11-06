@@ -1,11 +1,20 @@
 // A worker's runs, one to a task: opened as it starts, counted call by call,
 // closed with how it ended, and how long each took.
-import type { Phase, Run, RunEnd } from '../../types'
+import type { Phase, Run, RunEndKind, WorkerStatus } from '../../types'
 import { nextPhase } from './phase'
 import { finishPlan } from './plan'
 
 /** Whether a run is still going. */
 export const isOpen = (r: Pick<Run, 'endedAt'>): boolean => r.endedAt === 0
+
+/** Whether a run has ended, so its `end` says how. */
+export const hasEnded = (run: Run): run is Run & { end: RunEndKind } => run.end !== ''
+
+/**
+ * How a run ends, going by its worker's status: a worker that failed or was
+ * stopped says so; any other status, or no worker at all, is a run that finished.
+ */
+export const endOf = (status: WorkerStatus | undefined): RunEndKind => (status === 'failed' || status === 'stopped' ? status : 'done')
 
 /** A run for `id` from `now`, unless one is open already. */
 export function openRun(list: readonly Run[], id: string, now: number): Run[] {
@@ -28,7 +37,7 @@ export function countCall(list: readonly Run[], id: string, kind: Phase | undefi
  * A run that ends done has done its plan, whether or not the worker said so
  * step by step; one that failed or was stopped keeps the step it stopped on.
  */
-export function closeRun(list: readonly Run[], id: string, end: Exclude<RunEnd, ''>, now: number): Run[] {
+export function closeRun(list: readonly Run[], id: string, end: RunEndKind, now: number): Run[] {
   return list.map(r => {
     if (r.id !== id || !isOpen(r)) return r
     const closed: Run = { ...r, endedAt: now, end }

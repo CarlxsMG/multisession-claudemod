@@ -1,7 +1,7 @@
 // The start and end of every turn, the orchestrator's and each worker's.
 import type { HookFor } from 'claude-code'
 
-import type { RunEnd } from '../../types'
+import type { RunEndKind } from '../../types'
 import { ORCH_ID, say, setOrch } from '../crew/feed'
 import { releaseSoon } from '../crew/takeover'
 import { patchWorker } from '../crew/workers'
@@ -44,7 +44,7 @@ export async function onTurnComplete($: Engine, e: Parameters<OnTurnCompleteHook
   }
   const worker = (await readWorkers($)).find(x => x.id === e.agentId)
   if (worker === undefined) return next(e)
-  const status: Exclude<RunEnd, ''> = e.isAborted
+  const status: RunEndKind = e.isAborted
     ? 'stopped'
     : e.reason === 'error' || e.reason === 'refusal'
       ? 'failed'

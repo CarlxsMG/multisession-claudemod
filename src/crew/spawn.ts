@@ -5,6 +5,7 @@ import type { HookFor } from 'claude-code'
 import type { ParentLink, Worker } from '../../types'
 import type { Engine } from '../engine'
 import { modelAlias } from '../model-label'
+import { endOf } from '../progress/runs'
 import { beginRun, settleRun } from '../progress/tracker'
 import { renamedAgent } from '../prompts/results'
 import { forkPreamble, gitRules, workerPreamble } from '../prompts/worker'
@@ -26,7 +27,7 @@ import { samePath } from '../util/path'
 import { cap, oneLine } from '../util/text'
 import { takeIntent } from './delegate'
 import { ORCH_ID, enlist, say, setJob } from './feed'
-import { FINISHED, claimName, findWorker, makeWorker, patchWorker, prune, shelve, takenNow, unclaimNames, unshelve } from './workers'
+import { claimName, findWorker, makeWorker, patchWorker, prune, shelve, takenNow, unclaimNames, unshelve } from './workers'
 
 // What an Agent call's model reads after its result when the crew named
 // its agent otherwise than the call did, by tool_use_id: the name its card
@@ -75,7 +76,7 @@ export async function onSpawn($: Engine, e: Parameters<OnSpawnHook>[1], next: Pa
     // A resumed agent had ended, whatever the crew's record of it says.
     const id = e.resume.agentId
     const was = findWorker([...(await readWorkers($)), ...(await readDropped($))], id)
-    await settleRun($, { id, status: was !== undefined && FINISHED.has(was.status) ? was.status : 'done' })
+    await settleRun($, { id, status: endOf(was?.status) })
     const resumed = await next(e)
     await unshelve($, e.resume.agentId)
     await patchWorker($, e.resume.agentId, () => ({ status: 'working' }))
