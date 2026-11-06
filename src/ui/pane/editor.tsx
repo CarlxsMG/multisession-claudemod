@@ -96,11 +96,15 @@ export async function drawEditor($: Engine, ui: PaneUi, sprite: Sprite, look: Lo
   const nameColorStepper = (
     <Box flexDirection="row">
       <Button key="prev-nameColor" plain label={words.previous(words.nameColor)} onPress={recolor(-1)}>
-        <Text bold color="claude"> ◀ </Text>
+        <Text bold color="claude">
+          {' ◀ '}
+        </Text>
       </Button>
       <Text backgroundColor={nameColorOf(look)}>{'  '}</Text>
       <Button key="next-nameColor" plain label={words.next(words.nameColor)} onPress={recolor(1)}>
-        <Text bold color="claude"> ▶ </Text>
+        <Text bold color="claude">
+          {' ▶ '}
+        </Text>
       </Button>
     </Box>
   )
