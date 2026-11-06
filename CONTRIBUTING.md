@@ -139,8 +139,8 @@ request and someone will translate it.
   plugin, and what a test imports from `src` speaks English too unless its file calls `setLocale`
   (the plugin under test and the test file do not share module instances). Spanish is covered by
   `tests/spanish.test.tsx`, which calls `setLocale('es')` and passes each test
-  `{ options: { language: 'es' } }`, the width tests in `tests/progress.test.tsx`, which run in
-  both languages, `tests/locale.test.tsx` and `tests/unit/i18n.test.ts`. Another test that needs
+  `{ options: { language: 'es' } }`, the width tests in `tests/progress-pane.test.tsx`, which run
+  in both languages, `tests/locale.test.tsx` and `tests/unit/i18n.test.ts`. Another test that needs
   Spanish passes `{ options: { language: 'es' } }` and says why.
 - `tests/unit/` tests pure modules; `tests/golden/` holds the model-facing texts.
 - Every bug fix comes with a test that fails without it.
