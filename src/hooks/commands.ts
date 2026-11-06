@@ -4,6 +4,7 @@ import type { MatchedHook } from 'claude-code'
 import { messageWorker } from '../crew/message'
 import { clearFinished } from '../crew/sync'
 import { findWorker } from '../crew/workers'
+import { quiet } from '../engine'
 import type { Engine } from '../engine'
 import { randomLookFor } from '../figure/look'
 import { lookCode, parseLookCode } from '../figure/share-code'
@@ -49,8 +50,10 @@ export async function runCrewCommand($: Engine, e: Parameters<RunCrewCommandHook
     }
     case 'code': {
       const code = lookCode(look)
-      const copied = await $.ui.copy({ text: code })
-      return { text: words.code(look.name, copied.isCopied, code) }
+      // The editor's toast sends the person here when a copy fails, so the code
+      // is the answer also when a plugin denies this one, which rejects it.
+      const copied = await quiet($, $.ui.copy({ text: code }), '/crew code')
+      return { text: words.code(look.name, copied?.isCopied === true, code) }
     }
     case 'import': {
       const parsed = parseLookCode(rest)

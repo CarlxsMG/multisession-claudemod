@@ -11,15 +11,21 @@ const TERMINAL = { cwd: '/work/main', surface: 'terminal', isInteractive: true }
 const LUNA: Look = { ...DEFAULT_LOOK, name: 'Luna', nameColor: 2, phrase: 'Arr!', vibe: 'pirate', hair: 'fringe' }
 const LUNA_GREEN = '#81c784'
 
+// A copy that fails and one another plugin denies, which read the same to the person.
+const NOT_COPIED = [
+  ['the surface did not take', { isCopied: false, reason: 'no-clipboard' }],
+  ['another plugin denied', { deny: 'not on this machine' }],
+] as const
+
 // An engine holding `look`, that answers a copy as `copy` says and keeps what
 // it was given to copy and the toasts it showed.
-function watched(on: On, look: Look = DEFAULT_LOOK, copy: UiCopyResult = { isCopied: true }) {
+function watched(on: On, look: Look = DEFAULT_LOOK, copy: UiCopyResult | { deny: string } = { isCopied: true }) {
   const copies: { text: string; surface: string | undefined }[] = []
   const toasts: string[] = []
   engine(on, { stored: { look } })
   on('ui.copy', (_, e) => {
     copies.push({ text: e.text, surface: e.surface })
-    return { value: copy }
+    return 'deny' in copy ? copy : { value: copy }
   })
   on('ui.toast', (_, e) => {
     toasts.push(e.text)
@@ -78,16 +84,24 @@ test('Copy code hands the surface pressed the code of the look as it stands, and
   await ui.unmount()
 })
 
-test('a copy the surface did not take shows the code itself, to copy by hand', async ($, on) => {
-  const { toasts } = watched(on, LUNA, { isCopied: false, reason: 'no-clipboard' })
-  await $.session.start(TERMINAL)
-  const ui = await $.ui.mount({ ...PANE, surface: 'terminal' })
-  await ui.press({ key: 'edit' })
-  await ui.press({ key: 'tab-share' })
-  await ui.press({ key: 'look-copy' })
-  expect(toasts).toEqual([lookCode(LUNA)])
-  await ui.unmount()
-})
+for (const [how, copy] of NOT_COPIED) {
+  test(`a copy ${how} says so in a few words and points to /crew code`, async ($, on) => {
+    const { toasts } = watched(on, LUNA, copy)
+    await $.session.start(TERMINAL)
+    const ui = await $.ui.mount({ ...PANE, surface: 'terminal' })
+    await ui.press({ key: 'edit' })
+    await ui.press({ key: 'tab-share' })
+    await ui.press({ key: 'look-copy' })
+    expect(toasts).toEqual(['Code not copied: /crew code shows it'])
+    await ui.unmount()
+  })
+
+  test(`/crew code answers with the code when ${how} its copy, and does not call it copied`, async ($, on) => {
+    watched(on, LUNA, copy)
+    await $.session.start(TERMINAL)
+    expect((await crewCommand($, 'code')).text).toBe(`Luna's code:\n${lookCode(LUNA)}`)
+  })
+}
 
 for (const surface of ['terminal', 'desktop'] as const) {
   test(`a good code pasted in the Share tab applies its look, whole, and the tab stays (${surface})`, async ($, on) => {

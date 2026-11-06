@@ -1,5 +1,6 @@
 // The pane's editor: the orchestrator's look and personality, part by part.
 import type { EditTab, Look } from '../../../types'
+import { quiet } from '../../engine'
 import type { Engine } from '../../engine'
 import { nameColorOf } from '../../figure/accent'
 import type { Anim } from '../../figure/anim'
@@ -207,7 +208,10 @@ export async function drawEditor($: Engine, ui: PaneUi, sprite: Sprite, look: Lo
             label={words.copyCode}
             hotkey="c"
             onPress={p => {
-              void $.ui.copy({ text: lookCode(look), surface: p.surface }).then(r => $.ui.toast(r.isCopied ? words.copied(look.name) : lookCode(look)))
+              // A plugin that denies the copy rejects it, which to the person is a copy that failed.
+              void quiet($, $.ui.copy({ text: lookCode(look), surface: p.surface }), 'copy').then(r =>
+                $.ui.toast(r?.isCopied === true ? words.copied(look.name) : words.copyFailed),
+              )
             }}
           />
         </Box>
