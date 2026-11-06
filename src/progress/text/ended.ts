@@ -1,9 +1,9 @@
 // A run that ended, said in one line.
 import type { CheckLine, RunEndKind } from '../../../types'
 import { t } from '../../i18n'
-import { END, endVerb } from '../../ui/labels'
 import { flat } from '../../util/text'
 import { took } from '../../util/time'
+import { END, endVerb } from '../../words'
 import { stepText } from '../plan'
 import type { Piece } from './pieces'
 

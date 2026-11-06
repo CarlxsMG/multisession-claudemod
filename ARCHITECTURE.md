@@ -49,11 +49,11 @@ the debug log. Its `unrecognized` logs there an engine text the crew reads in no
 | `src/figure/` | The pictures: the catalog of parts and colours, the orchestrator's critter, the workers' diamonds, the animation of each state, rasterizing to cells or SVG, looks and share codes, accent colours, the 256-colour mapping. |
 | `src/ui/pane/` | The pane: how it opens (`index.tsx`), its timer and repainting (`animation.ts`), its views (`main.tsx`, `editor.tsx`, `team.tsx`), the feed (`feed.tsx`), shared widgets. |
 | `src/ui/transcript/` | The crew's rows in the conversation: bubbles or one-line cards for crew calls, worker reports and task notifications, and the placed rows. |
-| `src/ui/labels.ts` | The words, marks and colours of each worker status and run end. |
 | `src/usage/limits.ts` | The account's usage windows, and the usage probe. |
 | `src/i18n/` | The UI's text in English and Spanish, and the locale. See [docs/i18n.md](docs/i18n.md). |
 | `src/state/atoms.ts` | Every atom and its `readX`/`updateX` pair, and `STORE_KEYS`. |
 | `src/config.ts` | The names the crew shares with the engine, the pane's tick, and the limits the roster and the briefs share. |
+| `src/words.ts` | The words, marks and colours of each worker status and run end. |
 | `src/runtime.ts` | What one load keeps in memory beside the atoms, and `resetRuntime`. See [Runtime state](#runtime-state-srcruntimets). |
 | `src/util/` | Pure helpers: text fitting, time, paths (POSIX and Windows), base64, seeded random, bounded lists, tool-input reading. |
 | `types/index.d.ts` | The state contract (`PluginState.crew`) and the domain types. |

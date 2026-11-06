@@ -1,7 +1,7 @@
 // What a figure does in each state, frame by frame: its pose, how it moves,
 // and the mark over its head.
-import { END } from '../ui/labels'
 import { hash } from '../util/random'
+import { END } from '../words'
 import type { Glyph } from './raster'
 
 /** The states a figure has a routine for. */

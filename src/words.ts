@@ -1,8 +1,8 @@
 // The words, marks and colors the crew's UI gives each worker status and
 // each end of a run, in one place, so the pane, the status line, the toasts
 // and the rows in the conversation say the same.
-import type { RunEndKind, WorkerStatus } from '../../types'
-import { t } from '../i18n'
+import type { RunEndKind, WorkerStatus } from '../types'
+import { t } from './i18n'
 
 /** A worker's status, as the pane and the check-ins name it. */
 export const statusLabel = (status: WorkerStatus): string => t().status[status]

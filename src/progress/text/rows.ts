@@ -2,9 +2,9 @@
 // ends a round.
 import type { CheckIn, CheckLine, RunEnd } from '../../../types'
 import { t } from '../../i18n'
-import { END, endMarked } from '../../ui/labels'
 import { cut } from '../../util/text'
 import { shortTime, took } from '../../util/time'
+import { END, endMarked } from '../../words'
 import { phaseLabel } from '../phase'
 import { stepText } from '../plan'
 import { endPieces } from './ended'
