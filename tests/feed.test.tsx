@@ -53,6 +53,30 @@ test("the person's own messages are one quiet line, not a bubble", async ($, on)
   await ui.unmount()
 })
 
+test("on the desktop a bubble's rows are monospaced and as long as each other, so its borders line up", async ($, on) => {
+  const clock = engine(on)
+  on('prompt.submit', (_, e) => ({ text: e.text }))
+  await $.session.start({ cwd: '/work/main', surface: 'desktop', isInteractive: true })
+  await $.prompt.submit({ text: 'Haz las capturas del README', wait: false, origin: { kind: 'composer' } })
+  await $.tool.call({ tool: 'mcp__crew__delegate', task: 'Take the screenshots', title: 'README screenshot survey', repo: '/work/api' })
+  await clock.advance(60_000)
+
+  const ui = await $.ui.mount({ ...PANE, surface: 'desktop' })
+  const rows = await ui.findAll({ type: 'Text', text: /^[╭│╰]/ })
+  const tops = rows.filter(x => /^╭─ \S+ → /.test(x.text))
+  expect(tops).toHaveLength(1)
+  expect(tops[0]?.text).toMatch(/^╭─ Nova → Pip · /)
+  expect(rows.some(x => /^│ README screenshot survey +│$/.test(x.text))).toBe(true)
+  // Nested runs of a row share its face, so only the rows themselves.
+  const own = rows.filter(x => /^[╭│╰].*[╮│╯]$/.test(x.text))
+  expect(own.length).toBeGreaterThanOrEqual(3)
+  for (const row of own) expect(row.props.mono).toBe(true)
+  expect(new Set(own.map(x => x.text.length)).size).toBe(1)
+  const aside = await ui.find({ type: 'Text', text: /^ ─ you → Nova · / })
+  expect(aside?.props.mono).toBe(true)
+  await ui.unmount()
+})
+
 test('what the person pasted in the desktop app is marked as pasted, not shown in its tags', async ($, on) => {
   const clock = engine(on)
   on('prompt.submit', (_, e) => ({ text: e.text }))
