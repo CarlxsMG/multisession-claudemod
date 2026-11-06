@@ -27,6 +27,8 @@ All notable changes to crew are written here. The format follows
   can trail its last call by that much.
 - A stopped run has a mark of its own, `■`, in the status line, the rows, the toasts, the bubbles
   and on its figure, so it reads apart from a failed one (`×`) without color.
+- The editor's figure cheers only for a change to the look: a press on the value already chosen
+  leaves it as it was.
 
 ### Fixed
 

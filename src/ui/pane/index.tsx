@@ -7,7 +7,7 @@ import { t } from '../../i18n'
 import { runtime } from '../../runtime'
 import { readLook, readPaneTick, readRuns, readView, readWorkers } from '../../state/atoms'
 import { hasApp } from '../../usage/limits'
-import { forgetPane, oweRedraws, pageGone, pane } from './animation'
+import { forgetPane, noticeLook, oweRedraws, pageGone, pane } from './animation'
 import { drawEditor } from './editor'
 import { drawMain } from './main'
 import { drawTeam } from './team'
@@ -47,6 +47,7 @@ export async function drawPane($: Engine, e: PaneEvent) {
   await readPaneTick($)
   const now = await $.clock.now()
   const look = await readLook($)
+  noticeLook(look)
   const width = e.props.bodyColumns
   const height = e.props.scroll.bodyRows
   const sprite = startSprites(ui, e.surface)

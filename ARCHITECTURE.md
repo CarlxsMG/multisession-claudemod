@@ -117,7 +117,7 @@ write to `$.state`: the names Agent calls' agents were renamed to, the relay and
 the names given, the agents the engine listed, the progress tracker's interval, status line,
 widths and run times, the tool calls and the end-of-task rows' first drawings held for the next
 frame (a drawing may not write the state), the usage probe's permission and time, the pane's
-frame, rasters and the redraws it owes, the last `[crew]` check, the mood lines asked for, and
+frame, the look it last showed, rasters and the redraws it owes, the last `[crew]` check, the mood lines asked for, and
 the kinds of engine wording logged. It is one typed object
 in parts, each read and written only by the module its comment names; another module goes
 through that module's functions. It imports types only.
