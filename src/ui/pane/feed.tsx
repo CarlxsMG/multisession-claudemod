@@ -87,7 +87,7 @@ export function drawFeed(ctx: PaneContext, msgs: readonly Msg[], feedRows: numbe
   const aside = (msg: Msg) => {
     const color = colorOf(msg, 'from')
     return (
-      <Text wrap="truncate-end">
+      <Text wrap="truncate-end" mono>
         <Text color={color}> ─ </Text>
         <Text bold color={color}>
           {msg.tone === 'user' ? t().userLine : msg.from}
@@ -103,6 +103,9 @@ export function drawFeed(ctx: PaneContext, msgs: readonly Msg[], feedRows: numbe
 
   // Drawn by hand so who speaks to whom rides in the top border:
   // ╭─ Nova → Pip · 2m ───╮
+  // Its rows line up by counting characters, so each is in the monospaced
+  // face: the desktop app draws Text in a proportional one unless told, and
+  // there the side borders would fall wherever the words before them end.
   const bubble = ({ entry, lines }: { entry: Typed; lines: string[] }) => {
     const msg = entry.msg
     const count = now >= entry.end ? entry.text.length : Math.floor((entry.text.length * (now - entry.start)) / (entry.end - entry.start))
@@ -116,7 +119,7 @@ export function drawFeed(ctx: PaneContext, msgs: readonly Msg[], feedRows: numbe
     const room = Math.max(Math.max(...lines.map(x => x.length)) + 1, label + 2)
     return (
       <Box flexDirection="column" alignItems="flex-start">
-        <Text wrap="truncate-end">
+        <Text wrap="truncate-end" mono>
           <Text color={color}>╭─ </Text>
           <Text bold color={color}>
             {msg.from}
@@ -129,13 +132,13 @@ export function drawFeed(ctx: PaneContext, msgs: readonly Msg[], feedRows: numbe
           <Text color={color}> {'─'.repeat(room - label - 1)}╮</Text>
         </Text>
         {showing.map((line, i) => (
-          <Text wrap="truncate-end">
+          <Text wrap="truncate-end" mono>
             <Text color={color}>│ </Text>
             <Text>{(line + (isTyping && i === showing.length - 1 ? '▌' : '')).padEnd(room)}</Text>
             <Text color={color}> │</Text>
           </Text>
         ))}
-        <Text color={color}>{`╰${'─'.repeat(room + 2)}╯`}</Text>
+        <Text color={color} mono>{`╰${'─'.repeat(room + 2)}╯`}</Text>
       </Box>
     )
   }

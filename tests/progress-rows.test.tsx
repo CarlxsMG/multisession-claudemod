@@ -254,3 +254,25 @@ test('every message between agents has its line here once the main turn is over;
   expect(await lines(placed[placed.length - 1]!)).toEqual(['● Bolt → Pip: Bolt: one more thing · not delivered'])
   expect(toasts[toasts.length - 1]).toMatch(/^Bolt's message did not reach Pip: /)
 })
+
+test("on the desktop a check-in's padded columns are monospaced, so they line up", async ($, on) => {
+  const { clock, placed, delegate } = await progressCrew($, on)
+  await delegate('Publish the plugin', '/work/api', 'Publicar')
+  await delegate('Write the docs', '/work/docs', 'Docs')
+  await progress($, 'agent-1', 1, 9, 'Fast-forward main')
+  await clock.advance(180_000)
+  expect(placed).toHaveLength(1)
+  const ui = await $.ui.mount({
+    plugin: 'crew',
+    surface: 'desktop',
+    component: 'Placed',
+    requestId: placed[0]!,
+    props: { id: placed[0]!, plugin: 'crew' },
+    viewport: { columns: 80, rows: 40 },
+  })
+  // The row's own lines are the Box's children; the runs inside take their face.
+  const rows = ((await ui.find({ type: 'Box' }))?.children ?? []) as { props?: Record<string, unknown> }[]
+  expect(rows.length).toBeGreaterThanOrEqual(3)
+  for (const row of rows) expect(row.props?.mono).toBe(true)
+  await ui.unmount()
+})

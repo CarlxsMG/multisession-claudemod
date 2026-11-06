@@ -1,6 +1,8 @@
 // A check-in or a round's summary, placed in the conversation: display
 // only, so the model and the transcript file never read it. The newest is
-// whole; once another stands below it, a row folds to one line.
+// whole; once another stands below it, a row folds to one line. Its
+// columns are padded to line up, so it is drawn monospaced: the desktop
+// app's text is otherwise proportional.
 //  ─ crew · 2 active · round 6m
 //    Pip   editing  6m  Edit app.ts
 //    Bolt  reading  4m  Read README.md
@@ -54,7 +56,7 @@ export async function drawPlaced($: Engine, e: Parameters<DrawPlacedHook>[1], ne
   return (
     <Box flexDirection="column">
       {checkInRows(isWhole && row.shown !== undefined ? { ...row, ...row.shown } : row, width, isWhole).map(pieces => (
-        <Text wrap="truncate-end">
+        <Text wrap="truncate-end" mono>
           {pieces.map(p => (
             <Text {...pieceStyle(p, look)}>{p.text}</Text>
           ))}

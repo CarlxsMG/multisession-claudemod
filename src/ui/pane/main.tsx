@@ -50,7 +50,9 @@ const lineColors =
 
 // The orchestrator's name on top, its personality and the model the main
 // session runs; below, the figure and what it says, with its two controls
-// under it, flush right. With it, the rows it takes (`headRows`).
+// under it, flush right, beside the usage, whose rows are padded to line
+// up and so monospaced: the desktop app's text is otherwise proportional.
+// With it, the rows it takes (`headRows`).
 async function drawHeader($: Engine, ctx: CrewContext, msgs: readonly Msg[]) {
   const { ui, sprite, kit, look, now, width } = ctx
   const { Box, Text, Button } = ui
@@ -115,7 +117,7 @@ async function drawHeader($: Engine, ctx: CrewContext, msgs: readonly Msg[]) {
             {usage.length > 0 && (
               <Box flexDirection="column" justifyContent="center">
                 {usage.map(x => (
-                  <Text>
+                  <Text mono>
                     <Text dimColor>{(limitLabel(x.kind) ?? x.kind.toLowerCase().slice(0, 5)).padEnd(5)}</Text>
                     <Text color={limitColor(x.percent)}>{`${x.percent}%`.padStart(4)}</Text>
                   </Text>
@@ -165,7 +167,9 @@ function drawCardRow($: Engine, ctx: CrewContext) {
   // run's time, and any other a word of four letters: what it is doing and
   // the pane's own words for its status do not fit, and the team view and
   // the check-ins say them whole. A run that just ended has its word stand
-  // out, in the color of how it ended, so an end is seen at a glance.
+  // out, in the color of how it ended, so an end is seen at a glance. Both
+  // are in the monospaced face, as the name is, so four letters fill the
+  // card's four cells on a surface whose text is proportional.
   const openRuns = new Map([...lastRun.values()].filter(isOpen).map(r => [r.id, r]))
   const perRow = Math.max(1, Math.floor((width + 1) / (DIAMOND_W + 1)))
   const moreWidth = (k: number) => Math.max(DIAMOND_W, `+${inRow.length - k}`.length + 2)
@@ -183,12 +187,12 @@ function drawCardRow($: Engine, ctx: CrewContext) {
             {figure(worker, status)}
             {nameButton(worker)}
             {ended !== undefined ? (
-              <Text wrap="truncate-end" bold inverse color={END[ended].color}>
+              <Text wrap="truncate-end" mono bold inverse color={END[ended].color}>
                 {cardLabel(ended)}
               </Text>
             ) : (
               worker.status !== 'idle' && (
-                <Text wrap="truncate-end" color={statusColor(worker)} dimColor={!ACTIVE.has(worker.status)}>
+                <Text wrap="truncate-end" mono color={statusColor(worker)} dimColor={!ACTIVE.has(worker.status)}>
                   {cardText(worker.status, openRuns.get(worker.id), now, DIAMOND_W)}
                 </Text>
               )

@@ -316,3 +316,18 @@ test('the editor shows one group at a time and the figure follows each press', a
     await ui.unmount()
   }
 })
+
+test("on the desktop the editor's padded tabs, part names and values are monospaced, so they line up", async ($, on) => {
+  watched(on)
+  await $.session.start({ cwd: '/work/main', surface: 'desktop', isInteractive: true })
+  const ui = await $.ui.mount({ ...PANE, surface: 'desktop' })
+  await ui.press({ key: 'edit' })
+  await ui.press({ key: 'tab-face' })
+  expect((await ui.find({ type: 'Text', text: /^▸ Face$/ }))?.props.mono).toBe(true)
+  expect((await ui.find({ type: 'Text', text: /^ {2}Character$/ }))?.props.mono).toBe(true)
+  const padded = await ui.findAll({ type: 'Text', text: /^\S.*\S {2,}$|^\S+ {2,}$/ })
+  const names = padded.map(x => x.text.trim())
+  for (const name of ['Eyes', 'Mouth', 'Details']) expect(names).toContain(name)
+  for (const text of padded) expect(text.props.mono).toBe(true)
+  await ui.unmount()
+})

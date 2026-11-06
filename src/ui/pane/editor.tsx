@@ -19,7 +19,9 @@ import { pane } from './animation'
 import { ORCH_SEED } from './widgets'
 import type { PaneContext, PaneUi } from './widgets'
 
-// The columns a part's name takes before its ◀ value ▶.
+// The columns a part's name takes before its ◀ value ▶. Text padded to a
+// count of columns is drawn monospaced: the desktop app's is otherwise
+// proportional, and the rows would not line up.
 const LABEL_COLUMNS = 10
 
 const inputOf = (ui: PaneUi) => ('Input' in ui ? ui.Input : undefined)
@@ -49,7 +51,7 @@ function tabMenu($: Engine, ctx: PaneContext, tab: EditTab) {
     <Box flexDirection="column">
       {tabs.map(([id, label]) => (
         <Button key={`tab-${id}`} plain label={label} onPress={() => void updateEditTab($, () => id)}>
-          <Text bold={id === tab} color={id === tab ? 'claude' : 'text'} dimColor={id !== tab}>
+          <Text mono bold={id === tab} color={id === tab ? 'claude' : 'text'} dimColor={id !== tab}>
             {id === tab ? `▸ ${label}` : `  ${label}`}
           </Text>
         </Button>
@@ -72,13 +74,17 @@ function partControls($: Engine, ctx: PaneContext) {
     const step = (by: number) => () => void changeLook($, options[(i + by + options.length) % options.length]!.pick)
     return (
       <Box flexDirection="row" columnGap={1}>
-        <Text dimColor>{label.padEnd(LABEL_COLUMNS)}</Text>
+        <Text dimColor mono>
+          {label.padEnd(LABEL_COLUMNS)}
+        </Text>
         <Button key={`prev-${id}`} plain label={words.previous(label)} onPress={step(-1)}>
           <Text bold color="claude">
             ◀
           </Text>
         </Button>
-        <Text bold>{(options[i]?.label ?? '').padEnd(VALUE)}</Text>
+        <Text bold mono>
+          {(options[i]?.label ?? '').padEnd(VALUE)}
+        </Text>
         <Button key={`next-${id}`} plain label={words.next(label)} onPress={step(1)}>
           <Text bold color="claude">
             ▶
