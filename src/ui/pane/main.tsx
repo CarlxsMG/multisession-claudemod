@@ -1,6 +1,6 @@
 // The pane's main view: the orchestrator, its crew's cards and their
 // messages.
-import type { Msg, Orch } from '../../../types'
+import type { Look, Msg, Orch, Worker } from '../../../types'
 import { ORCH_ID, USER_ID, isOrchIn } from '../../crew/feed'
 import { ACTIVE, napLeavesAt, napsAway } from '../../crew/workers'
 import type { Engine } from '../../engine'
@@ -22,7 +22,7 @@ import { wrapText } from '../../util/text'
 import { END, cardLabel, statusLabel } from '../../words'
 import { drawFeed } from './feed'
 import { MAIL_SHOWN_MS, ORCH_SEED, toggle } from './widgets'
-import type { CrewContext } from './widgets'
+import type { CrewContext, WorkerKit } from './widgets'
 
 // How long the orchestrator cheers when its turn ends, and how long it
 // waits idle before it naps.
@@ -36,19 +36,26 @@ function orchAnim(orch: Orch, now: number): Anim {
   return idleFor < 0 ? 'happy' : idleFor > ORCH_NAP_MS ? 'sleep' : 'idle'
 }
 
-/**
- * The orchestrator, the model it runs on and its two controls; under them a
- * row of cards for the crew, then their messages (`view`). With it, the
- * redraws it owes the clock: when the first worker it shows napping leaves
- * the row or an end it shows stops standing out (`napDue`), and until when
- * a bubble types out (`typingUntil`), 0 for none.
- */
-export async function drawMain($: Engine, ctx: CrewContext) {
-  const { ui, sprite, kit, look, now, width, height } = ctx
+// A line's sender or recipient in its color: the person's, the
+// orchestrator's or its worker's, found by id.
+const lineColors =
+  (look: Look, list: readonly Worker[]) =>
+  (msg: Msg, side: 'from' | 'to'): string => {
+    const id = side === 'from' ? msg.fromId : msg.toId
+    if (id === USER_ID) return 'suggestion'
+    if (id === ORCH_ID) return nameColorOf(look)
+    const w = list.find(x => x.id === id)
+    return w ? accentOf(w, look) : 'text'
+  }
+
+// The orchestrator's name on top, its personality and the model the main
+// session runs; below, the figure and what it says, with its two controls
+// under it, flush right. With it, the rows it takes (`headRows`).
+async function drawHeader($: Engine, ctx: CrewContext, msgs: readonly Msg[]) {
+  const { ui, sprite, kit, look, now, width } = ctx
   const { Box, Text, Button } = ui
-  const { list, active, ordered, statusColor, lastRun, justEnded, figure, nameButton } = kit
+  const { list, active } = kit
   const orch = await readOrch($)
-  const msgs = await readMessages($)
   const isOn = await readIsOn($)
   const extra = await readMoodLines($)
   // The session's window, the week's, and below them each model's week.
@@ -64,16 +71,6 @@ export async function drawMain($: Engine, ctx: CrewContext) {
         : 'out'
       : undefined
 
-  // A line's sender or recipient in its color: the person's, the
-  // orchestrator's or its worker's, found by id.
-  const colorOf = (msg: Msg, side: 'from' | 'to'): string => {
-    const id = side === 'from' ? msg.fromId : msg.toId
-    if (id === USER_ID) return 'suggestion'
-    if (id === ORCH_ID) return nameColorOf(look)
-    const w = list.find(x => x.id === id)
-    return w ? accentOf(w, look) : 'text'
-  }
-
   // What the orchestrator runs takes up to two lines beside its figure. The
   // figure's top row is room for a hop and the marks, so the bubble starts
   // above its head, and the controls go below, flush right: level with the
@@ -83,9 +80,6 @@ export async function drawMain($: Engine, ctx: CrewContext) {
   // The bubble and the controls take three rows each.
   const headRows = Math.max(pictureRows(true), 6 + doing.length + (list.length > 0 ? 1 : 0))
 
-  // The orchestrator's name on top, its personality and the model the main
-  // session runs; below, the figure and what it says, with its two controls
-  // under it, flush right.
   const persona = vibeOf(look).label
   const modelName = fitModel(modelLabel(await readMainModel($)), width - look.name.length - persona.length - 6)
   const header = (
@@ -139,21 +133,13 @@ export async function drawMain($: Engine, ctx: CrewContext) {
       </Box>
     </Box>
   )
+  return { header, headRows }
+}
 
-  // One row of cards as wide as their figures, a column apart, as many as
-  // the width takes (nine in 46 columns), for every worker but those that
-  // napped away; when they do not all fit, the last place says how many
-  // more there are, framed as tall as a diamond and a name and as wide as
-  // that count needs, and opens the whole team.
-  const inRow = ordered.filter(w => justEnded(w) !== undefined || !napsAway(w, now))
-  // Under its name a working worker's card gives its plan's step, else its
-  // run's time, and any other a word of four letters: what it is doing and
-  // the pane's own words for its status do not fit, and the team view and
-  // the check-ins say them whole. A run that just ended has its word stand
-  // out, in the color of how it ended, so an end is seen at a glance.
-  const openRuns = new Map([...lastRun.values()].filter(isOpen).map(r => [r.id, r]))
-  // The next redraw the clock owes: a nap that takes a worker off the row,
-  // or an end that stops standing out.
+// The next redraw the clock owes, 0 for none: a nap that takes a worker off
+// the row, or an end that stops standing out.
+function nextNapDue(inRow: readonly Worker[], kit: WorkerKit, now: number): number {
+  const { lastRun, justEnded } = kit
   const dues = inRow.flatMap(w => {
     const r = lastRun.get(w.id)
     const leavesAt = napLeavesAt(w)
@@ -161,7 +147,26 @@ export async function drawMain($: Engine, ctx: CrewContext) {
       at => at > now,
     )
   })
-  const napDue = dues.length > 0 ? Math.min(...dues) : 0
+  return dues.length > 0 ? Math.min(...dues) : 0
+}
+
+// One row of cards as wide as their figures, a column apart, as many as
+// the width takes (nine in 46 columns), for every worker but those that
+// napped away; when they do not all fit, the last place says how many
+// more there are, framed as tall as a diamond and a name and as wide as
+// that count needs, and opens the whole team. With it, the rows it takes
+// (`crewRows`) and the redraw it owes the clock (`napDue`).
+function drawCardRow($: Engine, ctx: CrewContext) {
+  const { ui, kit, now, width } = ctx
+  const { Box, Text, Button } = ui
+  const { ordered, statusColor, lastRun, justEnded, figure, nameButton } = kit
+  const inRow = ordered.filter(w => justEnded(w) !== undefined || !napsAway(w, now))
+  // Under its name a working worker's card gives its plan's step, else its
+  // run's time, and any other a word of four letters: what it is doing and
+  // the pane's own words for its status do not fit, and the team view and
+  // the check-ins say them whole. A run that just ended has its word stand
+  // out, in the color of how it ended, so an end is seen at a glance.
+  const openRuns = new Map([...lastRun.values()].filter(isOpen).map(r => [r.id, r]))
   const perRow = Math.max(1, Math.floor((width + 1) / (DIAMOND_W + 1)))
   const moreWidth = (k: number) => Math.max(DIAMOND_W, `+${inRow.length - k}`.length + 2)
   let fits = perRow - 1
@@ -209,12 +214,27 @@ export async function drawMain($: Engine, ctx: CrewContext) {
       )}
     </Box>
   )
-
-  // Bubbles fill the rows the orchestrator and the crew leave, newest last:
-  // a card is its figure, the name and the line under it, then a gap.
+  // A card is its figure, the name and the line under it, then a gap.
   const crewRows = inRow.length === 0 ? 0 : DIAMOND_ROWS + 3
+  return { crew, crewRows, napDue: nextNapDue(inRow, kit, now) }
+}
+
+/**
+ * The orchestrator, the model it runs on and its two controls; under them a
+ * row of cards for the crew, then their messages (`view`). With it, the
+ * redraws it owes the clock: when the first worker it shows napping leaves
+ * the row or an end it shows stops standing out (`napDue`), and until when
+ * a bubble types out (`typingUntil`), 0 for none.
+ */
+export async function drawMain($: Engine, ctx: CrewContext) {
+  const { ui, kit, look, height } = ctx
+  const { Box } = ui
+  const msgs = await readMessages($)
+  const { header, headRows } = await drawHeader($, ctx, msgs)
+  const { crew, crewRows, napDue } = drawCardRow($, ctx)
+  // Bubbles fill the rows the orchestrator and the crew leave, newest last.
   const feedRows = height - 1 - headRows - crewRows - 1
-  const { feed, typingUntil } = drawFeed(ctx, msgs, feedRows, colorOf)
+  const { feed, typingUntil } = drawFeed(ctx, msgs, feedRows, lineColors(look, kit.list))
 
   const view = (
     <Box flexDirection="column" gap={1}>
