@@ -5,7 +5,7 @@ import { parseMoodLines, pickLine } from '../src/persona/lines'
 import { PANE, SLOW, WRITTEN, engine, spawnAgent, test } from './support/crew'
 
 test('messages type out in bubbles, one after another', async ($, on) => {
-  const clock = engine(on)
+  const clock = engine(on, { typing: true })
   await $.session.start({ cwd: '/work/main', surface: 'terminal', isInteractive: true })
   await $.tool.call({
     tool: 'mcp__crew__delegate',

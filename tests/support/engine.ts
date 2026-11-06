@@ -2,8 +2,9 @@
 // that answers whatever the plugin asks of the host.
 import { mock, test as kitTest } from 'claude-code/testing'
 import type { TestRest } from 'claude-code/testing'
-import type { AgentInfo, AgentSpawnInput, On } from 'claude-code'
+import type { AgentInfo, AgentSpawnInput, HookFor, On } from 'claude-code'
 import { PLUGIN } from '../../src/config'
+import { APPLE_TYPE_TICK_MS, TYPE_TICK_MS } from '../../src/ui/pane/feed'
 
 /** The kit's `test`, with the plugin under test speaking English unless a test asks for another language. */
 export function test(name: string, ...rest: TestRest) {
@@ -31,7 +32,8 @@ export type Seen = {
 
 // What a test's engine answers: the ids of new agents, the engine's list of
 // agents, what it records (`seen`), the account's rate limits, the usage
-// probe's stdout, the store, the session id and the host.
+// probe's stdout, the store, the session id and the host; and `typing`, for
+// a test about bubbles typing out, which keeps the timer that draws them.
 export type EngineOptions = {
   nextId?: () => string
   agents?: () => AgentInfo[]
@@ -41,6 +43,21 @@ export type EngineOptions = {
   stored?: Record<string, unknown>
   session?: () => string
   host?: { cwd?: string; env?: Record<string, string>; model?: () => string; exists?: (path: string) => boolean }
+  typing?: boolean
+}
+
+// `mock.clock` as it is, but for the timer that types the pane's bubbles out,
+// whose first period it refuses, which ends that timer. It comes round eleven
+// times a simulated second and does nothing unless a bubble is typing, and each
+// round is a dispatch through every hook: of a test whose clock advances
+// minutes, it was two thirds of the time. An event takes one hook of a test's,
+// the mock's, so the refusal goes in that hook as the mock registers it.
+function clockWithoutTyping(on: On) {
+  const clockOn = ((event: 'clock.every', hook: HookFor<'clock.every'>) =>
+    on(event, event !== 'clock.every' ? hook : (host, wait, next) =>
+      wait.ms === TYPE_TICK_MS || wait.ms === APPLE_TYPE_TICK_MS ? { deny: 'no bubble in this test waits on the typing timer' } : hook(host, wait, next),
+    )) as On
+  return mock.clock(clockOn, { now: 1_000_000 })
 }
 
 export function engine(on: On, options: EngineOptions = {}) {
@@ -53,8 +70,9 @@ export function engine(on: On, options: EngineOptions = {}) {
     stored = {},
     session = () => 'sess-1',
     host = {},
+    typing = false,
   } = options
-  const clock = mock.clock(on, { now: 1_000_000 })
+  const clock = typing ? mock.clock(on, { now: 1_000_000 }) : clockWithoutTyping(on)
   mock.env(on, host.env ?? {})
   mock.store(on, stored)
   on('session.id', () => ({ value: session() }))
