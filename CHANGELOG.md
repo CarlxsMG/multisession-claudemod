@@ -60,6 +60,9 @@ All notable changes to crew are written here. The format follows
   carries its id; elsewhere the bubble is grey.
 - A blank name submitted in the editor keeps the orchestrator's name instead of resetting it to
   Nova.
+- A share code with no field of a look in it (`CREW1.bnVsbA`, which holds `null`) is turned down as
+  a bad code, in the editor and by `/crew import`, instead of replacing the whole look with the
+  default. A code that holds only some fields still imports.
 
 ## [0.1.0] - 2026-11-05
 
