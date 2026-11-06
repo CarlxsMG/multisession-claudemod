@@ -4,7 +4,7 @@ import type { Msg } from '../../../types'
 import { t } from '../../i18n'
 import { oneLine, wrapText } from '../../util/text'
 import { ago } from '../../util/time'
-import type { PaneUi } from './widgets'
+import type { PaneContext } from './widgets'
 
 const BUBBLE_CHARS = 220
 const BUBBLE_LINES = 4
@@ -57,7 +57,8 @@ function revealed(lines: readonly string[], count: number): string[] {
  * newest the crew wrote as bubbles, typing out, the rest one line each; and
  * until when the last of them types out (0 when none does).
  */
-export function drawFeed(ui: PaneUi, msgs: readonly Msg[], now: number, width: number, feedRows: number, colorOf: (msg: Msg, side: 'from' | 'to') => string) {
+export function drawFeed(ctx: PaneContext, msgs: readonly Msg[], feedRows: number, colorOf: (msg: Msg, side: 'from' | 'to') => string) {
+  const { ui, now, width } = ctx
   const { Box, Text } = ui
   const typed = typeSchedule(msgs)
   const lastTyped = typed[typed.length - 1]
