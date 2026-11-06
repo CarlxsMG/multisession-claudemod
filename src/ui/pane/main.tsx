@@ -1,6 +1,6 @@
 // The pane's main view: the orchestrator, its crew's cards and their
 // messages.
-import type { Look, Msg, Orch } from '../../../types'
+import type { Msg, Orch } from '../../../types'
 import { ORCH_ID, USER_ID, isOrchIn } from '../../crew/feed'
 import { ACTIVE, napLeavesAt, napsAway } from '../../crew/workers'
 import type { Engine } from '../../engine'
@@ -22,7 +22,7 @@ import { wrapText } from '../../util/text'
 import { END, cardLabel, statusLabel } from '../../words'
 import { drawFeed } from './feed'
 import { MAIL_SHOWN_MS, ORCH_SEED, toggle } from './widgets'
-import type { PaneUi, Sprite, WorkerKit } from './widgets'
+import type { CrewContext } from './widgets'
 
 // How long the orchestrator cheers when its turn ends, and how long it
 // waits idle before it naps.
@@ -43,7 +43,8 @@ function orchAnim(orch: Orch, now: number): Anim {
  * the row or an end it shows stops standing out (`napDue`), and until when
  * a bubble types out (`typingUntil`), 0 for none.
  */
-export async function drawMain($: Engine, ui: PaneUi, sprite: Sprite, kit: WorkerKit, look: Look, now: number, width: number, height: number) {
+export async function drawMain($: Engine, ctx: CrewContext) {
+  const { ui, sprite, kit, look, now, width, height } = ctx
   const { Box, Text, Button } = ui
   const { list, active, ordered, statusColor, lastRun, justEnded, figure, nameButton } = kit
   const orch = await readOrch($)
@@ -213,7 +214,7 @@ export async function drawMain($: Engine, ui: PaneUi, sprite: Sprite, kit: Worke
   // a card is its figure, the name and the line under it, then a gap.
   const crewRows = inRow.length === 0 ? 0 : DIAMOND_ROWS + 3
   const feedRows = height - 1 - headRows - crewRows - 1
-  const { feed, typingUntil } = drawFeed(ui, msgs, now, width, feedRows, colorOf)
+  const { feed, typingUntil } = drawFeed(ctx, msgs, feedRows, colorOf)
 
   const view = (
     <Box flexDirection="column" gap={1}>

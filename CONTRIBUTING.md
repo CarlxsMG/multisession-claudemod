@@ -96,6 +96,8 @@ npx --yes prettier@3.9.10 --check .
   the hook, not through an import.
 - **Hook bodies are `function` declarations.** The validator follows `$` across an import only
   into function declarations.
+- **`$` is passed as itself, never inside an object.** The validator refuses `$` bound, spread or
+  put in an object, so a function that needs it takes it as an argument of its own.
 
 ## What must never change
 

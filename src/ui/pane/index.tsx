@@ -12,7 +12,7 @@ import { drawEditor } from './editor'
 import { drawMain } from './main'
 import { drawTeam } from './team'
 import { startSprites, workerKit } from './widgets'
-import type { PaneEvent } from './widgets'
+import type { PaneContext, PaneEvent } from './widgets'
 
 /** Opens the pane beside the conversation, focused when asked. */
 export function openPane($: Engine, focus?: boolean) {
@@ -48,15 +48,14 @@ export async function drawPane($: Engine, e: PaneEvent) {
   const now = await $.clock.now()
   const look = await readLook($)
   noticeLook(look)
-  const width = e.props.bodyColumns
-  const height = e.props.scroll.bodyRows
   const sprite = startSprites(ui, e.surface)
+  const ctx: PaneContext = { ui, sprite, look, now, width: e.props.bodyColumns, height: e.props.scroll.bodyRows }
 
   const page = await readView($)
-  if (page === 'edit') return drawEditor($, ui, sprite, look, width, height)
-  const kit = workerKit($, ui, sprite, look, now, await readWorkers($), await readRuns($))
-  if (page === 'crew') return drawTeam($, ui, kit, now, width)
-  const { view, ...dues } = await drawMain($, ui, sprite, kit, look, now, width, height)
+  if (page === 'edit') return drawEditor($, ctx)
+  const crew = { ...ctx, kit: workerKit($, ctx, await readWorkers($), await readRuns($)) }
+  if (page === 'crew') return drawTeam($, crew)
+  const { view, ...dues } = await drawMain($, crew)
   oweRedraws($, dues)
   return view
 }

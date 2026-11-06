@@ -12,14 +12,15 @@ import { readRuns, updateView } from '../../state/atoms'
 import { basename } from '../../util/path'
 import { oneLine } from '../../util/text'
 import { statusLabel } from '../../words'
-import type { PaneUi, WorkerKit } from './widgets'
+import type { CrewContext } from './widgets'
 
 /**
  * The whole team, one to a row: a worker at work says its phase, and each
  * one its run's time and calls, or its last run's; one with a plan its step,
  * the share of the steps done and, once one is, what the rest may take.
  */
-export async function drawTeam($: Engine, ui: PaneUi, kit: WorkerKit, now: number, width: number) {
+export async function drawTeam($: Engine, ctx: CrewContext) {
+  const { ui, kit, now, width } = ctx
   const { Box, Text, Button } = ui
   const { list, active, ordered, statusColor, figure, nameButton } = kit
   const runOf = new Map((await readRuns($)).map(r => [r.id, r]))

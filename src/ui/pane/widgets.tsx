@@ -48,6 +48,19 @@ export function startSprites(ui: PaneUi, surface: PaneEvent['surface']) {
 /** What `startSprites` gives: a figure drawn as the surface shows it. */
 export type Sprite = ReturnType<typeof startSprites>
 
+/**
+ * What every view of the pane draws with, for one drawing. `$` goes beside it,
+ * as the first argument: the validator refuses `$` inside an object.
+ */
+export type PaneContext = {
+  ui: PaneUi
+  sprite: Sprite
+  look: Look
+  now: number
+  width: number
+  height: number
+}
+
 /** A framed ON/OFF switch, one press target. */
 export function toggle(ui: PaneUi, key: string, label: string, value: boolean, onPress: () => void) {
   const { Box, Text, Button } = ui
@@ -94,7 +107,8 @@ const mailOf = (w: Worker, now: number): 'in' | 'out' | undefined => (now - w.la
  * status and by how its latest run ended while that end is fresh, and its
  * name, which opens its transcript.
  */
-export function workerKit($: Engine, ui: PaneUi, sprite: Sprite, look: Look, now: number, list: Worker[], runs: readonly Run[]) {
+export function workerKit($: Engine, ctx: PaneContext, list: Worker[], runs: readonly Run[]) {
+  const { ui, sprite, look, now } = ctx
   const { Button, Text } = ui
   const active = list.filter(w => ACTIVE.has(w.status))
   const ordered = [...list].sort(byActivity)
@@ -131,3 +145,10 @@ export function workerKit($: Engine, ui: PaneUi, sprite: Sprite, look: Look, now
 
 /** The crew as the pane's views show it. */
 export type WorkerKit = ReturnType<typeof workerKit>
+
+/**
+ * The context of a view that shows the crew. The editor draws with
+ * `PaneContext` alone: reading the workers would draw it again on their every
+ * change.
+ */
+export type CrewContext = PaneContext & { kit: WorkerKit }

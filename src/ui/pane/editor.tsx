@@ -17,7 +17,7 @@ import { changeLook } from '../../settings/look'
 import { readEditTab, updateEditTab, updateView } from '../../state/atoms'
 import { pane } from './animation'
 import { ORCH_SEED } from './widgets'
-import type { PaneUi, Sprite } from './widgets'
+import type { PaneContext } from './widgets'
 
 // The columns a part's name takes before its ◀ value ▶.
 const LABEL_COLUMNS = 10
@@ -26,7 +26,8 @@ const LABEL_COLUMNS = 10
  * The orchestrator's editor: its preview, cheering for each change, and its
  * parts by tab, each press drawn at once.
  */
-export async function drawEditor($: Engine, ui: PaneUi, sprite: Sprite, look: Look, width: number, height: number) {
+export async function drawEditor($: Engine, ctx: PaneContext) {
+  const { ui, sprite, look, width, height } = ctx
   const { Box, Text, Button } = ui
   const Input = 'Input' in ui ? ui.Input : undefined
   const tab = await readEditTab($)
