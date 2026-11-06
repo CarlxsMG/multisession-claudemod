@@ -19,7 +19,6 @@ import type { Member } from '../types'
 import {
   DELEGATE,
   PANE,
-  SLOW,
   crewCommand,
   engine,
   frameRows,
@@ -40,11 +39,10 @@ import type { Said } from './support/crew'
 setLocale('es')
 
 const ES = { options: { language: 'es' } }
-const ES_SLOW = { ...SLOW, ...ES }
 
 // ---- the pane, the editor and /crew ----
 
-test("the team view in Spanish: how each worker stands, and a plan's step, share and guess", ES_SLOW, async ($, on) => {
+test("the team view in Spanish: how each worker stands, and a plan's step, share and guess", ES, async ($, on) => {
   const { clock, states, delegate, end } = await progressCrew($, on)
   for (let i = 1; i <= 6; i++) await delegate(`Task ${i}`, `/work/r${i}`, `Tarea ${i}`)
   // Pip on a step of a plan that grew, Bolt waiting, the third failed, the
@@ -174,7 +172,7 @@ test("the feed in Spanish: the person's own line, and what they pasted", ES, asy
 
 // ---- the team view ----
 
-test("the team view in Spanish: each worker's phase, calls and time, or its last run's", ES_SLOW, async ($, on) => {
+test("the team view in Spanish: each worker's phase, calls and time, or its last run's", ES, async ($, on) => {
   const { clock, states, delegate, end } = await progressCrew($, on)
   await delegate('Run the tests', '/work/api', 'Arreglar tests')
   await delegate('Review the README', '/work/web', 'Revisar README')
@@ -199,7 +197,7 @@ test("the team view in Spanish: each worker's phase, calls and time, or its last
 
 // ---- what is placed in the conversation, the toasts and the status line ----
 
-test('the status line in Spanish: each worker, its phase, its time and its task, then how it ended', ES_SLOW, async ($, on) => {
+test('the status line in Spanish: each worker, its phase, its time and its task, then how it ended', ES, async ($, on) => {
   const { clock, status, delegate, end } = await progressCrew($, on)
   expect(await delegate('Run the tests', '/work/api', 'Arreglar tests')).toMatch(/^Started Pip /)
   await clock.advance(1000)
@@ -225,7 +223,7 @@ test('the status line in Spanish: each worker, its phase, its time and its task,
   expect(status()).toBe('crew · Pip probando 2m Login')
 })
 
-test('a check-in in Spanish: whole while it is the newest, then folded, and what /crew progreso says', ES_SLOW, async ($, on) => {
+test('a check-in in Spanish: whole while it is the newest, then folded, and what /crew progreso says', ES, async ($, on) => {
   const { clock, placed, delegate, end, lines } = await progressCrew($, on)
   await delegate('Run the tests', '/work/api', 'Arreglar tests')
   await $.tool.call({ tool: 'Read', file_path: '/work/api/a.ts', agentId: 'agent-1' })
@@ -255,7 +253,7 @@ test('a check-in in Spanish: whole while it is the newest, then folded, and what
   expect(await lines(placed[placed.length - 1]!)).toEqual(['─ crew · nadie trabajando · sin avisos'])
 })
 
-test('a summary row in Spanish: how each ended and its time, then folded under the next', ES_SLOW, async ($, on) => {
+test('a summary row in Spanish: how each ended and its time, then folded under the next', ES, async ($, on) => {
   const { clock, placed, delegate, end, lines } = await progressCrew($, on)
   await delegate('Fix the tests', '/work/api', 'Arreglar tests')
   await delegate('Review the README', '/work/web', 'Revisar README')

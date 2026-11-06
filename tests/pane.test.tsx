@@ -6,11 +6,11 @@ import { DEFAULT_LOOK, defaultLook } from '../src/figure/look'
 import { enVibes as VIBES_EN } from '../src/i18n/en-vibes'
 import { VIBES, vibeOf } from '../src/persona/vibes'
 import { JUST_ENDED_MS } from '../src/progress/runs'
-import { AWAY_MS, DELEGATE, PANE, SLOW, cellText, crewCommand, doneCrew, engine, freeCrew, napCrew, switchTo, test, workerSend } from './support/crew'
+import { AWAY_MS, DELEGATE, PANE, cellText, crewCommand, doneCrew, engine, freeCrew, napCrew, switchTo, test, workerSend } from './support/crew'
 
 test(
   'a worker that left the row at its napAfter is still in the team view and the roster, and comes back when woken',
-  { ...SLOW, options: { napAfter: '30s' } },
+  { options: { napAfter: '30s' } },
   async ($, on) => {
     const { clock, states, roster, ui, card } = await freeCrew($, on)
     await clock.advance(30_000)
@@ -180,7 +180,7 @@ test('the crew takes one row, and the rest wait in the team view', async ($, on)
   await ui.unmount()
 })
 
-test('the orchestrator cheers when its turn ends, idles, and naps after three minutes, as before its first turn', SLOW, async ($, on) => {
+test('the orchestrator cheers when its turn ends, idles, and naps after three minutes, as before its first turn', async ($, on) => {
   const clock = engine(on)
   await $.session.start({ cwd: '/work/main', surface: 'terminal', isInteractive: true })
   const lines = VIBES_EN.cheerful.lines
@@ -395,7 +395,7 @@ for (const [name, options, ms] of [
   ['napAfter 30s', { napAfter: '30s' }, 30_000],
   ['napAfter 2m', { napAfter: '2m' }, 120_000],
 ] as const) {
-  test(`with ${name}, a free worker leaves the row ${ms / 1000} s after it went free`, { ...SLOW, options }, async ($, on) => {
+  test(`with ${name}, a free worker leaves the row ${ms / 1000} s after it went free`, { options }, async ($, on) => {
     const { clock, ui, card } = await freeCrew($, on)
     await clock.advance(ms - 100)
     expect(await card('agent-1')).toBeDefined()
@@ -406,7 +406,7 @@ for (const [name, options, ms] of [
 
   // However short its time, a finished worker stays while its end stands out.
   const away = Math.max(ms, JUST_ENDED_MS)
-  test(`with ${name}, a finished worker leaves the row ${away / 1000} s after it ended`, { ...SLOW, options }, async ($, on) => {
+  test(`with ${name}, a finished worker leaves the row ${away / 1000} s after it ended`, { options }, async ($, on) => {
     const { clock, ui, card } = await doneCrew($, on)
     await clock.advance(away - 100)
     expect(await card('agent-1')).toBeDefined()
@@ -418,7 +418,7 @@ for (const [name, options, ms] of [
 
 test(
   'with napAfter never, free and finished workers stay in the row long after their ends stopped standing out',
-  { ...SLOW, options: { napAfter: 'never' } },
+  { options: { napAfter: 'never' } },
   async ($, on) => {
     const { clock, states, nap, ui, card } = await napCrew($, on, 2)
     await $.turn.complete({ answer: 'Hecho', durationMs: 1000, isAborted: false, turnId: 't1', agentId: 'agent-1', reason: 'answer' })
@@ -434,7 +434,7 @@ test(
   },
 )
 
-test('a longer napAfter moves the redraw that takes a worker off the row with it', { ...SLOW, options: { napAfter: '30s' } }, async ($, on) => {
+test('a longer napAfter moves the redraw that takes a worker off the row with it', { options: { napAfter: '30s' } }, async ($, on) => {
   const { clock, ui, card } = await freeCrew($, on)
   await clock.advance(30_000 - 100)
   expect(await card('agent-1')).toBeDefined()

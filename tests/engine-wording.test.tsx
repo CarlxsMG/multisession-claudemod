@@ -2,7 +2,7 @@
 // nothing, and one it does not know is a line in the debug log, once.
 import { expect } from 'claude-code/testing'
 import type { On } from 'claude-code'
-import { DELEGATE, NO_VERDICT, PANE, SLOW, engine, frameRows, mountSaid, test, usageReply } from './support/crew'
+import { DELEGATE, NO_VERDICT, PANE, engine, frameRows, mountSaid, test, usageReply } from './support/crew'
 import type { Seen } from './support/crew'
 
 // The debug log's lines that say the crew did not recognize what the engine
@@ -16,7 +16,7 @@ function unrecognizedLines(on: On, kind: string) {
   return lines
 }
 
-test('a usage probe answer without the model windows is logged once, and the answer the crew reads is not', SLOW, async ($, on) => {
+test('a usage probe answer without the model windows is logged once, and the answer the crew reads is not', async ($, on) => {
   let answer = usageReply(30)
   const clock = engine(on, { rateLimits: [{ kind: 'five_hour', percentUsed: 12 }], probe: () => answer })
   const logged = unrecognizedLines(on, 'usage probe answer')

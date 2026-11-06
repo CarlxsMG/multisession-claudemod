@@ -1,11 +1,11 @@
 // The little of progress a model reads, and that nothing else of it reaches
 // one.
 import { expect, mock } from 'claude-code/testing'
-import { COMPOSER, DELEGATE, SLOW, crewCommand, engine, progress, progressCrew, spawnAgent, test } from './support/crew'
+import { COMPOSER, DELEGATE, crewCommand, engine, progress, progressCrew, spawnAgent, test } from './support/crew'
 
 // In Spanish, so that no word of the UI's reads as the English the models
 // are given: the check looks for the UI's words in what a model reads.
-test('progress reaches no model: no prompt section, no message context, no message, no stored row', { ...SLOW, options: { language: 'es' } }, async ($, on) => {
+test('progress reaches no model: no prompt section, no message context, no message, no stored row', { options: { language: 'es' } }, async ($, on) => {
   const session = mock.session(on)
   const contexts: (readonly string[] | undefined)[] = []
   on('prompt.submit', (_, e) => {

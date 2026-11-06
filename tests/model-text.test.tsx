@@ -9,7 +9,7 @@ import type { On } from 'claude-code'
 import { DEFAULT_LOOK } from '../src/figure/look'
 import { VIBES } from '../src/persona/vibes'
 import { GOLDEN } from './golden/model-text'
-import { DELEGATE, NO_VERDICT, SLOW, composeBrief, crewCommand, engine, progress, spawnAgent, startTold, test, wokenCrew, workerSend } from './support/crew'
+import { DELEGATE, NO_VERDICT, composeBrief, crewCommand, engine, progress, spawnAgent, startTold, test, wokenCrew, workerSend } from './support/crew'
 import type { Seen } from './support/crew'
 
 type Dollar = Parameters<TestBody>[0]
@@ -34,7 +34,7 @@ const composed = (on: On) => on('prompt.compose', () => ({ sections: [{ id: 'int
 
 // The one text here that follows the UI's language: it names the language and
 // the catchphrase, and the golden holds it as a crew in Spanish asks it.
-test('what Haiku is asked for the mood lines', { ...SLOW, options: { language: 'es' } }, async ($, on) => {
+test('what Haiku is asked for the mood lines', { options: { language: 'es' } }, async ($, on) => {
   const clock = engine(on)
   const prompts: string[] = []
   on('model.complete', (_, e) => {
@@ -177,7 +177,7 @@ test('the answer to a delegate call that failed on its way', async ($, on) => {
   expectText('result.failed', await call($, { task: 'Polish it', worker: 'pip' }))
 })
 
-test('tasks held for an agent its worker woke, and how they go once its run ends', SLOW, async ($, on) => {
+test('tasks held for an agent its worker woke, and how they go once its run ends', async ($, on) => {
   const { seen, clock, delegate: give, done } = await wokenCrew($, on)
   await $.tool.call({ tool: 'Read', file_path: '/work/api/src/bus.ts', agentId: 'agent-2' })
   expectText('result.held', await give({ task: 'Record the event.', title: 'Session bus', worker: 'bolt' }))
@@ -188,7 +188,7 @@ test('tasks held for an agent its worker woke, and how they go once its run ends
   expectText('task.heldTogether', seen.sends[sends])
 })
 
-test('one held task goes alone', SLOW, async ($, on) => {
+test('one held task goes alone', async ($, on) => {
   const { seen, clock, delegate: give, done } = await wokenCrew($, on)
   await $.tool.call({ tool: 'Read', file_path: '/work/api/src/bus.ts', agentId: 'agent-2' })
   await give({ task: 'Record the event.', title: 'Session bus', worker: 'bolt' })
@@ -198,7 +198,7 @@ test('one held task goes alone', SLOW, async ($, on) => {
   expectText('task.heldAlone', seen.sends[sends])
 })
 
-test('held tasks that did not reach their worker: the next delegate result, the user message note, and the task that takes them along', SLOW, async ($, on) => {
+test('held tasks that did not reach their worker: the next delegate result, the user message note, and the task that takes them along', async ($, on) => {
   const contexts: (readonly string[] | undefined)[] = []
   on('prompt.submit', (_, e) => {
     contexts.push(e.context)

@@ -2,9 +2,9 @@ import { expect } from 'claude-code/testing'
 import { nameColorOf } from '../src/figure/accent'
 import { DEFAULT_LOOK } from '../src/figure/look'
 import { parseMoodLines, pickLine } from '../src/persona/lines'
-import { PANE, SLOW, WRITTEN, engine, spawnAgent, test } from './support/crew'
+import { PANE, WRITTEN, engine, spawnAgent, test } from './support/crew'
 
-test('the two newest messages are bubbles and older ones one line each', SLOW, async ($, on) => {
+test('the two newest messages are bubbles and older ones one line each', async ($, on) => {
   let spawned = 0
   const clock = engine(on, { nextId: () => `agent-${++spawned}` })
   on('prompt.submit', (_, e) => ({ text: e.text }))
@@ -65,7 +65,7 @@ test('what the person pasted in the desktop app is marked as pasted, not shown i
   await ui.unmount()
 })
 
-test('Haiku writes lines once per personality, never while editing', SLOW, async ($, on) => {
+test('Haiku writes lines once per personality, never while editing', async ($, on) => {
   const clock = engine(on)
   const asked: string[] = []
   on('model.complete', (_, e) => {

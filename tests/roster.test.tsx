@@ -1,8 +1,8 @@
 import { expect } from 'claude-code/testing'
 import type { AgentInfo } from 'claude-code'
-import { SLOW, USAGE, crewCommand, engine, test } from './support/crew'
+import { USAGE, crewCommand, engine, test } from './support/crew'
 
-test('workers the user clears or the list lets go stay off until they wake, and come back whole', SLOW, async ($, on) => {
+test('workers the user clears or the list lets go stay off until they wake, and come back whole', async ($, on) => {
   let spawned = 0
   const running = new Set<string>()
   const infos = (): AgentInfo[] =>

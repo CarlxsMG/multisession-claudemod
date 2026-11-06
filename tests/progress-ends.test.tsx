@@ -4,10 +4,10 @@ import { expect } from 'claude-code/testing'
 import { declarePlan } from '../src/progress/plan'
 import { JUST_ENDED_MS } from '../src/progress/runs'
 import { endNotice } from '../src/progress/text/ended'
-import { PANE, SLOW, cellText, frameRows, mountSaid, progress, progressCrew, spawnAgent, test, textIn, wokenCrew } from './support/crew'
+import { PANE, cellText, frameRows, mountSaid, progress, progressCrew, spawnAgent, test, textIn, wokenCrew } from './support/crew'
 import type { Said } from './support/crew'
 
-test("a worker's end bubble says how long its run took when the notification does not, and where a stopped run stopped", SLOW, async ($, on) => {
+test("a worker's end bubble says how long its run took when the notification does not, and where a stopped run stopped", async ($, on) => {
   const { clock, delegate, end } = await progressCrew($, on)
   await delegate('Migrate the schema', '/work/db', 'Migración')
   await progress($, 'agent-1', 2, 4, 'Migrar')
