@@ -11,7 +11,7 @@ test("a worker's end bubble says how long its run took when the notification doe
   const { clock, delegate, end } = await progressCrew($, on)
   await delegate('Migrate the schema', '/work/db', 'Migración')
   await progress($, 'agent-1', 2, 4, 'Migrar')
-  await clock.advance(372_000)
+  await clock.advance(72_000)
   await end('agent-1', 'aborted')
   const note = (status: string, durationMs?: number): Said => ({
     text: 'Agent "Migración" finished',
@@ -20,7 +20,7 @@ test("a worker's end bubble says how long its run took when the notification doe
     task: { id: 'agent-1', status, ...(durationMs !== undefined ? { durationMs } : {}) },
   })
   const measured = await mountSaid($, 'end-a', note('killed'))
-  expect((await frameRows(measured))[0]).toMatch(/^╭─ Pip → Nova · ■ stopped · step 2\/4 · 6m 12s ─+╮$/)
+  expect((await frameRows(measured))[0]).toMatch(/^╭─ Pip → Nova · ■ stopped · step 2\/4 · 1m 12s ─+╮$/)
   await measured.unmount()
   // The notification's own time comes first; a finished run names no step.
   const own = await mountSaid($, 'end-b', note('completed', 4000))
