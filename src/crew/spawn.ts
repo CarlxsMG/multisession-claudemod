@@ -65,24 +65,23 @@ export function takeRenamed(toolUseId: string): string | undefined {
 }
 
 type OnSpawnHook = HookFor<'agent.spawn'>
-/**
- * Puts each agent the session starts on the crew's list, with the crew's
- * brief ahead of its prompt, and runs one delegate meant where delegate
- * meant it to.
- */
-export async function onSpawn($: Engine, e: Parameters<OnSpawnHook>[1], next: Parameters<OnSpawnHook>[2]) {
-  if (e.workflow !== undefined) return next(e)
-  if (e.resume !== undefined) {
-    // A resumed agent had ended, whatever the crew's record of it says.
-    const id = e.resume.agentId
-    const was = findWorker([...(await readWorkers($)), ...(await readDropped($))], id)
-    await settleRun($, { id, status: endOf(was?.status) })
-    const resumed = await next(e)
-    await unshelve($, e.resume.agentId)
-    await patchWorker($, e.resume.agentId, () => ({ status: 'working' }))
-    await beginRun($, e.resume.agentId)
-    return resumed
-  }
+type SpawnEvent = Parameters<OnSpawnHook>[1]
+
+// A resumed agent had ended, whatever the crew's record of it says.
+async function settleResumed($: Engine, id: string) {
+  const was = findWorker([...(await readWorkers($)), ...(await readDropped($))], id)
+  await settleRun($, { id, status: endOf(was?.status) })
+}
+
+async function wakeResumed($: Engine, id: string) {
+  await unshelve($, id)
+  await patchWorker($, id, () => ({ status: 'working' }))
+  await beginRun($, id)
+}
+
+// Who the agent a spawn starts is to the crew: what delegate meant it to be,
+// who it reports to, where it runs and its name.
+async function identify($: Engine, e: SpawnEvent) {
   const look = await readLook($)
   const list = await readWorkers($)
   const sessionCwd = await $.session.cwd()
@@ -99,14 +98,19 @@ export async function onSpawn($: Engine, e: Parameters<OnSpawnHook>[1], next: Pa
   // name its call gave when that fits.
   const claim = intent !== undefined ? undefined : claimName(await takenNow($, list), e.name)
   const name = claim?.name ?? cap(e.name ?? key ?? '')
-  // The name its call gave stays its address, unless another member has it.
-  const addressOf = (id: string) => (e.name !== undefined && (claim === undefined || claim.isWantedFree) ? e.name : id)
+  return { look, list, sessionCwd, intent, isCrew, parent, reportsTo, cwd, claim, name }
+}
+
+type Identified = Awaited<ReturnType<typeof identify>>
+
+// What its agent hears first, and whether it works in a worktree.
+async function briefFor($: Engine, e: SpawnEvent, who: Identified) {
+  const { look, list, isCrew, parent, reportsTo, cwd, name } = who
   const inWorktree = new Set(await readWorktrees($))
   // Its own worktree, or the one of the worker that starts it, where it
   // starts too unless the call sends it elsewhere.
   const own = await takeIsolated($, e.tool_use_id)
   const shared = !own && e.cwd === undefined && parent !== undefined && inWorktree.has(parent.id)
-  const worktree = own || shared
   // Delegate's workers hear the crew's preamble in either mode; with
   // delegation off, the Agent tool's agents start as they were asked.
   const briefed = isCrew || (await readIsOn($))
@@ -115,6 +119,12 @@ export async function onSpawn($: Engine, e: Parameters<OnSpawnHook>[1], next: Pa
     : e.fork
       ? forkPreamble(reportsTo, e.parentAgentId === undefined ? gitRules(cwd, name.toLowerCase()) : '') + e.prompt
       : workerPreamble(name, look.name, reportsTo, cwd, matesOf(list, name, cwd), own ? 'own' : shared ? 'parent' : undefined, inWorktree) + e.prompt
+  return { prompt, worktree: own || shared }
+}
+
+// Where and on which model its agent runs, beyond what its call says.
+function runOptions(e: SpawnEvent, who: Identified) {
+  const { intent, isCrew, cwd, sessionCwd } = who
   // A crew worker runs on the session's model, even of a type whose own
   // definition names another. The Agent tool's `model` takes an alias only,
   // so the session's id goes as its family; one that names none is left to
@@ -124,14 +134,15 @@ export async function onSpawn($: Engine, e: Parameters<OnSpawnHook>[1], next: Pa
   // One the orchestrator started for delegate runs where delegate meant it
   // to, which its Agent call cannot say, and in the background as
   // delegate's own do.
-  const intendedRun = isCrew && intent.task !== undefined ? { background: true, ...(e.cwd === undefined && !samePath(cwd, sessionCwd) ? { cwd } : {}) } : {}
-  const started = await next({ ...e, prompt, ...model, ...intendedRun })
-  if (started.agentId === undefined) {
-    if (claim !== undefined) unclaimNames(name, ...(claim.isWantedFree && e.name !== undefined ? [e.name] : []))
-    return started
-  }
-  const id = started.agentId
-  const address = addressOf(id)
+  const intendedRun = isCrew && intent?.task !== undefined ? { background: true, ...(e.cwd === undefined && !samePath(cwd, sessionCwd) ? { cwd } : {}) } : {}
+  return { ...model, ...intendedRun }
+}
+
+// Puts the started agent on the list and tells what it was given.
+async function record($: Engine, e: SpawnEvent, who: Identified, id: string, startedModel: string | undefined, worktree: boolean) {
+  const { intent, isCrew, parent, reportsTo, cwd, claim, name } = who
+  // The name its call gave stays its address, unless another member has it.
+  const address = e.name !== undefined && (claim === undefined || claim.isWantedFree) ? e.name : id
   if (e.name !== undefined && name.toLowerCase() !== e.name.toLowerCase()) {
     setKept(agentCalls.renamed, e.tool_use_id, renamedAgent(e.name, name, address), RENAMED_KEEP)
   }
@@ -148,7 +159,7 @@ export async function onSpawn($: Engine, e: Parameters<OnSpawnHook>[1], next: Pa
       // Spelled as delegate was asked, which its reuse compares with.
       type: intent?.type || e.subagentType || '',
       cwd,
-      model: started.model ?? '',
+      model: startedModel ?? '',
       asked: isCrew ? (e.model ?? '') : null,
     }
     return known !== undefined
@@ -165,5 +176,28 @@ export async function onSpawn($: Engine, e: Parameters<OnSpawnHook>[1], next: Pa
   await say($, { name: reportsTo, id: parent?.id ?? ORCH_ID }, { name, id }, task, parent ? 'worker' : 'orch')
   await setJob($, id, task)
   await beginRun($, id)
+}
+
+/**
+ * Puts each agent the session starts on the crew's list, with the crew's
+ * brief ahead of its prompt, and runs one delegate meant where delegate
+ * meant it to.
+ */
+export async function onSpawn($: Engine, e: SpawnEvent, next: Parameters<OnSpawnHook>[2]) {
+  if (e.workflow !== undefined) return next(e)
+  if (e.resume !== undefined) {
+    await settleResumed($, e.resume.agentId)
+    const resumed = await next(e)
+    await wakeResumed($, e.resume.agentId)
+    return resumed
+  }
+  const who = await identify($, e)
+  const { prompt, worktree } = await briefFor($, e, who)
+  const started = await next({ ...e, prompt, ...runOptions(e, who) })
+  if (started.agentId === undefined) {
+    if (who.claim !== undefined) unclaimNames(who.name, ...(who.claim.isWantedFree && e.name !== undefined ? [e.name] : []))
+    return started
+  }
+  await record($, e, who, started.agentId, started.model, worktree)
   return started
 }
