@@ -1,6 +1,6 @@
 {
   "name": "crew",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Your orchestrator companion, a pixel-art mascot you talk to, hands the work to a crew of background workers and coordinates them, with a pane, a status line and rows in the conversation that show who is doing what.",
   "author": { "name": "CarlxsMG" },
   "homepage": "https://github.com/CarlxsMG/multisession-claudemod",
