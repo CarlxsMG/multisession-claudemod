@@ -168,7 +168,16 @@ export async function drawEditor($: Engine, ui: PaneUi, sprite: Sprite, look: Lo
         <Box flexDirection="row" flexWrap="wrap" columnGap={1} alignItems="center">
           {Input && (
             <Box flexGrow={1} flexShrink={0} minWidth={24}>
-              <Input key="look-name" label={words.name} placeholder={look.name} submitLabel={words.save} onSubmit={v => void changeLook($, { name: v })} />
+              <Input
+                key="look-name"
+                label={words.name}
+                placeholder={look.name}
+                submitLabel={words.save}
+                onSubmit={v => {
+                  // A blank field shows the name as its placeholder, so Enter there keeps it.
+                  if (v.trim() !== '') void changeLook($, { name: v })
+                }}
+              />
             </Box>
           )}
           {nameColorStepper}
