@@ -48,8 +48,9 @@ function fresh() {
     probe: { isAllowed: false, at: -Infinity },
     /**
      * `src/ui/pane/animation.ts`: the timer's frame, whether a surface that
-     * draws the pane as a page has it open, the frame of the look's last
-     * change, until when the last drawing had a bubble typing out, when a
+     * draws the pane as a page has it open, the frame a drawing first showed
+     * the look as it is, that look as JSON (empty before the first drawing),
+     * until when the last drawing had a bubble typing out, when a
      * worker it showed napping leaves the row or an end stops standing out
      * (0 for none), and the rasters it drew by key, each with how to draw any
      * frame and the cells it shows now.
@@ -58,6 +59,7 @@ function fresh() {
       frame: 0,
       asPage: false,
       changedFrame: -100,
+      lookShown: '',
       typingUntil: 0,
       napDue: 0,
       mounted: new Map<string, (frame: number) => Cells>(),

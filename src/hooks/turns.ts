@@ -7,10 +7,10 @@ import { releaseSoon } from '../crew/takeover'
 import { patchWorker } from '../crew/workers'
 import type { Engine } from '../engine'
 import { beginRun, endRun } from '../progress/tracker'
+import { readModel } from '../settings/model'
 import { readLook, readParents, readTakeovers, readWorkers } from '../state/atoms'
-import { statusLabel } from '../ui/labels'
 import { oneLine } from '../util/text'
-import { readModel } from './session'
+import { statusLabel } from '../words'
 
 type OnTurnStartHook = HookFor<'turn.start'>
 /**

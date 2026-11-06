@@ -1,8 +1,8 @@
 // The crew's part of the status line.
 import type { Phase, Plan, RunEndKind } from '../../../types'
-import { END, statusLabel } from '../../ui/labels'
 import { cut, flat } from '../../util/text'
 import { shortTime } from '../../util/time'
+import { END, statusLabel } from '../../words'
 import { phaseLabel } from '../phase'
 import { stepText } from '../plan'
 

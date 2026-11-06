@@ -4,7 +4,7 @@ import type { Look, Member } from '../../../types'
 import { accentOf } from '../../figure/accent'
 import { hash } from '../../util/random'
 import { flat, headLines, oneLine } from '../../util/text'
-import { END, endMarked } from '../labels'
+import { END, endMarked } from '../../words'
 
 /** The rows of its text a task's bubble shows, and a report's. */
 export const TASK_ROWS = 2

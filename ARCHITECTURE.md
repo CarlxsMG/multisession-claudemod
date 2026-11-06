@@ -45,15 +45,15 @@ the debug log. Its `unrecognized` logs there an engine text the crew reads in no
 | `src/prompts/` | Every text a model reads: the orchestrator's brief and `[crew]` note (`orchestrator.ts`), the workers' preamble and the texts the crew sends them (`worker.ts`), the tool specs (`tools.ts`), the tool results and their parsers (`results.ts`), and the roster's text (`roster.ts`). |
 | `src/progress/` | Progress, which no model reads: `tracker.ts` is the only module that records runs with the engine; `runs.ts`, `round.ts`, `plan.ts`, `phase.ts`, `check-in.ts` are pure; `text/` builds the status line, the team view, the cards and the placed rows. |
 | `src/persona/` | Personalities (`vibes.ts`, the model prompt of each), the figure's lines (`lines.ts`, including the Haiku prompt), worker names (`names.ts`). |
-| `src/settings/` | What the user changes: the look (`look.ts`), delegation and the `[crew]` note (`notes.ts`), Haiku's mood lines (`mood-lines.ts`). |
+| `src/settings/` | What the user changes: the look (`look.ts`), delegation and the `[crew]` note (`notes.ts`), Haiku's mood lines (`mood-lines.ts`), the main session's model (`model.ts`). |
 | `src/figure/` | The pictures: the catalog of parts and colours, the orchestrator's critter, the workers' diamonds, the animation of each state, rasterizing to cells or SVG, looks and share codes, accent colours, the 256-colour mapping. |
 | `src/ui/pane/` | The pane: how it opens (`index.tsx`), its timer and repainting (`animation.ts`), its views (`main.tsx`, `editor.tsx`, `team.tsx`), the feed (`feed.tsx`), shared widgets. |
 | `src/ui/transcript/` | The crew's rows in the conversation: bubbles or one-line cards for crew calls, worker reports and task notifications, and the placed rows. |
-| `src/ui/labels.ts` | The words, marks and colours of each worker status and run end. |
 | `src/usage/limits.ts` | The account's usage windows, and the usage probe. |
 | `src/i18n/` | The UI's text in English and Spanish, and the locale. See [docs/i18n.md](docs/i18n.md). |
 | `src/state/atoms.ts` | Every atom and its `readX`/`updateX` pair, and `STORE_KEYS`. |
 | `src/config.ts` | The names the crew shares with the engine, the pane's tick, and the limits the roster and the briefs share. |
+| `src/words.ts` | The words, marks and colours of each worker status and run end. |
 | `src/runtime.ts` | What one load keeps in memory beside the atoms, and `resetRuntime`. See [Runtime state](#runtime-state-srcruntimets). |
 | `src/util/` | Pure helpers: text fitting, time, paths (POSIX and Windows), base64, seeded random, bounded lists, tool-input reading. |
 | `types/index.d.ts` | The state contract (`PluginState.crew`) and the domain types. |
@@ -117,7 +117,7 @@ write to `$.state`: the names Agent calls' agents were renamed to, the relay and
 the names given, the agents the engine listed, the progress tracker's interval, status line,
 widths and run times, the tool calls and the end-of-task rows' first drawings held for the next
 frame (a drawing may not write the state), the usage probe's permission and time, the pane's
-frame, rasters and the redraws it owes, the last `[crew]` check, the mood lines asked for, and
+frame, the look it last showed, rasters and the redraws it owes, the last `[crew]` check, the mood lines asked for, and
 the kinds of engine wording logged. It is one typed object
 in parts, each read and written only by the module its comment names; another module goes
 through that module's functions. It imports types only.
@@ -380,6 +380,8 @@ is noticed in the debug log: `unrecognized($, kind, detail)` (`src/engine.ts`) w
   sentinel for the person); names are for display.
 - **The UI's text is read through `t()` at display time**, because the locale settles at session
   start, after the modules load.
+- **A text builder is told, it does not choose**: `src/prompts/` reads no worker's status and
+  `src/util/` no locale; their callers pass in the mates, whether a worker is busy, and the words.
 
 ## Forced by the tools
 

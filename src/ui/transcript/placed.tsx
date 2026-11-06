@@ -15,7 +15,7 @@ import { checkInRows } from '../../progress/text/rows'
 import { seeColumns } from '../../progress/tracker'
 import { readCheckins, readLook } from '../../state/atoms'
 import { hash } from '../../util/random'
-import { END } from '../labels'
+import { END } from '../../words'
 import { rowWidth } from './bubble'
 
 // What a placed row's pieces look like: names in their worker's color.

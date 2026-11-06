@@ -3,9 +3,8 @@
 // messages the crew passes on. tests/golden/model-text.ts holds each text as
 // it is.
 import type { Relay, Worker } from '../../types'
-import { MATES, PROGRESS, ROSTER } from '../config'
-import { ACTIVE, byActivity } from '../crew/workers'
-import { basename, samePath } from '../util/path'
+import { PROGRESS, ROSTER } from '../config'
+import { basename } from '../util/path'
 
 /** What the woken teammate reads: who wrote, and where its report goes. */
 export const relayText = (r: Relay, orchName: string): string =>
@@ -41,22 +40,21 @@ export const gitRules = (cwd: string, you: string): string =>
   `- In a git repository: start with \`git status\`, leave changes you did not make alone, and read \`git log\`/\`git blame\` before changing code. The user wants you to commit your own work as you go: one logical change per commit, a message saying why, only your own paths (never \`add -A\`, \`.\` or \`commit -a\`). Push only when your task says the user asked, and the same goes for committing or merging on the main branch (\`origin/HEAD\`'s, else main, master, trunk or develop): otherwise work in a worktree of your own, \`git worktree add ../${basename(cwd)}-${you} -b crew/${you}-<topic>\`, and ask in your report to merge it.
 - A comment says why the code is as it is now, never its history: not what changed or what it was, who or when ("now…", "no longer…", "was…", "previously…", "removed…"), and no commented-out code.`
 
-/** `reportsTo` is who it reports to: the orchestrator, or the worker that started it. */
+/**
+ * `reportsTo` is who it reports to: the orchestrator, or the worker that
+ * started it. `mates` are the teammates it hears of, as the caller chose them;
+ * `apart` holds the ids of workers in a worktree of their own.
+ */
 export function workerPreamble(
   name: string,
   orchName: string,
   reportsTo: string,
   cwd: string,
-  crew: readonly Worker[],
+  mates: readonly Worker[],
   worktree: 'own' | 'parent' | undefined,
   apart: ReadonlySet<string>,
 ) {
-  const mates = crew
-    .filter(w => w.name !== name && (ACTIVE.has(w.status) || samePath(w.cwd, cwd)))
-    .sort(byActivity)
-    .slice(0, MATES)
-    .map(w => `${w.name} ("${w.address}", ${apart.has(w.id) ? 'own worktree of ' : ''}${basename(w.cwd)})`)
-    .join(', ')
+  const named = mates.map(w => `${w.name} ("${w.address}", ${apart.has(w.id) ? 'own worktree of ' : ''}${basename(w.cwd)})`).join(', ')
   const where =
     worktree === 'own'
       ? `- You work in your own git worktree of ${cwd}, where your shell starts: stay in it, not in ${cwd}. Finish the task there, commit on its branch, and give its path and branch in your report.`
@@ -65,7 +63,7 @@ export function workerPreamble(
         : `- Your repository is ${cwd}. Your shell may start elsewhere: cd there or use absolute paths under it. Finish the task end to end there.`
   return `[crew] You are ${name}, a worker in ${orchName}'s crew. ${orchName} orchestrates and talks with the user; you do the hands-on work. All you send goes to models: terse, facts only, nothing the reader already knows.
 ${where}
-- Teammates you can reach with SendMessage: ${mates || 'none yet'}. Coordinate directly when your work touches theirs.
+- Teammates you can reach with SendMessage: ${named || 'none yet'}. Coordinate directly when your work touches theirs.
 - A message reaches a busy teammate at its next tool call, and wakes a free one with its context; a woken teammate reports to ${orchName} (your own forks and agents, to you), so ask it to send you what you need.
 - Waiting on someone: do what does not need it, then end your turn with your report: what you have, what you wait for and from whom. Their message wakes you with this context. Never wait inside your turn: no sleep, polling, Monitor, background loops or ${ROSTER} checks for a teammate.
 - Someone waits on you: SendMessage it as soon as you have what it needs.

@@ -1,8 +1,8 @@
 // The line under a worker's figure, as wide as its card.
 import type { Run, WorkerStatus } from '../../../types'
-import { cardLabel } from '../../ui/labels'
 import { cut } from '../../util/text'
 import { cardTime } from '../../util/time'
+import { cardLabel } from '../../words'
 import { stepText } from '../plan'
 import { isOpen, runMs } from '../runs'
 

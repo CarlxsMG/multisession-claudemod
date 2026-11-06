@@ -1,5 +1,4 @@
 // Durations and ages as the pane, the status line and the rows give them.
-import { t } from '../i18n'
 
 /** A run's time where room is short: 40s, 6m, 1h 5m. */
 export function shortTime(ms: number): string {
@@ -25,10 +24,10 @@ export function took(ms: number): string {
   return m < 60 ? `${m}m ${s % 60}s` : `${Math.floor(m / 60)}h ${m % 60}m`
 }
 
-/** How long ago `at` was, in a few characters: `now` (in the session's language), `12s`, `3m`, `2h`. */
-export function ago(now: number, at: number): string {
+/** How long ago `at` was, in a few characters: `justNow` (the word in the caller's language), `12s`, `3m`, `2h`. */
+export function ago(now: number, at: number, justNow: string): string {
   const s = Math.max(0, Math.round((now - at) / 1000))
-  if (s < 10) return t().now
+  if (s < 10) return justNow
   if (s < 60) return `${s}s`
   if (s < 3600) return `${Math.floor(s / 60)}m`
   return `${Math.floor(s / 3600)}h`

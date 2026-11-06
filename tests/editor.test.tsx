@@ -138,6 +138,39 @@ test('a bad code says so, and the look stays as it was', async ($, on) => {
   await ui.unmount()
 })
 
+test('the preview cheers for a press that changes the look, and for no other', async ($, on) => {
+  engine(on, { stored: { look: LUNA } })
+  await $.session.start(TERMINAL)
+  const ui = await $.ui.mount({ ...PANE, surface: 'terminal' })
+  await ui.press({ key: 'edit' })
+  const preview = async () => (await ui.find({ type: 'Raster', key: 'preview' }))?.props.cells
+  const still = await preview()
+
+  // The personality it has already.
+  await ui.press({ key: 'vibe-pirate' })
+  await ui.redraw()
+  expect(await preview()).toEqual(still)
+
+  // Another one leaves the figure's parts as they are: only the cheer moves it.
+  await ui.press({ key: 'vibe-zen' })
+  expect(await preview()).not.toEqual(still)
+  await ui.unmount()
+})
+
+test('a look a command changes has the preview cheer too', async ($, on) => {
+  engine(on, { stored: { look: LUNA } })
+  await $.session.start(TERMINAL)
+  const ui = await $.ui.mount({ ...PANE, surface: 'terminal' })
+  await ui.press({ key: 'edit' })
+  const still = (await ui.find({ type: 'Raster', key: 'preview' }))?.props.cells
+  await ui.press({ key: 'look-done' })
+
+  await crewCommand($, `import ${lookCode({ ...LUNA, vibe: 'zen' })}`)
+  await ui.press({ key: 'edit' })
+  expect((await ui.find({ type: 'Raster', key: 'preview' }))?.props.cells).not.toEqual(still)
+  await ui.unmount()
+})
+
 test('the persona tab marks the personality chosen and samples two of its lines, naming a worker', async ($, on) => {
   engine(on)
   await $.session.start(TERMINAL)

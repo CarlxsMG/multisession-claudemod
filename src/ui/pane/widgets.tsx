@@ -11,7 +11,7 @@ import { toCells, toSvg } from '../../figure/raster'
 import type { Picture } from '../../figure/raster'
 import { t } from '../../i18n'
 import { hasEnded, isJustEnded } from '../../progress/runs'
-import { END } from '../labels'
+import { END } from '../../words'
 import { drawnAsPage, forgetRasters, keepRaster, pane } from './animation'
 
 type PaneHook = MatchedHook<'ui.render', { component: 'Pane'; requestId: 'crew' }>

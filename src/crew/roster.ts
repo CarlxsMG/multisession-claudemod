@@ -1,5 +1,6 @@
 // The roster tool's answer: what the crew is doing, gathered for the rows
 // src/prompts/roster.ts writes.
+import type { Worker } from '../../types'
 import { ROSTER_REPORTS, ROSTER_ROWS } from '../config'
 import { quiet } from '../engine'
 import type { Engine } from '../engine'
@@ -28,7 +29,8 @@ export async function rosterText($: Engine, key?: string, isMain = true): Promis
   // orchestrator can say how it goes without waking anyone.
   const plans = new Map((await readRuns($)).flatMap(r => (isOpen(r) && r.plan !== undefined ? [[r.id, r.plan] as const] : [])))
   const now = await $.clock.now()
-  const factsOf = (id: string): RowFacts => ({
+  const factsOf = ({ id, status }: Worker): RowFacts => ({
+    isActive: ACTIVE.has(status),
     takeover: woken.get(id),
     parent: parents.get(id),
     isInWorktree: inWorktree.has(id),
@@ -43,7 +45,7 @@ export async function rosterText($: Engine, key?: string, isMain = true): Promis
         key,
         list.map(x => x.address),
       )
-    return rosterRow(worker, factsOf(worker.id), FULL_ROW_CUT)
+    return rosterRow(worker, factsOf(worker), FULL_ROW_CUT)
   }
   const sorted = [...list].sort(byActivity)
   const reported = new Set(
@@ -52,6 +54,6 @@ export async function rosterText($: Engine, key?: string, isMain = true): Promis
       .slice(0, ROSTER_REPORTS)
       .map(w => w.id),
   )
-  const rows = sorted.slice(0, ROSTER_ROWS).map(w => rosterRow(w, factsOf(w.id), rowCut(w, reported.has(w.id))))
+  const rows = sorted.slice(0, ROSTER_ROWS).map(w => rosterRow(w, factsOf(w), rowCut(ACTIVE.has(w.status), reported.has(w.id))))
   return rosterList(look.name, list.length, rows)
 }

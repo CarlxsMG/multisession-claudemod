@@ -1,6 +1,7 @@
 // The pane between drawings: the timers that repaint its figures in place,
 // type out its bubbles and keep the crew in step, and what its drawings
 // leave them.
+import type { Look } from '../../../types'
 import { PANE } from '../../config'
 import { relayIfDue } from '../../crew/relay'
 import { hasHeldFirsts, keepFirstDrawn } from '../../crew/feed'
@@ -30,16 +31,22 @@ const LINES_PHASE = 3
 
 /**
  * What the pane's drawings read of the timer: its frame, which every figure
- * is drawn at; the frame of the last change to the look, which the preview
- * cheers for; and whether a surface that draws the pane as a page (the
+ * is drawn at; the frame a drawing first showed the look as it is, which the
+ * preview cheers for; and whether a surface that draws the pane as a page (the
  * desktop app, an editor, a phone) has it open: no blit reaches its
  * figures, so the pane is drawn again now and then to move them and its ages.
  */
 export const pane: { readonly frame: number; readonly changedFrame: number; readonly asPage: boolean } = state
 
-/** The look just changed: the preview cheers for it. */
-export function cheerLook() {
-  state.changedFrame = state.frame
+/**
+ * A drawing shows `look`: the preview cheers when it is not the one the last
+ * drawing showed. A load's first drawing has nothing to compare it with, so
+ * a start or a reload is no change.
+ */
+export function noticeLook(look: Look) {
+  const shown = JSON.stringify(look)
+  if (state.lookShown !== '' && state.lookShown !== shown) state.changedFrame = state.frame
+  state.lookShown = shown
 }
 
 /** The pane closed: none of its rasters is repainted, and no bubble types. */

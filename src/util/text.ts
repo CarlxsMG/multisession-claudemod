@@ -1,6 +1,5 @@
 // Text made to fit: flattened to one line, cut with an ellipsis, wrapped to
 // a width; and the text a tool's result or a pasted prompt holds.
-import { t } from '../i18n'
 
 /** `text` in at most `max` columns, its last one an ellipsis when cut. */
 export const cut = (text: string, max: number): string => (text.length <= max ? text : max <= 0 ? '' : `${text.slice(0, max - 1)}…`)
@@ -17,9 +16,11 @@ const endCut = (line: string, width: number): string => (line.length >= width ? 
 
 /**
  * The desktop app wraps what the person pasted into a prompt in
- * <pasted_content> tags, for the model: the log marks it as pasted instead.
+ * <pasted_content> tags, for the model: the log marks it with `marker`
+ * instead, in the language the caller speaks.
  */
-export const unwrapPasted = (text: string): string => text.replace(/<pasted_content\b[^>]*>/g, ` ${t().pasted} `).replace(/<\/pasted_content>/g, ' ')
+export const unwrapPasted = (text: string, marker: string): string =>
+  text.replace(/<pasted_content\b[^>]*>/g, ` ${marker} `).replace(/<\/pasted_content>/g, ' ')
 
 /** The text with its first letter in capitals. */
 export const cap = (text: string): string => text.charAt(0).toUpperCase() + text.slice(1)

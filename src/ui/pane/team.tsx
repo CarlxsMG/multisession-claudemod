@@ -11,7 +11,7 @@ import { teamLines } from '../../progress/text/team'
 import { readRuns, updateView } from '../../state/atoms'
 import { basename } from '../../util/path'
 import { oneLine } from '../../util/text'
-import { statusLabel } from '../labels'
+import { statusLabel } from '../../words'
 import type { PaneUi, WorkerKit } from './widgets'
 
 /**

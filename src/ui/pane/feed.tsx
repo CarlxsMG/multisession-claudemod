@@ -95,7 +95,7 @@ export function drawFeed(ui: PaneUi, msgs: readonly Msg[], now: number, width: n
         <Text bold color={colorOf(msg, 'to')}>
           {msg.to}
         </Text>
-        <Text dimColor>{` · ${ago(now, msg.at)}  “${msg.text}”`}</Text>
+        <Text dimColor>{` · ${ago(now, msg.at, t().now)}  “${msg.text}”`}</Text>
       </Text>
     )
   }
@@ -108,7 +108,7 @@ export function drawFeed(ui: PaneUi, msgs: readonly Msg[], now: number, width: n
     const isTyping = count < entry.text.length
     const showing = isTyping ? revealed(lines, count) : lines
     const color = colorOf(msg, 'from')
-    const age = ago(now, msg.at)
+    const age = ago(now, msg.at, t().now)
     const fixed = msg.from.length + age.length + 6
     const to = oneLine(msg.to, Math.max(4, widest - 6 - fixed))
     const label = fixed + to.length

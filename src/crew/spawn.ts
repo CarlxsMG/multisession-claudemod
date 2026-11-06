@@ -27,7 +27,7 @@ import { samePath } from '../util/path'
 import { cap, oneLine } from '../util/text'
 import { takeIntent } from './delegate'
 import { ORCH_ID, enlist, say, setJob } from './feed'
-import { claimName, findWorker, makeWorker, patchWorker, prune, shelve, takenNow, unclaimNames, unshelve } from './workers'
+import { claimName, findWorker, makeWorker, matesOf, patchWorker, prune, shelve, takenNow, unclaimNames, unshelve } from './workers'
 
 // What an Agent call's model reads after its result when the crew named
 // its agent otherwise than the call did, by tool_use_id: the name its card
@@ -114,7 +114,7 @@ export async function onSpawn($: Engine, e: Parameters<OnSpawnHook>[1], next: Pa
     ? e.prompt
     : e.fork
       ? forkPreamble(reportsTo, e.parentAgentId === undefined ? gitRules(cwd, name.toLowerCase()) : '') + e.prompt
-      : workerPreamble(name, look.name, reportsTo, cwd, list, own ? 'own' : shared ? 'parent' : undefined, inWorktree) + e.prompt
+      : workerPreamble(name, look.name, reportsTo, cwd, matesOf(list, name, cwd), own ? 'own' : shared ? 'parent' : undefined, inWorktree) + e.prompt
   // A crew worker runs on the session's model, even of a type whose own
   // definition names another. The Agent tool's `model` takes an alias only,
   // so the session's id goes as its family; one that names none is left to
