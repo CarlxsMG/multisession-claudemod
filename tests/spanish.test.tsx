@@ -117,6 +117,24 @@ test('the editor in Spanish', ES, async ($, on) => {
   await ui.unmount()
 })
 
+test('a copy that failed says so in Spanish, and the verb it points to answers with the code', ES, async ($, on) => {
+  const toasts: string[] = []
+  engine(on)
+  on('ui.copy', () => ({ value: { isCopied: false, reason: 'no-clipboard' } }))
+  on('ui.toast', (_, e) => {
+    toasts.push(e.text)
+    return { value: undefined }
+  })
+  await $.session.start({ cwd: '/work/main', surface: 'terminal', isInteractive: true })
+  const ui = await $.ui.mount({ ...PANE, surface: 'terminal' })
+  await ui.press({ key: 'edit' })
+  await ui.press({ key: 'tab-share' })
+  await ui.press({ key: 'look-copy' })
+  expect(toasts).toEqual(['Código no copiado: /crew codigo lo muestra'])
+  await ui.unmount()
+  expect((await crewCommand($, 'codigo')).text).toMatch(/^Código de Nova:\nCREW1\./)
+})
+
 test('/crew answers in Spanish and takes the verbs of either language', ES, async ($, on) => {
   engine(on)
   on('ui.copy', () => ({ value: { isCopied: true } }))

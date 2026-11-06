@@ -109,6 +109,7 @@ export const es: Messages = {
     accessory: 'Accesorio',
     copyCode: 'Copiar código',
     copied: name => `Código de ${name} copiado`,
+    copyFailed: 'Código no copiado: /crew codigo lo muestra',
     import: 'Importar ',
     importHint: 'pega un código CREW1.…',
     importVerb: 'importar',

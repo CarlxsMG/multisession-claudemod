@@ -138,6 +138,8 @@ export const en = {
     accessory: 'Accessory',
     copyCode: 'Copy code',
     copied: (name: string) => `${name}'s code copied`,
+    /** The toast of a copy that failed or another plugin denied; `/crew code` answers with the code either way. */
+    copyFailed: 'Code not copied: /crew code shows it',
     import: 'Import ',
     importHint: 'paste a CREW1.… code',
     importVerb: 'import',

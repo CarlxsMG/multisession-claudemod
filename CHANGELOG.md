@@ -63,6 +63,9 @@ All notable changes to crew are written here. The format follows
 - A share code with no field of a look in it (`CREW1.bnVsbA`, which holds `null`) is turned down as
   a bad code, in the editor and by `/crew import`, instead of replacing the whole look with the
   default. A code that holds only some fields still imports.
+- A copy of the share code from the editor that fails, or that another plugin denies, shows a
+  short toast pointing to `/crew code`, instead of the whole code in a toast too brief to read or
+  no toast at all. `/crew code` answers with the code when its own copy is denied too.
 
 ## [0.1.0] - 2026-11-05
 
