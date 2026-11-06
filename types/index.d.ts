@@ -168,6 +168,9 @@ export type Phase = 'thinking' | 'reading' | 'editing' | 'running' | 'testing' |
 /** How a run ended: '' while it runs. */
 export type RunEnd = '' | 'done' | 'failed' | 'stopped'
 
+/** How a run that is over ended. */
+export type RunEndKind = Exclude<RunEnd, ''>
+
 /**
  * The plan a worker declared with the progress tool, or read off its todo
  * list (`from`): the step it is on of `total`, how many are done, what the

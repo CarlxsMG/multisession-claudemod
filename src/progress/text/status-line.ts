@@ -1,5 +1,5 @@
 // The crew's part of the status line.
-import type { Phase, Plan, RunEnd } from '../../../types'
+import type { Phase, Plan, RunEndKind } from '../../../types'
 import { END, statusLabel } from '../../ui/labels'
 import { cut, flat } from '../../util/text'
 import { shortTime } from '../../util/time'
@@ -12,7 +12,7 @@ import { stepText } from '../plan'
  */
 export type Entry = { name: string; phase: Phase; ms: number; plan?: Plan; title?: string }
 /** A worker whose run just ended, by how. */
-export type Ended = { name: string; end: Exclude<RunEnd, ''> }
+export type Ended = { name: string; end: RunEndKind }
 
 // A task's title on the status line, at most this wide.
 const STATUS_TITLE = 24

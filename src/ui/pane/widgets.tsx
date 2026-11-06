@@ -1,7 +1,7 @@
 // What the pane's views draw with.
 import type { Elements, MatchedHook } from 'claude-code'
 
-import type { Look, Run, RunEnd, Worker } from '../../../types'
+import type { Look, Run, RunEndKind, Worker } from '../../../types'
 import { ACTIVE, byActivity } from '../../crew/workers'
 import type { Engine } from '../../engine'
 import { accentHex, accentOf } from '../../figure/accent'
@@ -10,7 +10,7 @@ import { diamond, diamondSvg } from '../../figure/diamond'
 import { toCells, toSvg } from '../../figure/raster'
 import type { Picture } from '../../figure/raster'
 import { t } from '../../i18n'
-import { isJustEnded } from '../../progress/runs'
+import { hasEnded, isJustEnded } from '../../progress/runs'
 import { END } from '../labels'
 import { drawnAsPage, forgetRasters, keepRaster, pane } from './animation'
 
@@ -72,7 +72,7 @@ export const ORCH_SEED = 7
 
 // A worker whose run just ended (`ended`) cheers for it, or shows that it
 // failed or was stopped, whatever the engine has it as since.
-function workerAnim(worker: Worker, now: number, ended?: Exclude<RunEnd, ''>): Anim {
+function workerAnim(worker: Worker, now: number, ended?: RunEndKind): Anim {
   if (ended !== undefined) return ended === 'done' ? 'happy' : ended
   switch (worker.status) {
     // A free worker naps until it is given something: its zZ says so.
@@ -100,9 +100,9 @@ export function workerKit($: Engine, ui: PaneUi, sprite: Sprite, look: Look, now
   const statusColor = (w: Worker) => (w.status === 'failed' || w.status === 'done' ? END[w.status].color : 'text')
   // How each worker's latest run ended, while that end is fresh.
   const lastRun = new Map(runs.map(r => [r.id, r]))
-  const justEnded = (w: Worker): Exclude<RunEnd, ''> | undefined => {
+  const justEnded = (w: Worker): RunEndKind | undefined => {
     const r = lastRun.get(w.id)
-    return r !== undefined && isJustEnded(r, now) ? (r.end as Exclude<RunEnd, ''>) : undefined
+    return r !== undefined && hasEnded(r) && isJustEnded(r, now) ? r.end : undefined
   }
   const figure = (worker: Worker, status: string) => {
     const mail = mailOf(worker, now)

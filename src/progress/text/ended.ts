@@ -1,5 +1,5 @@
 // A run that ended, said in one line.
-import type { CheckLine, RunEnd } from '../../../types'
+import type { CheckLine, RunEndKind } from '../../../types'
 import { t } from '../../i18n'
 import { END, endVerb } from '../../ui/labels'
 import { flat } from '../../util/text'
@@ -8,7 +8,7 @@ import { stepText } from '../plan'
 import type { Piece } from './pieces'
 
 /** What a run's end line says: who, how it ended, the task, its time and plan. */
-export type EndLine = Pick<CheckLine, 'id' | 'name' | 'doing' | 'ms' | 'plan'> & { end: Exclude<RunEnd, ''> }
+export type EndLine = Pick<CheckLine, 'id' | 'name' | 'doing' | 'ms' | 'plan'> & { end: RunEndKind }
 
 /**
  * A run's end in one line, the toast's and the conversation's alike: who, how,

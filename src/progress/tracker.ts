@@ -1,9 +1,9 @@
 // While workers run, the user follows what each does and for how long on
 // surfaces no model reads: the status line, the pane and rows placed in the
 // conversation. Nothing here messages anyone or adds to a prompt.
-import type { CheckIn, CheckLine, Note, Orch, PendingRow, Plan, Round, RunEnd, TaskList, Worker } from '../../types'
+import type { CheckIn, CheckLine, Note, Orch, PendingRow, Plan, Round, RunEndKind, TaskList, Worker } from '../../types'
 import { nameOf } from '../crew/feed'
-import { ACTIVE, FINISHED, patchWorker } from '../crew/workers'
+import { ACTIVE, patchWorker } from '../crew/workers'
 import { quiet } from '../engine'
 import type { Engine } from '../engine'
 import { runtime } from '../runtime'
@@ -34,7 +34,7 @@ import { describe, phaseOf, shownPhase } from './phase'
 import { todoPlan, withPlan } from './plan'
 import type { Todo } from './plan'
 import { NO_ROUND, checkLines, hasNews, joinRound, seenOf, wantsSummary } from './round'
-import { closeRun, isJustEnded, isOpen, openRun, runMs } from './runs'
+import { closeRun, endOf, hasEnded, isJustEnded, isOpen, openRun, runMs } from './runs'
 import { endNotice } from './text/ended'
 import { statusText } from './text/status-line'
 
@@ -102,7 +102,7 @@ export async function beginRun($: Engine, id: string) {
  */
 export async function settleRun($: Engine, w: Pick<Worker, 'id' | 'status'>) {
   if (ACTIVE.has(w.status)) return
-  await endRun($, w.id, FINISHED.has(w.status) ? (w.status as Exclude<RunEnd, ''>) : 'done', true)
+  await endRun($, w.id, endOf(w.status), true)
 }
 
 /**
@@ -197,7 +197,7 @@ export async function noteTodos($: Engine, id: string, call: Record<string, unkn
  * (`isLate`) ended unseen a while ago, at its last sign of life, and has
  * neither.
  */
-export async function endRun($: Engine, id: string, end: Exclude<RunEnd, ''>, isLate = false) {
+export async function endRun($: Engine, id: string, end: RunEndKind, isLate = false) {
   // The run ends with every call it made, and its last sign of life.
   await writeCalls($)
   const run = (await readRuns($)).find(r => r.id === id && isOpen(r))
@@ -337,7 +337,7 @@ async function progressTick($: Engine) {
       if (!isOpen(run) || now - run.touchedAt < MISSED_MS) continue
       const worker = list.find(x => x.id === run.id)
       if (worker !== undefined && ACTIVE.has(worker.status)) continue
-      await endRun($, run.id, worker !== undefined && FINISHED.has(worker.status) ? (worker.status as Exclude<RunEnd, ''>) : 'done')
+      await endRun($, run.id, endOf(worker?.status))
     }
     const all = await readRuns($)
     const given = await readJobs($)
@@ -354,9 +354,10 @@ async function progressTick($: Engine) {
       }))
     // The workers of the crew whose run just ended, in the order they did.
     const ended = all
+      .filter(hasEnded)
       .filter(r => isJustEnded(r, now) && list.some(w => w.id === r.id))
       .sort((a, b) => a.endedAt - b.endedAt)
-      .map(r => ({ name: list.find(w => w.id === r.id)!.name, end: r.end as Exclude<RunEnd, ''> }))
+      .map(r => ({ name: list.find(w => w.id === r.id)!.name, end: r.end }))
     showStatus($, statusText(entries, Math.max(STATUS_MIN_COLUMNS, (progress.rowColumns || progress.commandColumns) - 2), ended))
     // A row that stands is drawn again, so it follows even while the main turn runs.
     await followCheckIn($, await readRound($), now)
