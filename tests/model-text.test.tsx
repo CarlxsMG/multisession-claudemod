@@ -21,17 +21,16 @@ function expectText(name: string, actual: unknown) {
 }
 
 const start = ($: Dollar) => $.session.start({ cwd: '/work/main', surface: 'terminal', isInteractive: true })
-const call = async ($: Dollar, input: Record<string, unknown>) => (await $.tool.call({ tool: DELEGATE, ...input } as never)) as { result?: unknown; deny?: string }
+const call = async ($: Dollar, input: Record<string, unknown>) =>
+  (await $.tool.call({ tool: DELEGATE, ...input } as never)) as { result?: unknown; deny?: string }
 const delegate = async ($: Dollar, input: Record<string, unknown>) => String((await call($, input)).result)
-const roster = async ($: Dollar, input: Record<string, unknown> = {}) =>
-  String((await $.tool.call({ tool: 'mcp__crew__roster', ...input } as never)).result)
+const roster = async ($: Dollar, input: Record<string, unknown> = {}) => String((await $.tool.call({ tool: 'mcp__crew__roster', ...input } as never)).result)
 const finish = (_$: Dollar, agentId: string, answer = 'Done: 3 files changed, tests green.') =>
   _$.turn.complete({ answer, durationMs: 1, isAborted: false, turnId: `t-${agentId}-${answer.length}`, agentId, reason: 'answer' })
 
 const recording = (): Seen => ({ prompts: [], sends: [], specs: [] })
 
-const composed = (on: On) =>
-  on('prompt.compose', () => ({ sections: [{ id: 'intro', text: 'You are Claude Code.', scope: 'shared' as const }] }))
+const composed = (on: On) => on('prompt.compose', () => ({ sections: [{ id: 'intro', text: 'You are Claude Code.', scope: 'shared' as const }] }))
 
 // The one text here that follows the UI's language: it names the language and
 // the catchphrase, and the golden holds it as a crew in Spanish asks it.
@@ -40,7 +39,13 @@ test('what Haiku is asked for the mood lines', { ...SLOW, options: { language: '
   const prompts: string[] = []
   on('model.complete', (_, e) => {
     prompts.push(e.prompt)
-    return { value: { isAnswered: true as const, text: '{}', usage: { input_tokens: 1, output_tokens: 1, cache_read_input_tokens: 0, cache_creation_input_tokens: 0 } } }
+    return {
+      value: {
+        isAnswered: true as const,
+        text: '{}',
+        usage: { input_tokens: 1, output_tokens: 1, cache_read_input_tokens: 0, cache_creation_input_tokens: 0 },
+      },
+    }
   })
   await start($)
   await clock.advance(12_000)
@@ -151,7 +156,7 @@ test('a refused spawn, said as the engine said it', async ($, on) => {
   expectText('result.notStarted', await delegate($, { task: 'Clean up', repo: '/work/api' }))
 })
 
-test("what an Agent call hears when the crew names its agent otherwise", async ($, on) => {
+test('what an Agent call hears when the crew names its agent otherwise', async ($, on) => {
   let spawned = 0
   engine(on, { nextId: () => `agent-${++spawned}` })
   await start($)

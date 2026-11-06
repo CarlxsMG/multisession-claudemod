@@ -33,8 +33,7 @@ const ALIASES = ['fable', 'opus', 'sonnet', 'haiku'] as const
  * The alias the Agent tool takes for a model id: the family the id names
  * (claude-opus-5-5 is `opus`), undefined for an id that names none.
  */
-export const modelAlias = (id: string): (typeof ALIASES)[number] | undefined =>
-  ALIASES.find(alias => new RegExp(`\\b${alias}\\b`, 'i').test(id))
+export const modelAlias = (id: string): (typeof ALIASES)[number] | undefined => ALIASES.find(alias => new RegExp(`\\b${alias}\\b`, 'i').test(id))
 
 /**
  * The model as the top line has room for: cut short, then left out, so the

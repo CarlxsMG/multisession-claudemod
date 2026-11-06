@@ -294,8 +294,7 @@ export async function placeCheckIn($: Engine, isAsked: boolean) {
 }
 
 // What a check-in's lines say but their times: what it is drawn again for.
-const linesSaid = (lines: readonly CheckLine[]): string =>
-  JSON.stringify(lines.map(x => [x.id, x.name, x.phase, x.end, x.doing, x.plan?.step, x.plan?.total]))
+const linesSaid = (lines: readonly CheckLine[]): string => JSON.stringify(lines.map(x => [x.id, x.name, x.phase, x.end, x.doing, x.plan?.step, x.plan?.total]))
 
 /**
  * The round's newest check-in follows the round in place: its lines are read

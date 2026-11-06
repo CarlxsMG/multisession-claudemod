@@ -34,7 +34,7 @@ test('the two newest messages are bubbles and older ones one line each', SLOW, a
   await ui.unmount()
 })
 
-test('the person\'s own messages are one quiet line, not a bubble', async ($, on) => {
+test("the person's own messages are one quiet line, not a bubble", async ($, on) => {
   const clock = engine(on)
   on('prompt.submit', (_, e) => ({ text: e.text }))
   await $.session.start({ cwd: '/work/main', surface: 'terminal', isInteractive: true })
@@ -117,7 +117,14 @@ test('written lines are kept only when they fit', () => {
 test('a worker named like the orchestrator keeps its own color in the feed', async ($, on) => {
   const clock = engine(on)
   await $.session.start({ cwd: '/work/main', surface: 'terminal', isInteractive: true })
-  await spawnAgent($, { prompt: 'Run the tests', description: 'Tests', subagentType: 'general-purpose', name: 'nova', tool_use_id: 'toolu_1', background: false })
+  await spawnAgent($, {
+    prompt: 'Run the tests',
+    description: 'Tests',
+    subagentType: 'general-purpose',
+    name: 'nova',
+    tool_use_id: 'toolu_1',
+    background: false,
+  })
   await $.turn.complete({ answer: 'Tests verdes', durationMs: 1000, isAborted: false, turnId: 't1', agentId: 'agent-1', reason: 'answer' })
   await clock.advance(10_000)
 
@@ -128,7 +135,10 @@ test('a worker named like the orchestrator keeps its own color in the feed', asy
   const orch = nameColorOf(DEFAULT_LOOK)
   const worker = names[0]?.[1]
   expect(worker).not.toBe(orch)
-  expect(names).toEqual([[orch, worker], [worker, orch]])
+  expect(names).toEqual([
+    [orch, worker],
+    [worker, orch],
+  ])
   await ui.unmount()
 })
 

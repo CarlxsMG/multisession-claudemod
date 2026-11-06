@@ -38,9 +38,7 @@ export async function drawTeam($: Engine, ui: PaneUi, kit: WorkerKit, now: numbe
       <Box flexDirection="row" flexWrap="wrap" columnGap={2}>
         <Button key="crew-back" label={t().pane.back} onPress={() => void updateView($, () => 'main')} />
         <Text dimColor wrap="truncate-end">{`${t().pane.team} · ${t().pane.count(list.length, active.length)}`}</Text>
-        {list.some(w => FINISHED.has(w.status)) && (
-          <Button key="crew-clear" label={t().pane.clearFinished} onPress={() => void clearFinished($)} />
-        )}
+        {list.some(w => FINISHED.has(w.status)) && <Button key="crew-clear" label={t().pane.clearFinished} onPress={() => void clearFinished($)} />}
       </Box>
       {ordered.map(worker => (
         <Box flexDirection="row" columnGap={1}>
@@ -53,8 +51,12 @@ export async function drawTeam($: Engine, ui: PaneUi, kit: WorkerKit, now: numbe
                 {stateOf(worker)}
               </Text>
             </Box>
-            <Text dimColor wrap="truncate-end">{basename(worker.cwd)}</Text>
-            <Text dimColor wrap="truncate-end">{worker.task}</Text>
+            <Text dimColor wrap="truncate-end">
+              {basename(worker.cwd)}
+            </Text>
+            <Text dimColor wrap="truncate-end">
+              {worker.task}
+            </Text>
             {ACTIVE.has(worker.status) && doingOf(worker) !== '' && <Text wrap="truncate-end">{doingOf(worker)}</Text>}
             {runOf.has(worker.id) &&
               teamLines(runOf.get(worker.id)!, stateOf(worker), now).map(line => (

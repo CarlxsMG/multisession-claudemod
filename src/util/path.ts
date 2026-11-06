@@ -3,11 +3,14 @@
 const isWinPath = (path: string): boolean => /^[A-Za-z]:([\\/]|$)|^[\\/]{2}[^\\/]/.test(path)
 
 /** A path's last part, either slash. */
-export const basename = (path: string): string => path.replace(/[\\/]+$/, '').split(/[\\/]/).pop() || path
+export const basename = (path: string): string =>
+  path
+    .replace(/[\\/]+$/, '')
+    .split(/[\\/]/)
+    .pop() || path
 
 // The same directory however it was spelled: Windows ignores case and slashes.
-const pathKey = (path: string): string =>
-  isWinPath(path) ? path.replace(/\//g, '\\').replace(/\\+$/, '').toLowerCase() : path.replace(/(.)\/+$/, '$1')
+const pathKey = (path: string): string => (isWinPath(path) ? path.replace(/\//g, '\\').replace(/\\+$/, '').toLowerCase() : path.replace(/(.)\/+$/, '$1'))
 /**
  * Whether two paths name the same directory: a Windows one in any case and
  * either slash, a trailing slash aside.

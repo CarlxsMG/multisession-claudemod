@@ -12,13 +12,13 @@ test("delegate's results read back as the row says them: reused, new, or held an
   expect(readDelegate(heldFor(pip, 'Bolt', 3))).toEqual({ kind: 'held', by: 'Bolt' })
 })
 
-test("the workers a heads-up names read back from the result, one or several", () => {
+test('the workers a heads-up names read back from the result, one or several', () => {
   expect(readDelegate(started('Mika', 'mika', 'agent-3', '/work/api', headsUp(['Pip'])))).toEqual({ kind: 'new', busy: ['Pip'] })
   expect(readDelegate(given(pip, '/work/api', headsUp(['Bolt', 'Mika'])))).toEqual({ kind: 'reused', busy: ['Bolt', 'Mika'] })
   expect(headsUp([])).toBe('')
 })
 
-test("a result delegate did not write reads as nothing", () => {
+test('a result delegate did not write reads as nothing', () => {
   expect(readDelegate('crew: `task` is required.')).toBeUndefined()
   expect(readDelegate('')).toBeUndefined()
 })

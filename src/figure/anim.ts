@@ -5,18 +5,7 @@ import { hash } from '../util/random'
 import type { Glyph } from './raster'
 
 /** The states a figure has a routine for. */
-export type Anim =
-  | 'idle'
-  | 'sleep'
-  | 'thinking'
-  | 'working'
-  | 'delegating'
-  | 'happy'
-  | 'starting'
-  | 'waiting'
-  | 'done'
-  | 'failed'
-  | 'stopped'
+export type Anim = 'idle' | 'sleep' | 'thinking' | 'working' | 'delegating' | 'happy' | 'starting' | 'waiting' | 'done' | 'failed' | 'stopped'
 
 /** A figure at one frame of its state's routine (`seed` sets it apart from the others). */
 export type Pose = {

@@ -14,9 +14,7 @@ import { queueNote } from './notes'
 export async function changeLook($: Engine, patch: Partial<Look> | ((look: Look) => Look)) {
   cheerLook()
   const before = await readLook($)
-  const saved = await updateLook($, look =>
-    normalizeLook(typeof patch === 'function' ? patch(look) : { ...look, ...patch }),
-  )
+  const saved = await updateLook($, look => normalizeLook(typeof patch === 'function' ? patch(look) : { ...look, ...patch }))
   await $.store.set(STORE_KEYS.look, saved)
   // The brief carries only the name and the personality.
   if (saved.name !== before.name || saved.vibe !== before.vibe) await queueNote($)

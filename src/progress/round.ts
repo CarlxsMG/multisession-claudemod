@@ -46,8 +46,7 @@ export function hasNews(before: readonly SeenRun[], after: readonly SeenRun[]): 
  * A round ends with a summary when it had two workers or more, or ran longer
  * than the check-in interval; with check-ins off, never.
  */
-export const wantsSummary = (r: Round, everyMs: number): boolean =>
-  everyMs > 0 && (r.ids.length >= 2 || r.closedAt - r.startedAt > everyMs)
+export const wantsSummary = (r: Round, everyMs: number): boolean => everyMs > 0 && (r.ids.length >= 2 || r.closedAt - r.startedAt > everyMs)
 
 /**
  * The lines of a check-in: the round's workers still running first, in the

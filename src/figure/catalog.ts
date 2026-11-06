@@ -81,17 +81,7 @@ export const NAME_COLORS: readonly (readonly [string, string])[] = [
  */
 export const BODY: Layer = {
   y: 0,
-  rows: [
-    '........',
-    '..SSSS..',
-    '.SSSSSS.',
-    '.SSSSSS.',
-    '.SSSSSS.',
-    '.SSSSSS.',
-    '.SSSSSS.',
-    '..ssss..',
-    '.FF..FF.',
-  ],
+  rows: ['........', '..SSSS..', '.SSSSSS.', '.SSSSSS.', '.SSSSSS.', '.SSSSSS.', '.SSSSSS.', '..ssss..', '.FF..FF.'],
 }
 
 /**

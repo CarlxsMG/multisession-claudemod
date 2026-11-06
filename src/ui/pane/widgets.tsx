@@ -56,7 +56,9 @@ export function toggle(ui: PaneUi, key: string, label: string, value: boolean, o
     <Box key={`${key}-frame`} borderStyle="round" borderColor={value ? 'success' : 'inactive'} hover={{ borderColor: 'claude' }}>
       <Button key={key} plain label={`${label}: ${said}`} onPress={onPress}>
         <Text> {label} </Text>
-        <Text bold color={value ? 'success' : 'inactive'}>{said.padEnd(3)}</Text>
+        <Text bold color={value ? 'success' : 'inactive'}>
+          {said.padEnd(3)}
+        </Text>
         <Text> </Text>
       </Button>
     </Box>
@@ -85,8 +87,7 @@ function workerAnim(worker: Worker, now: number, ended?: RunEndKind): Anim {
   }
 }
 
-const mailOf = (w: Worker, now: number): 'in' | 'out' | undefined =>
-  now - w.lastMsgAt < MAIL_SHOWN_MS ? (w.lastMsgIn ? 'in' : 'out') : undefined
+const mailOf = (w: Worker, now: number): 'in' | 'out' | undefined => (now - w.lastMsgAt < MAIL_SHOWN_MS ? (w.lastMsgIn ? 'in' : 'out') : undefined)
 
 /**
  * What both views draw the workers with: each one's figure, posed by its

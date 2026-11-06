@@ -12,7 +12,13 @@ const worker = (id: string, name: string, status: WorkerStatus, updatedAt = 0): 
 test('napAfter sets when a worker that is not busy leaves the row, the default for what it does not know', () => {
   const free = worker('a', 'Pip', 'idle', 1000)
   const busy = worker('b', 'Gus', 'working', 1000)
-  for (const [option, ms] of [[undefined, 5000], ['5s', 5000], ['30s', 30_000], ['2m', 120_000], ['soon', 5000]] as const) {
+  for (const [option, ms] of [
+    [undefined, 5000],
+    ['5s', 5000],
+    ['30s', 30_000],
+    ['2m', 120_000],
+    ['soon', 5000],
+  ] as const) {
     chooseNapAfter(option)
     expect(napLeavesAt(free)).toBe(1000 + ms)
     expect(napLeavesAt(busy)).toBeUndefined()

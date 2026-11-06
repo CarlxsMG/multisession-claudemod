@@ -54,10 +54,22 @@ export async function onSend($: Engine, e: Parameters<OnSendHook>[1], next: Para
   if (starts && e.agentId !== undefined) {
     if (!(await isAgentOf($, addressee.id, sender))) {
       const by = nameOf(e.agentId, sender, await readMembers($))
-      const item: Relay = { id: addressee.id, by, byId: e.agentId, address: sender?.address ?? e.agentId, text: e.text, gist: await gistOfSend($, e.agentId, e.text) }
+      const item: Relay = {
+        id: addressee.id,
+        by,
+        byId: e.agentId,
+        address: sender?.address ?? e.agentId,
+        text: e.text,
+        gist: await gistOfSend($, e.agentId, e.text),
+      }
       await updateRelays($, list => appendKept(list, [item], RELAYS_KEEP))
       relaySoon()
-      if (sender !== undefined) await quiet($, patchWorker($, sender.id, (_, now) => ({ lastMsgAt: now, lastMsgIn: false })), 'sender')
+      if (sender !== undefined)
+        await quiet(
+          $,
+          patchWorker($, sender.id, (_, now) => ({ lastMsgAt: now, lastMsgIn: false })),
+          'sender',
+        )
       return { isDelivered: true as const }
     }
   }

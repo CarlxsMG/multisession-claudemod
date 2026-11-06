@@ -68,14 +68,16 @@ test("a crew call's result reads in the foot: delivered, woken, reused, new, hel
   expect(foots('mcp__crew__delegate', heldFor(pip, 'Bolt', 1))).toEqual(['waiting · answers to Bolt', 'waiting'])
 })
 
-test('a result the row cannot read keeps the engine\'s own drawing', () => {
+test("a result the row cannot read keeps the engine's own drawing", () => {
   expect(resultFoots('SendMessage', { success: false, message: 'no' }, pip, [pip], l)).toBeUndefined()
   expect(resultFoots('mcp__crew__delegate', 'crew: `task` is required.', pip, [pip], l)).toBeUndefined()
 })
 
 test('a card is one line: the names always, the longest foot that leaves the title whole, then the title cut', () => {
   const line = (title: string, cap: number, given: readonly (readonly Seg[])[] = [[{ text: 'reused · keeps its context' }], [{ text: 'reused' }]]) =>
-    cardLine(names, title, given, cap).line.map(x => x.text).join('')
+    cardLine(names, title, given, cap)
+      .line.map(x => x.text)
+      .join('')
   expect(line('Arreglar tests', 60)).toBe('Nova → Pip · Arreglar tests · reused · keeps its context')
   expect(line('Arreglar tests', 40)).toBe('Nova → Pip · Arreglar tests · reused')
   expect(line('Arreglar tests', 30)).toBe('Nova → Pip · Arregla… · reused')

@@ -98,7 +98,12 @@ const xml = (text: string) => text.replace(/&/g, '&amp;').replace(/</g, '&lt;').
 export function diamondSvg(seed: number, color: number, pose: Pose, size = 5): string {
   const b = poseBeat(pose)
   const line = outlineOf(color, pose, b)
-  const corners = [[1, 2], [2, 0.15], [3, 2], [2, 3.85]] as const
+  const corners = [
+    [1, 2],
+    [2, 0.15],
+    [3, 2],
+    [2, 3.85],
+  ] as const
   const path = line.sides === 4 ? corners : [...corners, corners[0]].slice(0, line.sides + 1)
   const drawn = path.map(([x, y]) => `${x},${y}`).join(' ')
   const stroke = `fill="none" stroke="${hex(line.color)}" stroke-width="0.18" stroke-linejoin="round"`

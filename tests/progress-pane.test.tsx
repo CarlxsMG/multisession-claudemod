@@ -47,63 +47,72 @@ const WIDTH_WORDS = {
   es: { team: 'equipo', calls: /llamada/, step: /^paso /, share: /% de los pasos$/, running: 'ejecutando' },
 }
 
-for (const [columns, language] of [[48, 'en'], [34, 'en'], [48, 'es'], [34, 'es']] as const) {
+for (const [columns, language] of [
+  [48, 'en'],
+  [34, 'en'],
+  [48, 'es'],
+  [34, 'es'],
+] as const) {
   const words = WIDTH_WORDS[language]
-  test(`progress fits ${columns} columns in ${language}: the status line, the placed rows and the team view`, { ...SLOW, options: { language } }, async ($, on) => {
-    const { clock, status, placed, delegate, end, lines } = await progressCrew($, on)
-    const step = 'Un paso con un nombre bastante largo para cualquier columna'
-    for (let i = 1; i <= 5; i++) {
-      await delegate(`Task ${i}`, `/work/r${i}`, `Una tarea con un título bastante largo, la número ${i}`)
-      await $.tool.call({ tool: 'Bash', command: `npm run build -- --project packages/app-${i} --verbose`, agentId: `agent-${i}` })
-    }
-    // Bolt three of five, Mika a plan that grew, Rex one of ten; Pip and the
-    // fifth have none.
-    await progress($, 'agent-2', 3, 5, step)
-    await progress($, 'agent-3', 0, 4, step)
-    await progress($, 'agent-3', 2, 12, step)
-    await progress($, 'agent-4', 1, 10, step)
-    await $.command.run({ command: 'crew', args: words.team, origin: COMPOSER, presentation: { isFullscreen: false, columns } })
-    await clock.advance(200_000)
-    const line = status()!
-    expect(line.length).toBeLessThanOrEqual(columns - 2)
-    expect(line).toMatch(new RegExp(`^crew · Pip ${words.running} 3m · .*\\+\\d$`))
-    expect(line).toMatch(SAME_EVERYWHERE)
+  test(
+    `progress fits ${columns} columns in ${language}: the status line, the placed rows and the team view`,
+    { ...SLOW, options: { language } },
+    async ($, on) => {
+      const { clock, status, placed, delegate, end, lines } = await progressCrew($, on)
+      const step = 'Un paso con un nombre bastante largo para cualquier columna'
+      for (let i = 1; i <= 5; i++) {
+        await delegate(`Task ${i}`, `/work/r${i}`, `Una tarea con un título bastante largo, la número ${i}`)
+        await $.tool.call({ tool: 'Bash', command: `npm run build -- --project packages/app-${i} --verbose`, agentId: `agent-${i}` })
+      }
+      // Bolt three of five, Mika a plan that grew, Rex one of ten; Pip and the
+      // fifth have none.
+      await progress($, 'agent-2', 3, 5, step)
+      await progress($, 'agent-3', 0, 4, step)
+      await progress($, 'agent-3', 2, 12, step)
+      await progress($, 'agent-4', 1, 10, step)
+      await $.command.run({ command: 'crew', args: words.team, origin: COMPOSER, presentation: { isFullscreen: false, columns } })
+      await clock.advance(200_000)
+      const line = status()!
+      expect(line.length).toBeLessThanOrEqual(columns - 2)
+      expect(line).toMatch(new RegExp(`^crew · Pip ${words.running} 3m · .*\\+\\d$`))
+      expect(line).toMatch(SAME_EVERYWHERE)
 
-    const team = await $.ui.mount({ ...PANE, surface: 'terminal', props: { ...PANE.props, bodyColumns: columns } })
-    const planLines = await team.findAll({ type: 'Text', text: new RegExp(`${words.calls.source}|${words.step.source}|${words.share.source}|≈`) })
-    // Three planned runs give their step and share, two of them a guess;
-    // the other two their time and calls.
-    const kinds = (re: RegExp) => planLines.filter(t => re.test(t.text)).length
-    expect([kinds(words.step), kinds(words.share), kinds(/^≈/), kinds(words.calls)]).toEqual([3, 3, 2, 2])
-    for (const t of planLines) {
-      expect(t.text.length).toBeLessThanOrEqual(columns - DIAMOND_W - 1)
-      expect(t.text).toMatch(SAME_EVERYWHERE)
-    }
-    await team.unmount()
+      const team = await $.ui.mount({ ...PANE, surface: 'terminal', props: { ...PANE.props, bodyColumns: columns } })
+      const planLines = await team.findAll({ type: 'Text', text: new RegExp(`${words.calls.source}|${words.step.source}|${words.share.source}|≈`) })
+      // Three planned runs give their step and share, two of them a guess;
+      // the other two their time and calls.
+      const kinds = (re: RegExp) => planLines.filter(t => re.test(t.text)).length
+      expect([kinds(words.step), kinds(words.share), kinds(/^≈/), kinds(words.calls)]).toEqual([3, 3, 2, 2])
+      for (const t of planLines) {
+        expect(t.text.length).toBeLessThanOrEqual(columns - DIAMOND_W - 1)
+        expect(t.text).toMatch(SAME_EVERYWHERE)
+      }
+      await team.unmount()
 
-    // A whole check-in, then folded under the summary, which is whole.
-    expect(placed).toHaveLength(1)
-    const whole = await lines(placed[0]!, columns)
-    expect(whole).toHaveLength(6)
-    for (let i = 1; i <= 5; i++) await end(`agent-${i}`, i === 3 ? 'error' : 'answer')
-    await clock.advance(1000)
-    expect(placed).toHaveLength(2)
-    const folded = await lines(placed[0]!, columns)
-    expect(folded).toHaveLength(1)
-    const summary = await lines(placed[1]!, columns)
-    expect(summary).toHaveLength(6)
-    for (const row of [...whole, ...folded, ...summary]) {
-      expect(row.length).toBeLessThanOrEqual(columns - 6)
-      expect(row).toMatch(SAME_EVERYWHERE)
-    }
-    expect(summary[3]).toMatch(/^  × Mika/)
+      // A whole check-in, then folded under the summary, which is whole.
+      expect(placed).toHaveLength(1)
+      const whole = await lines(placed[0]!, columns)
+      expect(whole).toHaveLength(6)
+      for (let i = 1; i <= 5; i++) await end(`agent-${i}`, i === 3 ? 'error' : 'answer')
+      await clock.advance(1000)
+      expect(placed).toHaveLength(2)
+      const folded = await lines(placed[0]!, columns)
+      expect(folded).toHaveLength(1)
+      const summary = await lines(placed[1]!, columns)
+      expect(summary).toHaveLength(6)
+      for (const row of [...whole, ...folded, ...summary]) {
+        expect(row.length).toBeLessThanOrEqual(columns - 6)
+        expect(row).toMatch(SAME_EVERYWHERE)
+      }
+      expect(summary[3]).toMatch(/^  × Mika/)
 
-    const ui = await $.ui.mount({ ...PANE, surface: 'terminal', props: { ...PANE.props, bodyColumns: columns } })
-    const runLines = await ui.findAll({ type: 'Text', text: words.calls })
-    expect(runLines).toHaveLength(5)
-    for (const t of runLines) expect(t.text.length).toBeLessThanOrEqual(columns - DIAMOND_W - 1)
-    await ui.unmount()
-  })
+      const ui = await $.ui.mount({ ...PANE, surface: 'terminal', props: { ...PANE.props, bodyColumns: columns } })
+      const runLines = await ui.findAll({ type: 'Text', text: words.calls })
+      expect(runLines).toHaveLength(5)
+      for (const t of runLines) expect(t.text.length).toBeLessThanOrEqual(columns - DIAMOND_W - 1)
+      await ui.unmount()
+    },
+  )
 }
 
 test("a card's line is the step and total, the step and a cut total, or the run's time, in four columns", () => {

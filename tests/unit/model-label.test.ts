@@ -17,7 +17,7 @@ test('an id that does not read as a model is shown as it is', () => {
   expect(modelLabel('  claude-weird-model-x ')).toBe('claude-weird-model-x')
 })
 
-test("the model gives way on the top line: cut short, then left out", () => {
+test('the model gives way on the top line: cut short, then left out', () => {
   expect(fitModel('Opus 5.5', 10)).toBe('Opus 5.5')
   expect(fitModel('Opus 5.5', 6)).toBe('Opus…')
   expect(fitModel('Sonnet 4.5', 6)).toBe('Sonne…')

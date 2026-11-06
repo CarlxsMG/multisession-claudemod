@@ -88,9 +88,13 @@ export function drawFeed(ui: PaneUi, msgs: readonly Msg[], now: number, width: n
     return (
       <Text wrap="truncate-end">
         <Text color={color}> ─ </Text>
-        <Text bold color={color}>{msg.tone === 'user' ? t().userLine : msg.from}</Text>
+        <Text bold color={color}>
+          {msg.tone === 'user' ? t().userLine : msg.from}
+        </Text>
         <Text color={color}> → </Text>
-        <Text bold color={colorOf(msg, 'to')}>{msg.to}</Text>
+        <Text bold color={colorOf(msg, 'to')}>
+          {msg.to}
+        </Text>
         <Text dimColor>{` · ${ago(now, msg.at)}  “${msg.text}”`}</Text>
       </Text>
     )
@@ -113,9 +117,13 @@ export function drawFeed(ui: PaneUi, msgs: readonly Msg[], now: number, width: n
       <Box flexDirection="column" alignItems="flex-start">
         <Text wrap="truncate-end">
           <Text color={color}>╭─ </Text>
-          <Text bold color={color}>{msg.from}</Text>
+          <Text bold color={color}>
+            {msg.from}
+          </Text>
           <Text dimColor> → </Text>
-          <Text bold color={colorOf(msg, 'to')}>{to}</Text>
+          <Text bold color={colorOf(msg, 'to')}>
+            {to}
+          </Text>
           <Text dimColor> · {age}</Text>
           <Text color={color}> {'─'.repeat(room - label - 1)}╮</Text>
         </Text>
@@ -131,8 +139,6 @@ export function drawFeed(ui: PaneUi, msgs: readonly Msg[], now: number, width: n
     )
   }
 
-  const feed = picked.length > 0 && (
-    <Box flexDirection="column">{picked.map(({ entry, lines }) => (lines ? bubble({ entry, lines }) : aside(entry.msg)))}</Box>
-  )
+  const feed = picked.length > 0 && <Box flexDirection="column">{picked.map(({ entry, lines }) => (lines ? bubble({ entry, lines }) : aside(entry.msg)))}</Box>
   return { feed, typingUntil }
 }

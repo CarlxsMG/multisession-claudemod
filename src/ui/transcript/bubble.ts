@@ -113,9 +113,7 @@ export function bubbleRows(
   // A "▴" takes two more columns of the bottom border.
   const spare = mark === 'less' ? 4 : 2
   const last = foots[foots.length - 1]
-  const foot =
-    foots.find(f => lengthOf(f) <= inner - spare) ??
-    (last?.length === 1 ? [{ ...last[0]!, text: oneLine(last[0]!.text, inner - spare) }] : [])
+  const foot = foots.find(f => lengthOf(f) <= inner - spare) ?? (last?.length === 1 ? [{ ...last[0]!, text: oneLine(last[0]!.text, inner - spare) }] : [])
   const footLength = lengthOf(foot)
   const room = Math.min(inner, Math.max(label + 2, footLength + spare, ...lines.map(x => x.length)))
   const edge = (text: string): Seg => ({ text, color })
@@ -129,9 +127,7 @@ export function bubbleRows(
     rows: [
       [edge('╭─ '), ...names, ...(after !== '' ? [{ text: after, dim: true }] : []), edge(` ${'─'.repeat(Math.max(0, room - label - 1))}╮`)],
       ...lines.map(body),
-      foot.length === 0
-        ? [edge(`╰${'─'.repeat(dashes + 2)}`), ...close]
-        : [edge('╰─ '), ...foot, edge(` ${'─'.repeat(dashes - footLength - 1)}`), ...close],
+      foot.length === 0 ? [edge(`╰${'─'.repeat(dashes + 2)}`), ...close] : [edge('╰─ '), ...foot, edge(` ${'─'.repeat(dashes - footLength - 1)}`), ...close],
     ],
     isCut,
   }

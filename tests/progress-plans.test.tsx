@@ -58,7 +58,14 @@ test("a worker's plan shows as its step in the status line, the team view, the c
   // Three of five is two done: the bar and the share count those, and the
   // rest is guessed at their pace. Nothing is guessed for Bolt yet.
   const texts = await teamTexts($)
-  for (const text of ['Escribir tests', 'step 3/5 · editing · 3m', '██░░░ 40 % of the steps', '≈4m more (estimated)', 'step 1/4 · reading · 3m', '░░░░ 0 % of the steps']) {
+  for (const text of [
+    'Escribir tests',
+    'step 3/5 · editing · 3m',
+    '██░░░ 40 % of the steps',
+    '≈4m more (estimated)',
+    'step 1/4 · reading · 3m',
+    '░░░░ 0 % of the steps',
+  ]) {
     expect(texts).toContain(text)
   }
   expect(texts.filter(t => t.startsWith('≈'))).toHaveLength(1)
@@ -79,11 +86,7 @@ test("a worker's plan shows as its step in the status line, the team view, the c
   await end('agent-2', 'error')
   await clock.advance(1000)
   expect(placed).toHaveLength(3)
-  expect(await lines(placed[2]!)).toEqual([
-    '─ crew · round over · 6m',
-    '  ✓ Pip   6m 0s  5/5  Arreglar tests',
-    '  × Bolt  6m 0s  2/4  Revisar README',
-  ])
+  expect(await lines(placed[2]!)).toEqual(['─ crew · round over · 6m', '  ✓ Pip   6m 0s  5/5  Arreglar tests', '  × Bolt  6m 0s  2/4  Revisar README'])
   const after = await teamTexts($)
   expect(after).toContain('last 6m 0s · 1 call · 5/5 steps')
   expect(after).toContain('last 6m 0s · 1 call · 2/4 steps')

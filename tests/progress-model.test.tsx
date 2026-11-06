@@ -37,7 +37,8 @@ test('progress reaches no model: no prompt section, no message context, no messa
   expect(statuses.some(x => x !== undefined && /^crew · Pip 2\/3 /.test(x))).toBe(true)
   expect(placed).toHaveLength(3)
 
-  const shown = /crew ·|ronda|activos?\b|aviso|llamadas?\b|pensando|leyendo|editando|ejecutando|probando|navegando|esperando|✓ listo|× falló|paso|% de los pasos|≈|más \(estimado\)|el plan creció|Probar el login|\d+\/\d+/
+  const shown =
+    /crew ·|ronda|activos?\b|aviso|llamadas?\b|pensando|leyendo|editando|ejecutando|probando|navegando|esperando|✓ listo|× falló|paso|% de los pasos|≈|más \(estimado\)|el plan creció|Probar el login|\d+\/\d+/
   const composed = await $.prompt.compose({
     model: 'test-model',
     promptModel: 'test-model',

@@ -41,8 +41,26 @@ test('a worker is an outlined diamond in 4 columns by 2 rows, its marks beside i
 })
 
 test('a share code or a stored look naming a key every object inherits gets the default part, and the pane and the brief stay whole', async ($, on) => {
-  const hostile = { ...DEFAULT_LOOK, name: 'Luna', vibe: 'constructor', hair: 'toString', eyes: '__proto__', mouth: 'valueOf', facial: 'hasOwnProperty', shirt: 'constructor', acc: 'isPrototypeOf' }
-  const parts = { vibe: DEFAULT_LOOK.vibe, hair: DEFAULT_LOOK.hair, eyes: DEFAULT_LOOK.eyes, mouth: DEFAULT_LOOK.mouth, facial: DEFAULT_LOOK.facial, shirt: DEFAULT_LOOK.shirt, acc: DEFAULT_LOOK.acc }
+  const hostile = {
+    ...DEFAULT_LOOK,
+    name: 'Luna',
+    vibe: 'constructor',
+    hair: 'toString',
+    eyes: '__proto__',
+    mouth: 'valueOf',
+    facial: 'hasOwnProperty',
+    shirt: 'constructor',
+    acc: 'isPrototypeOf',
+  }
+  const parts = {
+    vibe: DEFAULT_LOOK.vibe,
+    hair: DEFAULT_LOOK.hair,
+    eyes: DEFAULT_LOOK.eyes,
+    mouth: DEFAULT_LOOK.mouth,
+    facial: DEFAULT_LOOK.facial,
+    shirt: DEFAULT_LOOK.shirt,
+    acc: DEFAULT_LOOK.acc,
+  }
   expect(parseLookCode(lookCode(hostile))).toEqual({ ...hostile, ...parts })
 
   engine(on, { stored: { look: hostile } })
@@ -57,8 +75,7 @@ test('a share code or a stored look naming a key every object inherits gets the 
 })
 
 test('figures keep still most of the time and do something now and then', () => {
-  const frames = (anim: Anim, n: number) =>
-    Array.from({ length: n }, (_, f) => picture(DEFAULT_LOOK, { anim, frame: f, seed: 7 }).px.join())
+  const frames = (anim: Anim, n: number) => Array.from({ length: n }, (_, f) => picture(DEFAULT_LOOK, { anim, frame: f, seed: 7 }).px.join())
   const moves = (list: string[]) => list.filter((x, i) => i > 0 && x !== list[i - 1]).length
 
   const idle = frames('idle', 300)
@@ -103,7 +120,7 @@ test('the orchestrator fits in 8 columns by 6 rows, and no frame loses a pixel o
   expect(toSvg(picture(DEFAULT_LOOK, { anim: 'idle', frame: 0, seed: 7, podium: true }), 5)).toMatch(/ width="40" height="60" /)
 })
 
-test('each worker\'s diamond has its accent and its signs, and its state in the outline and the mark', () => {
+test("each worker's diamond has its accent and its signs, and its state in the outline and the mark", () => {
   const pink = 0xf06292
   const outline = (anim: Anim, f = 0, seed = 1) =>
     cellsOf(toCells(diamond(seed, pink, { anim, frame: f, seed: 3, since: 0 })).cells).find(([ch]) => ch === 0x2571)?.[1]
@@ -148,7 +165,7 @@ test('a cell of two colors is a lower half block on the upper one, and every cel
   }
 })
 
-test('fit256 sends the xterm color nearest to each, as a value the engine\'s cut keeps', () => {
+test("fit256 sends the xterm color nearest to each, as a value the engine's cut keeps", () => {
   // Dark sunglasses: cut alone they turn navy; fitted, a near-black grey.
   expect(xtermIndex(0x15151f)).toBe(17)
   expect(xtermIndex(fit256(0x15151f))).toBe(233)
@@ -190,7 +207,13 @@ for (const [name, env, isOn] of PALETTE_CASES) {
       // A worker's accent too; the theme's keys are the engine's to fit.
       const pip = (await ui.find({ type: 'Text', text: /^Pip$/ }))?.props.color as string
       const accents = NAME_COLORS.slice(1).map(([, c]) => c)
-      const fitted = accents.map(c => '#' + fit256(parseInt(c.slice(1), 16)).toString(16).padStart(6, '0'))
+      const fitted = accents.map(
+        c =>
+          '#' +
+          fit256(parseInt(c.slice(1), 16))
+            .toString(16)
+            .padStart(6, '0'),
+      )
       expect((isOn ? fitted : accents).includes(pip)).toBe(true)
       expect((await ui.find({ type: 'Text', text: /^Nova / }))?.props.color).toBe('claude')
       expect((await ui.find({ key: 'edit' }))?.text).toBe(' Edit ')

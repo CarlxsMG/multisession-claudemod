@@ -19,7 +19,13 @@ test('Haiku writes the mood lines in the language the crew speaks, and again in 
   const prompts: string[] = []
   on('model.complete', (_, e) => {
     prompts.push(e.prompt)
-    return { value: { isAnswered: true as const, text: WRITTEN, usage: { input_tokens: 1, output_tokens: 1, cache_read_input_tokens: 0, cache_creation_input_tokens: 0 } } }
+    return {
+      value: {
+        isAnswered: true as const,
+        text: WRITTEN,
+        usage: { input_tokens: 1, output_tokens: 1, cache_read_input_tokens: 0, cache_creation_input_tokens: 0 },
+      },
+    }
   })
   await $.session.start({ cwd: '/work/main', surface: 'terminal', isInteractive: true })
   await clock.advance(60_000)

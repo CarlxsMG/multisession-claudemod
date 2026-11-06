@@ -13,7 +13,8 @@ export const delegateSpec = (brief: string) => ({
     properties: {
       task: {
         type: 'string',
-        description: 'The brief, from one model to another: goal, facts, constraints, files it owns, what the report must answer. Complete in facts, as a new worker has not seen this conversation; terse in form. To a worker that keeps its context, only what is new.',
+        description:
+          'The brief, from one model to another: goal, facts, constraints, files it owns, what the report must answer. Complete in facts, as a new worker has not seen this conversation; terse in form. To a worker that keeps its context, only what is new.',
       },
       title: {
         type: 'string',
@@ -21,11 +22,13 @@ export const delegateSpec = (brief: string) => ({
       },
       repo: {
         type: 'string',
-        description: 'Directory a new worker works in: absolute, relative to the session, or starting with ~; it must exist. Defaults to the session directory. A worker you name stays in its own.',
+        description:
+          'Directory a new worker works in: absolute, relative to the session, or starting with ~; it must exist. Defaults to the session directory. A worker you name stays in its own.',
       },
       worker: {
         type: 'string',
-        description: "Name or address of a worker in the roster to give this to, forks and the Agent tool's agents included; it keeps its context and its agent type. A busy worker gets the task as a message in the middle of its current one, so prefer a free worker; one answering another worker gets it once that ends.",
+        description:
+          "Name or address of a worker in the roster to give this to, forks and the Agent tool's agents included; it keeps its context and its agent type. A busy worker gets the task as a message in the middle of its current one, so prefer a free worker; one answering another worker gets it once that ends.",
       },
       fresh: {
         type: 'boolean',
@@ -33,11 +36,13 @@ export const delegateSpec = (brief: string) => ({
       },
       subagent_type: {
         type: 'string',
-        description: "Agent type for a new worker, as the Agent tool lists them: `Explore` for read-only searches, `Plan`, the project's own agents. General-purpose when unset. Only a worker of the same type is reused; a fork starts from the Agent tool instead.",
+        description:
+          "Agent type for a new worker, as the Agent tool lists them: `Explore` for read-only searches, `Plan`, the project's own agents. General-purpose when unset. Only a worker of the same type is reused; a fork starts from the Agent tool instead.",
       },
       model: {
         type: 'string',
-        description: 'Model alias for a new worker. Leave it unset: the worker then runs on the session\'s model, whatever its type. Name one ("sonnet", "opus" or "fable") only when the user asks; asking for haiku gives the session\'s model. Set, only a worker started with that model is reused; unset, only one started on the session\'s.',
+        description:
+          'Model alias for a new worker. Leave it unset: the worker then runs on the session\'s model, whatever its type. Name one ("sonnet", "opus" or "fable") only when the user asks; asking for haiku gives the session\'s model. Set, only a worker started with that model is reused; unset, only one started on the session\'s.',
       },
     },
     required: ['task'],
@@ -68,7 +73,8 @@ export const ROSTER_SPEC = {
  */
 export const PROGRESS_SPEC = {
   name: 'progress',
-  description: "A crew worker's progress, shown to the user: step 0 of N declares the plan, then each step 1 to N is called as it starts, with what it is. Workers only.",
+  description:
+    "A crew worker's progress, shown to the user: step 0 of N declares the plan, then each step 1 to N is called as it starts, with what it is. Workers only.",
   inputSchema: {
     type: 'object',
     properties: { step: { type: 'integer' }, total: { type: 'integer' }, doing: { type: 'string' } },

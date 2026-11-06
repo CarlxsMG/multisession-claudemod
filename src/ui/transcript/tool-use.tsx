@@ -105,7 +105,11 @@ export async function drawToolCard($: Engine, e: Parameters<DrawToolCardHook>[1]
   if (row === undefined) return next(e)
   const { who, look, color, names, label, text, foots } = row
   const isStop = e.props.tool === 'TaskStop'
-  const stopped: Seg[] = [{ text: look.name, color: nameColorOf(look), bold: true }, { text: ' × ', color: 'error' }, { text: who?.name ?? '', color, bold: true }]
+  const stopped: Seg[] = [
+    { text: look.name, color: nameColorOf(look), bold: true },
+    { text: ' × ', color: 'error' },
+    { text: who?.name ?? '', color, bold: true },
+  ]
   return crewCard($, e, $.ui.resolve(e), {
     who: who ?? NO_ONE,
     look,

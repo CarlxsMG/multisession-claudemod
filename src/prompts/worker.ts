@@ -28,9 +28,7 @@ export const taskClose = (asked: string | null | undefined): string => (asked !=
 
 /** The tasks that waited for a woken worker, sent as one once its run ends. */
 export const heldTasks = (held: readonly { task: string; title: string }[]): string =>
-  held.length === 1
-    ? held[0]!.task
-    : `${held.length} tasks, in order:\n\n${held.map((h, i) => `## ${i + 1}. ${h.title}\n${h.task}`).join('\n\n')}`
+  held.length === 1 ? held[0]!.task : `${held.length} tasks, in order:\n\n${held.map((h, i) => `## ${i + 1}. ${h.title}\n${h.task}`).join('\n\n')}`
 
 /** What a worker reads of a message the user wrote to it in the pane. */
 export const fromUser = (body: string): string => `[crew] Message from the user, via the crew panel:\n${body}`

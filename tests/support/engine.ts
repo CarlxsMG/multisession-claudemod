@@ -54,8 +54,12 @@ export type EngineOptions = {
 // the mock's, so the refusal goes in that hook as the mock registers it.
 function clockWithoutTyping(on: On) {
   const clockOn = ((event: 'clock.every', hook: HookFor<'clock.every'>) =>
-    on(event, event !== 'clock.every' ? hook : (host, wait, next) =>
-      wait.ms === TYPE_TICK_MS || wait.ms === APPLE_TYPE_TICK_MS ? { deny: 'no bubble in this test waits on the typing timer' } : hook(host, wait, next),
+    on(
+      event,
+      event !== 'clock.every'
+        ? hook
+        : (host, wait, next) =>
+            wait.ms === TYPE_TICK_MS || wait.ms === APPLE_TYPE_TICK_MS ? { deny: 'no bubble in this test waits on the typing timer' } : hook(host, wait, next),
     )) as On
   return mock.clock(clockOn, { now: 1_000_000 })
 }

@@ -36,9 +36,7 @@ export async function onSubmit($: Engine, e: Parameters<OnSubmitHook>[1], next: 
   const missed = (await readTakeovers($)).filter(mark => mark.missed !== undefined && mark.isTold !== true)
   if (pending === null && missed.length === 0) return next(e)
   const workers = await readWorkers($)
-  const missedNotes = missed.map(m =>
-    heldMissedNote(workers.find(w => w.id === m.id) ?? { name: m.id, address: m.id }, m.held.length, m.missed ?? ''),
-  )
+  const missedNotes = missed.map(m => heldMissedNote(workers.find(w => w.id === m.id) ?? { name: m.id, address: m.id }, m.held.length, m.missed ?? ''))
   // Context is attached on the way down; the text stays the user's.
   const notes = [...(pending !== null ? [crewNote(pending)] : []), ...missedNotes]
   const entered = await next({ ...e, context: [...(e.context ?? []), ...notes] })

@@ -28,9 +28,7 @@ export function openRun(list: readonly Run[], id: string, now: number): Run[] {
  * after a later sign of life, a plan's step, keeps that one as the last.
  */
 export function countCall(list: readonly Run[], id: string, kind: Phase | undefined, now: number): Run[] {
-  return list.map(r =>
-    r.id === id && isOpen(r) ? { ...r, tools: r.tools + 1, touchedAt: Math.max(r.touchedAt, now), ...nextPhase(r, kind, now) } : r,
-  )
+  return list.map(r => (r.id === id && isOpen(r) ? { ...r, tools: r.tools + 1, touchedAt: Math.max(r.touchedAt, now), ...nextPhase(r, kind, now) } : r))
 }
 
 /**
@@ -55,5 +53,4 @@ export const runMs = (r: Pick<Run, 'startedAt' | 'endedAt'>, now: number): numbe
 export const JUST_ENDED_MS = 30_000
 
 /** Whether a run ended a moment ago, so its end still stands out. */
-export const isJustEnded = (r: Pick<Run, 'endedAt' | 'end'>, now: number): boolean =>
-  !isOpen(r) && r.end !== '' && now - r.endedAt < JUST_ENDED_MS
+export const isJustEnded = (r: Pick<Run, 'endedAt' | 'end'>, now: number): boolean => !isOpen(r) && r.end !== '' && now - r.endedAt < JUST_ENDED_MS

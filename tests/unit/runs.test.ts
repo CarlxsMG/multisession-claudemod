@@ -20,7 +20,9 @@ test('a run has not ended while it is open, and has ended however it closes', ()
   const open = openRun([], 'a', 1000)
   expect(open.filter(hasEnded)).toEqual([])
   for (const end of ['done', 'failed', 'stopped'] as const) {
-    const ends: RunEndKind[] = closeRun(open, 'a', end, 2000).filter(hasEnded).map(r => r.end)
+    const ends: RunEndKind[] = closeRun(open, 'a', end, 2000)
+      .filter(hasEnded)
+      .map(r => r.end)
     expect(ends).toEqual([end])
   }
 })

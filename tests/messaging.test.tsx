@@ -165,7 +165,11 @@ test('held tasks a send fails to deliver are kept, the orchestrator hears of it 
   await submit('How is it going?')
   await submit('And now?')
   expect(contexts).toHaveLength(2)
-  expect(contexts[0]).toEqual([expect.stringMatching(/^\[crew\] The task held for Bolt \(address "agent-2"\) did not reach it: the agent is gone\. It goes with the next task you give Bolt, or give it to another worker\.$/)])
+  expect(contexts[0]).toEqual([
+    expect.stringMatching(
+      /^\[crew\] The task held for Bolt \(address "agent-2"\) did not reach it: the agent is gone\. It goes with the next task you give Bolt, or give it to another worker\.$/,
+    ),
+  ])
   expect(contexts[1] ?? []).toEqual([])
 
   // Nothing tries again on its own: the next task for Bolt takes it along, first.
@@ -173,8 +177,12 @@ test('held tasks a send fails to deliver are kept, the orchestrator hears of it 
   await clock.advance(10_000)
   expect(seen.sends).toHaveLength(sends)
   seen.undelivered = undefined
-  expect(await delegate({ task: 'Then update the docs.', title: 'Docs', worker: 'bolt' })).toMatch(/; context kept\. The task held for it went first, in the same message\.\nHeads-up: Pip /)
-  expect(seen.sends.slice(sends)).toEqual([expect.stringMatching(/^2 tasks, in order:\n\n## 1\. Session bus\nRecord the event\.\n\n## 2\. Docs\nThen update the docs\./)])
+  expect(await delegate({ task: 'Then update the docs.', title: 'Docs', worker: 'bolt' })).toMatch(
+    /; context kept\. The task held for it went first, in the same message\.\nHeads-up: Pip /,
+  )
+  expect(seen.sends.slice(sends)).toEqual([
+    expect.stringMatching(/^2 tasks, in order:\n\n## 1\. Session bus\nRecord the event\.\n\n## 2\. Docs\nThen update the docs\./),
+  ])
   expect(await roster('bolt')).not.toMatch(/waiting|not delivered/)
 })
 
@@ -197,10 +205,12 @@ test('a worker woken again after its held tasks missed it holds them again, with
   const sends = seen.sends.length
   await done('agent-2')
   await clock.advance(400)
-  expect(seen.sends.slice(sends)).toEqual([expect.stringMatching(/^2 tasks, in order:\n\n## 1\. Session bus\nRecord the event\.\n\n## 2\. Docs\nThen update the docs\./)])
+  expect(seen.sends.slice(sends)).toEqual([
+    expect.stringMatching(/^2 tasks, in order:\n\n## 1\. Session bus\nRecord the event\.\n\n## 2\. Docs\nThen update the docs\./),
+  ])
 })
 
-test("a delegate call that sends held tasks which fail says so in its result, and its own task still goes", async ($, on) => {
+test('a delegate call that sends held tasks which fail says so in its result, and its own task still goes', async ($, on) => {
   const { seen, delegate, done } = await wokenCrew($, on)
   await $.tool.call({ tool: 'Read', file_path: '/work/api/src/bus.ts', agentId: 'agent-2' })
   expect(await delegate({ task: 'Record the event.', title: 'Session bus', worker: 'bolt' })).toMatch(/^Held for Bolt /)
@@ -208,7 +218,9 @@ test("a delegate call that sends held tasks which fail says so in its result, an
   seen.failSends = true
   const output = await delegate({ task: 'Style the login page', title: 'Login styles', repo: '/work/web' })
   expect(output).toMatch(/^Started \S+ \(address /)
-  expect(output).toMatch(/\ncrew: the task held for Bolt \(address "agent-2"\) did not reach it: the message may not have gone out; check before sending it again\. It goes with the next task you give Bolt, or give it to another worker\.$/)
+  expect(output).toMatch(
+    /\ncrew: the task held for Bolt \(address "agent-2"\) did not reach it: the message may not have gone out; check before sending it again\. It goes with the next task you give Bolt, or give it to another worker\.$/,
+  )
 })
 
 test('a message that fails on its way is sent once only', async ($, on) => {

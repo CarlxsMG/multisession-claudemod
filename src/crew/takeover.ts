@@ -77,9 +77,7 @@ export async function release($: Engine): Promise<Takeover[]> {
 /** Keeps a mark whose tasks did not arrive, ahead of any held for it since. */
 export async function keepMissed($: Engine, kept: Takeover) {
   await updateTakeovers($, marks =>
-    marks.some(m => m.id === kept.id)
-      ? marks.map(m => (m.id === kept.id ? { ...kept, held: [...kept.held, ...m.held] } : m))
-      : [...marks, kept],
+    marks.some(m => m.id === kept.id) ? marks.map(m => (m.id === kept.id ? { ...kept, held: [...kept.held, ...m.held] } : m)) : [...marks, kept],
   )
 }
 

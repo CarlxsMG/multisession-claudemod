@@ -60,7 +60,14 @@ const LISTED_KEEP = 200
 async function noteListed($: Engine, infos: readonly AgentInfo[]) {
   const known = new Set(await readListed($))
   if (infos.every(info => known.has(info.id))) return
-  await updateListed($, ids => appendKept(ids, infos.map(info => info.id), LISTED_KEEP, id => id))
+  await updateListed($, ids =>
+    appendKept(
+      ids,
+      infos.map(info => info.id),
+      LISTED_KEEP,
+      id => id,
+    ),
+  )
 }
 
 /**

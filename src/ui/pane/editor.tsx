@@ -3,18 +3,7 @@ import type { EditTab, Look } from '../../../types'
 import type { Engine } from '../../engine'
 import { nameColorOf } from '../../figure/accent'
 import type { Anim } from '../../figure/anim'
-import {
-  ACCS,
-  COLORS,
-  EYES,
-  FACIALS,
-  HAIRS,
-  MOUTHS,
-  NAME_COLORS,
-  SHIRTS,
-  SKINS,
-  pictureRows,
-} from '../../figure/catalog'
+import { ACCS, COLORS, EYES, FACIALS, HAIRS, MOUTHS, NAME_COLORS, SHIRTS, SKINS, pictureRows } from '../../figure/catalog'
 import type { Named } from '../../figure/catalog'
 import { hex, paintColor } from '../../figure/color256'
 import { picture } from '../../figure/critter'
@@ -74,25 +63,27 @@ export async function drawEditor($: Engine, ui: PaneUi, sprite: Sprite, look: Lo
   const VALUE = Math.max(...Object.values(t().parts).flatMap(names => Object.values(names).map(name => name.length)))
   const stepper = (id: string, label: string, options: readonly { label: string; pick: Partial<Look> }[], at: number) => {
     const i = Math.max(0, at)
-    const step = (by: number) => () =>
-      void changeLook($, options[(i + by + options.length) % options.length]!.pick)
+    const step = (by: number) => () => void changeLook($, options[(i + by + options.length) % options.length]!.pick)
     return (
       <Box flexDirection="row" columnGap={1}>
         <Text dimColor>{label.padEnd(LABEL_COLUMNS)}</Text>
         <Button key={`prev-${id}`} plain label={words.previous(label)} onPress={step(-1)}>
-          <Text bold color="claude">◀</Text>
+          <Text bold color="claude">
+            ◀
+          </Text>
         </Button>
         <Text bold>{(options[i]?.label ?? '').padEnd(VALUE)}</Text>
         <Button key={`next-${id}`} plain label={words.next(label)} onPress={step(1)}>
-          <Text bold color="claude">▶</Text>
+          <Text bold color="claude">
+            ▶
+          </Text>
         </Button>
         <Text dimColor>{`${i + 1}/${options.length}`}</Text>
       </Box>
     )
   }
   // The name's color beside the name: ◀ ██ ▶.
-  const recolor = (by: number) => () =>
-    void changeLook($, { nameColor: (look.nameColor + by + NAME_COLORS.length) % NAME_COLORS.length })
+  const recolor = (by: number) => () => void changeLook($, { nameColor: (look.nameColor + by + NAME_COLORS.length) % NAME_COLORS.length })
   const nameColorStepper = (
     <Box flexDirection="row">
       <Button key="prev-nameColor" plain label={words.previous(words.nameColor)} onPress={recolor(-1)}>
@@ -144,10 +135,15 @@ export async function drawEditor($: Engine, ui: PaneUi, sprite: Sprite, look: Lo
           {part('eyes', words.eyes, EYES)}
           {part('mouth', words.mouth, MOUTHS)}
           {part('facial', words.facial, FACIALS)}
-          {stepper('blush', words.cheeks, [
-            { label: words.cheeksPlain, pick: { blush: false } },
-            { label: words.cheeksBlush, pick: { blush: true } },
-          ], look.blush ? 1 : 0)}
+          {stepper(
+            'blush',
+            words.cheeks,
+            [
+              { label: words.cheeksPlain, pick: { blush: false } },
+              { label: words.cheeksBlush, pick: { blush: true } },
+            ],
+            look.blush ? 1 : 0,
+          )}
         </Box>
       </Box>
     ) : tab === 'hair' ? (
@@ -202,9 +198,7 @@ export async function drawEditor($: Engine, ui: PaneUi, sprite: Sprite, look: Lo
             label={words.copyCode}
             hotkey="c"
             onPress={p => {
-              void $.ui.copy({ text: lookCode(look), surface: p.surface }).then(r =>
-                $.ui.toast(r.isCopied ? words.copied(look.name) : lookCode(look)),
-              )
+              void $.ui.copy({ text: lookCode(look), surface: p.surface }).then(r => $.ui.toast(r.isCopied ? words.copied(look.name) : lookCode(look)))
             }}
           />
         </Box>

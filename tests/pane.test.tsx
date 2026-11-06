@@ -8,21 +8,25 @@ import { VIBES, vibeOf } from '../src/persona/vibes'
 import { JUST_ENDED_MS } from '../src/progress/runs'
 import { AWAY_MS, DELEGATE, PANE, SLOW, cellText, crewCommand, doneCrew, engine, freeCrew, napCrew, switchTo, test, workerSend } from './support/crew'
 
-test('a worker that left the row at its napAfter is still in the team view and the roster, and comes back when woken', { ...SLOW, options: { napAfter: '30s' } }, async ($, on) => {
-  const { clock, states, roster, ui, card } = await freeCrew($, on)
-  await clock.advance(30_000)
-  expect(await card('agent-1')).toBeUndefined()
-  expect(await roster()).toMatch(/^- Pip: address "pip", idle, /m)
-  await crewCommand($, 'team')
-  expect(await card('agent-1')).toBeDefined()
-  await ui.press({ key: 'crew-back' })
+test(
+  'a worker that left the row at its napAfter is still in the team view and the roster, and comes back when woken',
+  { ...SLOW, options: { napAfter: '30s' } },
+  async ($, on) => {
+    const { clock, states, roster, ui, card } = await freeCrew($, on)
+    await clock.advance(30_000)
+    expect(await card('agent-1')).toBeUndefined()
+    expect(await roster()).toMatch(/^- Pip: address "pip", idle, /m)
+    await crewCommand($, 'team')
+    expect(await card('agent-1')).toBeDefined()
+    await ui.press({ key: 'crew-back' })
 
-  const given = await $.tool.call({ tool: DELEGATE, task: 'Fix the flaky test', repo: '/work/r1' })
-  expect(String(given.result)).toMatch(/^Given to Pip /)
-  states.set('agent-1', 'running')
-  expect(await card('agent-1')).toBeDefined()
-  await ui.unmount()
-})
+    const given = await $.tool.call({ tool: DELEGATE, task: 'Fix the flaky test', repo: '/work/r1' })
+    expect(String(given.result)).toMatch(/^Given to Pip /)
+    states.set('agent-1', 'running')
+    expect(await card('agent-1')).toBeDefined()
+    await ui.unmount()
+  },
+)
 
 test('the figures are cells on the terminal and SVG on the desktop, the editor and the phone', async ($, on) => {
   engine(on)
@@ -263,9 +267,7 @@ test("the orchestrator's line holds while its mood does, whatever tools it calls
 
 test('a free worker naps, and its card says nothing more', async ($, on) => {
   let status: AgentInfo['status'] = 'running'
-  const clock = engine(on, { agents: () => [
-    { id: 'agent-1', name: 'pip', description: 'Arreglar tests', type: 'general-purpose', status },
-  ] })
+  const clock = engine(on, { agents: () => [{ id: 'agent-1', name: 'pip', description: 'Arreglar tests', type: 'general-purpose', status }] })
   await $.session.start({ cwd: '/work/main', surface: 'terminal', isInteractive: true })
   await $.tool.call({ tool: 'mcp__crew__delegate', task: 'Run the tests', title: 'Arreglar tests', repo: '/work/api' })
   status = 'idle'
@@ -414,19 +416,23 @@ for (const [name, options, ms] of [
   })
 }
 
-test('with napAfter never, free and finished workers stay in the row long after their ends stopped standing out', { ...SLOW, options: { napAfter: 'never' } }, async ($, on) => {
-  const { clock, states, nap, ui, card } = await napCrew($, on, 2)
-  await $.turn.complete({ answer: 'Hecho', durationMs: 1000, isAborted: false, turnId: 't1', agentId: 'agent-1', reason: 'answer' })
-  states.set('agent-1', 'completed')
-  await nap('agent-2')
-  await clock.advance(5 * 60_000)
-  expect(await card('agent-1')).toBeDefined()
-  expect(await card('agent-2')).toBeDefined()
-  const word = await ui.find({ type: 'Text', text: /^done$/ })
-  expect(word).toBeDefined()
-  expect(word?.props.inverse).not.toBe(true)
-  await ui.unmount()
-})
+test(
+  'with napAfter never, free and finished workers stay in the row long after their ends stopped standing out',
+  { ...SLOW, options: { napAfter: 'never' } },
+  async ($, on) => {
+    const { clock, states, nap, ui, card } = await napCrew($, on, 2)
+    await $.turn.complete({ answer: 'Hecho', durationMs: 1000, isAborted: false, turnId: 't1', agentId: 'agent-1', reason: 'answer' })
+    states.set('agent-1', 'completed')
+    await nap('agent-2')
+    await clock.advance(5 * 60_000)
+    expect(await card('agent-1')).toBeDefined()
+    expect(await card('agent-2')).toBeDefined()
+    const word = await ui.find({ type: 'Text', text: /^done$/ })
+    expect(word).toBeDefined()
+    expect(word?.props.inverse).not.toBe(true)
+    await ui.unmount()
+  },
+)
 
 test('a longer napAfter moves the redraw that takes a worker off the row with it', { ...SLOW, options: { napAfter: '30s' } }, async ($, on) => {
   const { clock, ui, card } = await freeCrew($, on)
@@ -438,7 +444,7 @@ test('a longer napAfter moves the redraw that takes a worker off the row with it
   await ui.unmount()
 })
 
-test('no worker wears the color of the orchestrator\'s name', async ($, on) => {
+test("no worker wears the color of the orchestrator's name", async ($, on) => {
   let spawned = 0
   engine(on, { nextId: () => `agent-${++spawned}` })
   await $.session.start({ cwd: '/work/main', surface: 'terminal', isInteractive: true })
@@ -453,9 +459,7 @@ test('no worker wears the color of the orchestrator\'s name', async ($, on) => {
     await ui.press({ key: 'next-nameColor' })
     await ui.press({ key: 'look-done' })
     await ui.press({ key: 'crew-all' })
-    const colors = (await ui.findAll({ type: 'Text' }))
-      .filter(t => names.includes(t.text))
-      .map(t => t.props.color)
+    const colors = (await ui.findAll({ type: 'Text' })).filter(t => names.includes(t.text)).map(t => t.props.color)
     expect(colors).toHaveLength(10)
     expect(colors).not.toContain(NAME_COLORS[k]![1])
     await ui.press({ key: 'crew-back' })

@@ -53,14 +53,7 @@ export function parseMoodLines(text: string): Moods | undefined {
  * The line a figure says in a mood: its personality's and Haiku's, its
  * catchphrase most while idle, another every `ROTATE_MS`.
  */
-export function pickLine(
-  look: Look,
-  mood: string,
-  since: number,
-  now: number,
-  crewmate: string,
-  extra: Moods,
-): string {
+export function pickLine(look: Look, mood: string, since: number, now: number, crewmate: string, extra: Moods): string {
   const vibe = vibeOf(look)
   const pool = [...(vibe.lines[mood] ?? []), ...(extra[mood] ?? [])]
   // The person's own catchphrase comes up most while idle.
