@@ -4,7 +4,7 @@
 import type { MsgTone, Worker } from '../../types'
 import type { Engine } from '../engine'
 import { t } from '../i18n'
-import { beginRun, settleRun } from '../progress/tracker'
+import { beginRun, settleRun } from '../progress/run-store'
 import { say, setJob } from './feed'
 import type { Party } from './feed'
 import { patchWorker } from './workers'

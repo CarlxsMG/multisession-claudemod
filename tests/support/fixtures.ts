@@ -9,7 +9,7 @@ import type { Anim } from '../../src/figure/anim'
 import { DIAMOND_W } from '../../src/figure/diamond'
 import { DEFAULT_LOOK } from '../../src/figure/look'
 import { JUST_ENDED_MS } from '../../src/progress/runs'
-import { MISSED_MS } from '../../src/progress/tracker'
+import { MISSED_MS } from '../../src/progress/tick'
 import { engine } from './engine'
 import type { Seen } from './engine'
 

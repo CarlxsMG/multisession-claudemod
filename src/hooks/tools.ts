@@ -5,7 +5,7 @@ import { delegateInTurn, refuseWorker } from '../crew/delegate'
 import { rosterText } from '../crew/roster'
 import type { Engine } from '../engine'
 import { declarePlan } from '../progress/plan'
-import { setPlan } from '../progress/tracker'
+import { setPlan } from '../progress/run-store'
 import { PROGRESS_INVALID, PROGRESS_NOT_FOR_MAIN, PROGRESS_NO_RUN, progressReply } from '../prompts/results'
 import { fieldOf, rawStringArg } from '../util/input'
 
