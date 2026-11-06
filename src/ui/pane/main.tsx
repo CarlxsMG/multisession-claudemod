@@ -50,7 +50,9 @@ const lineColors =
 
 // The orchestrator's name on top, its personality and the model the main
 // session runs; below, the figure and what it says, with its two controls
-// under it, flush right. With it, the rows it takes (`headRows`).
+// under it, flush right, beside the usage, whose rows are padded to line
+// up and so monospaced: the desktop app's text is otherwise proportional.
+// With it, the rows it takes (`headRows`).
 async function drawHeader($: Engine, ctx: CrewContext, msgs: readonly Msg[]) {
   const { ui, sprite, kit, look, now, width } = ctx
   const { Box, Text, Button } = ui
@@ -115,7 +117,7 @@ async function drawHeader($: Engine, ctx: CrewContext, msgs: readonly Msg[]) {
             {usage.length > 0 && (
               <Box flexDirection="column" justifyContent="center">
                 {usage.map(x => (
-                  <Text>
+                  <Text mono>
                     <Text dimColor>{(limitLabel(x.kind) ?? x.kind.toLowerCase().slice(0, 5)).padEnd(5)}</Text>
                     <Text color={limitColor(x.percent)}>{`${x.percent}%`.padStart(4)}</Text>
                   </Text>

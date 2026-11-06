@@ -131,3 +131,21 @@ test('off a subscription the usage says nothing, and a headless session never as
   expect(probes).toBe(0)
   await ui.unmount()
 })
+
+test("on the desktop the usage's padded rows and the switch's padded word are monospaced, so they line up", async ($, on) => {
+  engine(on, {
+    rateLimits: [
+      { kind: 'five_hour', percentUsed: 7 },
+      { kind: 'seven_day', percentUsed: 41.4 },
+    ],
+  })
+  await $.session.start({ cwd: '/work/main', surface: 'desktop', isInteractive: true })
+  const ui = await $.ui.mount({ ...PANE, surface: 'desktop' })
+  await ui.redraw()
+  const rows = await ui.findAll({ type: 'Text', text: /^(5h|week|fable)\s+\d+%$/ })
+  expect(rows.map(x => x.text)).toEqual(['5h     7%', 'week  41%'])
+  for (const row of rows) expect(row.props.mono).toBe(true)
+  const said = await ui.find({ type: 'Text', text: /^(ON |OFF)$/ })
+  expect(said?.props.mono).toBe(true)
+  await ui.unmount()
+})
