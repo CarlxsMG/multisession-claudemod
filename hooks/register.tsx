@@ -23,6 +23,16 @@ const CREW_TOOLS = ['mcp__crew__delegate', 'SendMessage', 'TaskStop']
 // Every hook the crew registers. Each matcher's value is written out in this
 // file, CREW_TOOLS's too: the validator reads a matcher's value only from the
 // file that registers the hook, not through an import.
+//
+// A hook that fails (throws, overruns, answers a wrong shape) is the engine's
+// to skip: what is beneath it runs in its place, or what its last `next`
+// answered stands, and the engine reports it by name. Every hook here but a
+// guard wants just that, a crew row falling back to the engine's. So only a
+// guard, whose failing must not let through what it guards, carries a `.catch`,
+// and says what that is: one that only passes the event on changes no outcome,
+// and has the engine report as failed closed a hook that failed open. The
+// validator's "gating hook without .catch" names an event that lets a hook
+// refuse, not a hook that does.
 export const register: Register = (on, options) => {
   chooseLocale(options.language)
   chooseUsageProbe(options.usageProbe)
@@ -38,37 +48,38 @@ export const register: Register = (on, options) => {
   // servers connected the last time the plugin loaded.
 
   on('tool.call', { tool: /^mcp__crew__delegate$/ }, ($, e) => delegateTool($, e)).catch(($, e, next) =>
+    // Beneath it no tool answers: the model is told what to use instead.
     next.called ? next(e) : { deny: DELEGATE_FAILED },
   )
 
-  on('tool.call', { tool: /^mcp__crew__roster$/ }, ($, e) => rosterTool($, e)).catch(($, e, next) => next(e))
+  on('tool.call', { tool: /^mcp__crew__roster$/ }, ($, e) => rosterTool($, e))
 
-  on('tool.call', { tool: /^mcp__crew__progress$/ }, ($, e) => progressTool($, e)).catch(($, e, next) => next(e))
+  on('tool.call', { tool: /^mcp__crew__progress$/ }, ($, e) => progressTool($, e))
 
-  on('prompt.compose', ($, e, next) => composePrompt($, e, next)).catch(($, e, next) => next(e))
+  on('prompt.compose', ($, e, next) => composePrompt($, e, next))
 
   // ---- watching the session ----
 
-  on('tool.call', ($, e, next) => watchCall($, e, next)).catch(($, e, next) => next(e))
+  on('tool.call', ($, e, next) => watchCall($, e, next))
   on('session.measure', ($, e, next) => onMeasure($, e, next))
   on('session.attach', ($, e, next) => onAttach($, e, next))
   on('session.detach', ($, e, next) => onDetach($, e, next))
 
   on('turn.start', ($, e, next) => onTurnStart($, e, next))
-  on('classic.PostModelSwitch', ($, e, next) => onModelSwitch($, e, next)).catch(($, e, next) => next(e))
+  on('classic.PostModelSwitch', ($, e, next) => onModelSwitch($, e, next))
 
   on('turn.complete', ($, e, next) => onTurnComplete($, e, next))
 
-  on('agent.spawn', ($, e, next) => onSpawn($, e, next)).catch(($, e, next) => next(e))
+  on('agent.spawn', ($, e, next) => onSpawn($, e, next))
 
   on('session.send', ($, e, next) => onSend($, e, next)).catch(($, e, next) =>
     // Sent once only: a send that failed on its way is not tried again.
     next.called ? { isDelivered: false as const, reason: SEND_UNSURE } : next(e),
   )
 
-  on('prompt.submit', ($, e, next) => onSubmit($, e, next)).catch(($, e, next) => next(e))
+  on('prompt.submit', ($, e, next) => onSubmit($, e, next))
 
-  on('ui.close', ($, e, next) => onClose($, e, next)).catch(($, e, next) => next(e))
+  on('ui.close', ($, e, next) => onClose($, e, next))
 
   // ---- the pane ----
 
@@ -83,18 +94,14 @@ export const register: Register = (on, options) => {
   // engine's own rows: a matcher selects only the surfaces it names.
   on('ui.render', { component: 'ToolUse', surface: 'terminal', props: { tool: CREW_TOOLS } }, ($, e, next) =>
     drawToolUse($, e, next),
-  ).catch(($, e, next) => next(e))
+  )
   on('ui.render', { component: 'ToolUse', surface: ['desktop', 'vscode'], props: { tool: CREW_TOOLS } }, ($, e, next) =>
     drawToolCard($, e, next),
-  ).catch(($, e, next) => next(e))
+  )
   on('ui.render', { component: 'ToolResult', surface: ['terminal', 'desktop', 'vscode'], props: { tool: CREW_TOOLS } }, ($, e, next) =>
     drawToolResult($, e, next),
-  ).catch(($, e, next) => next(e))
-  on('ui.render', { component: 'UserMessage', surface: 'terminal' }, ($, e, next) => drawUserMessage($, e, next)).catch(
-    ($, e, next) => next(e),
   )
-  on('ui.render', { component: 'UserMessage', surface: ['desktop', 'vscode'] }, ($, e, next) => drawUserCard($, e, next)).catch(
-    ($, e, next) => next(e),
-  )
-  on('ui.render', { component: 'Placed' }, ($, e, next) => drawPlaced($, e, next)).catch(($, e, next) => next(e))
+  on('ui.render', { component: 'UserMessage', surface: 'terminal' }, ($, e, next) => drawUserMessage($, e, next))
+  on('ui.render', { component: 'UserMessage', surface: ['desktop', 'vscode'] }, ($, e, next) => drawUserCard($, e, next))
+  on('ui.render', { component: 'Placed' }, ($, e, next) => drawPlaced($, e, next))
 }

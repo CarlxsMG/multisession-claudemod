@@ -17,10 +17,11 @@ the plugin's `userConfig` values (`language`, `usageProbe`, `napAfter`). Each
   hooks after this one) do their part; what it returns is the engine's answer, which the hook
   may change or replace. A gating hook that answers without calling `next` decides the event
   (the crew's own tools answer their calls this way).
-- **`.catch(handler)`** on a registration answers when the hook throws. A gating hook's catch
-  passes the event on (`next(e)`) unless it must answer itself: `delegate` answers
-  `DELEGATE_FAILED`, and a send that may already have gone out answers undelivered
-  (`SEND_UNSURE`) rather than send twice. Render hooks fall back to the engine's own drawing.
+- **A hook that fails** (throws, overruns, answers a wrong shape) is skipped: what is beneath it
+  runs in its place, or what its last `next` answered stands, so a render hook's row falls back to
+  the engine's own drawing. Only a guard carries a **`.catch(handler)`**, which answers for it:
+  `delegate` answers `DELEGATE_FAILED`, and a send that may already have gone out answers
+  undelivered (`SEND_UNSURE`) rather than send twice. `hooks/register.tsx` states the rule.
 - **State** (`$.state`): typed **atoms**, declared in `src/state/atoms.ts` against the contract in
   `types/index.d.ts`. They hold the session's data and outlive a reload or an update of the
   plugin. A drawing that reads an atom is drawn again when the atom changes.
