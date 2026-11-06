@@ -149,6 +149,21 @@ test('a worker card draws the small figure', async ($, on) => {
   await ui.unmount()
 })
 
+test("a card's name and line are monospaced, so a name of four letters fits the card on the desktop", async ($, on) => {
+  engine(on)
+  await $.session.start({ cwd: '/work/main', surface: 'desktop', isInteractive: true })
+  await $.tool.call({ tool: 'mcp__crew__delegate', task: 'Run the tests', repo: '/work/api' })
+
+  const ui = await $.ui.mount({ ...PANE, surface: 'desktop', props: { ...PANE.props, bodyColumns: 46 } })
+  const cards = (await ui.findAll({ type: 'Box', text: /^Pipinit$/ })).filter(x => x.props.width === DIAMOND_W)
+  expect(cards).toHaveLength(1)
+  const name = await ui.find({ type: 'Text', text: /^Pip$/ })
+  expect(name?.props.mono).toBe(true)
+  const line = await ui.find({ type: 'Text', text: /^init$/ })
+  expect(line?.props.mono).toBe(true)
+  await ui.unmount()
+})
+
 test('the crew takes one row, and the rest wait in the team view', async ($, on) => {
   let spawned = 0
   engine(on, { nextId: () => `agent-${++spawned}` })

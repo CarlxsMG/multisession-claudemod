@@ -165,7 +165,9 @@ function drawCardRow($: Engine, ctx: CrewContext) {
   // run's time, and any other a word of four letters: what it is doing and
   // the pane's own words for its status do not fit, and the team view and
   // the check-ins say them whole. A run that just ended has its word stand
-  // out, in the color of how it ended, so an end is seen at a glance.
+  // out, in the color of how it ended, so an end is seen at a glance. Both
+  // are in the monospaced face, as the name is, so four letters fill the
+  // card's four cells on a surface whose text is proportional.
   const openRuns = new Map([...lastRun.values()].filter(isOpen).map(r => [r.id, r]))
   const perRow = Math.max(1, Math.floor((width + 1) / (DIAMOND_W + 1)))
   const moreWidth = (k: number) => Math.max(DIAMOND_W, `+${inRow.length - k}`.length + 2)
@@ -183,12 +185,12 @@ function drawCardRow($: Engine, ctx: CrewContext) {
             {figure(worker, status)}
             {nameButton(worker)}
             {ended !== undefined ? (
-              <Text wrap="truncate-end" bold inverse color={END[ended].color}>
+              <Text wrap="truncate-end" mono bold inverse color={END[ended].color}>
                 {cardLabel(ended)}
               </Text>
             ) : (
               worker.status !== 'idle' && (
-                <Text wrap="truncate-end" color={statusColor(worker)} dimColor={!ACTIVE.has(worker.status)}>
+                <Text wrap="truncate-end" mono color={statusColor(worker)} dimColor={!ACTIVE.has(worker.status)}>
                   {cardText(worker.status, openRuns.get(worker.id), now, DIAMOND_W)}
                 </Text>
               )

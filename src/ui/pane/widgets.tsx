@@ -132,9 +132,12 @@ export function workerKit($: Engine, ctx: PaneContext, list: Worker[], runs: rea
       f => diamondSvg(worker.seed, accent, pose(f)),
     )
   }
+  // A Box's width counts cells of the monospaced face, and the desktop app
+  // draws Text in a proportional one unless told: a card is as wide as its
+  // figure, and a name as long as it holds fits only in the monospaced face.
   const nameButton = (w: Worker) => (
     <Button key={`view-${w.id}`} plain label={t().pane.view(w.name)} onPress={() => void $.ui.view({ agentId: w.id })}>
-      <Text bold color={accentOf(w, look)} wrap="truncate-end">
+      <Text bold mono color={accentOf(w, look)} wrap="truncate-end">
         {w.name}
       </Text>
     </Button>
