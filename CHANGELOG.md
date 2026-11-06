@@ -6,6 +6,13 @@ All notable changes to crew are written here. The format follows
 
 ## [Unreleased]
 
+### Fixed
+
+- In the desktop app a card in the pane shows a worker's whole name, as the terminal does,
+  instead of cutting a name of four letters to its first and an ellipsis.
+- In the desktop app the side borders of the pane's message bubbles line up with their corners,
+  and with the next bubble's.
+
 ## [0.2.0] - 2026-11-06
 
 ### Added
