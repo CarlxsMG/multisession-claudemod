@@ -14,32 +14,13 @@ import { settleLocale } from '../i18n/locale'
 import { startProgress } from '../progress/tracker'
 import { PROGRESS_SPEC, ROSTER_SPEC, delegateSpec } from '../prompts/tools'
 import { resetRuntime } from '../runtime'
+import { readModel } from '../settings/model'
 import { checkConversation, freezeBrief } from '../settings/notes'
-import {
-  STORE_KEYS,
-  readDropped,
-  readMainModel,
-  readWorkers,
-  updateIsOn,
-  updateLimits,
-  updateLook,
-  updateMainModel,
-  updateMoodLines,
-  updateOrch,
-} from '../state/atoms'
+import { STORE_KEYS, readDropped, readWorkers, updateIsOn, updateLimits, updateLook, updateMoodLines, updateOrch } from '../state/atoms'
 import { tick, typeTick } from '../ui/pane/animation'
 import { APPLE_TYPE_TICK_MS, TYPE_TICK_MS } from '../ui/pane/feed'
 import { openPaneOnAttach, openPaneWhenShown } from '../ui/pane/index'
 import { allowUsageProbe, hasApp, probeUsage, toLimits } from '../usage/limits'
-
-/**
- * Reads the main session's model, or takes the one a switch names: the pane
- * alone is drawn again, and only when it changed.
- */
-export async function readModel($: Engine, id = '') {
-  const now = id !== '' ? id : await $.session.model().catch(() => '')
-  if (now !== '' && now !== (await readMainModel($))) await updateMainModel($, () => now)
-}
 
 type OnSessionStartHook = HookFor<'session.start'>
 /**
