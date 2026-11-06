@@ -47,7 +47,8 @@ npx -p typescript tsc -p .
 - `validate` checks the manifest, the marketplace and the hooks module, including which state
   each hook reads and writes. CI runs it with `--strict --profile directory`.
 - `test` runs every `*.test.ts` and `*.test.tsx` under `tests/`, each file in a child of
-  Claude Code, against the engine's test kit (`claude-code/testing`). It takes under a minute.
+  Claude Code, against the engine's test kit (`claude-code/testing`). It takes about a minute,
+  most of it the kit loading the plugin afresh for each test.
 - `tsc` needs `.claude-plugin/types/`, so it does **not** run on a fresh clone: load the plugin
   once first (see Setup). `validate` and `test` need no generated types, which is why CI runs only
   those two. **`tsc` is a local check**: CI cannot run it, so a type error reaches `main` unless
@@ -145,6 +146,12 @@ request and someone will translate it.
   in both languages, `tests/locale.test.tsx` and `tests/unit/i18n.test.ts`. Another test that needs
   Spanish passes `{ options: { language: 'es' } }` and says why.
 - `tests/unit/` tests pure modules; `tests/golden/` holds the model-facing texts.
+- **The test's clock runs the plugin's timers** on the way to wherever it advances to, so a test
+  advances it no further than it needs. `engine(on)` refuses the pane's typing timer, which has
+  nothing to do unless a bubble types out; a test about that passes `{ typing: true }`.
+- **Put a test in the file it fits before starting a new one.** The suite starts a child per file,
+  as many at once as the machine has threads, and past eight or so they only wait on each other to
+  load the plugin: on a 32-thread machine a load takes about N / 7.5 s with N files running.
 - Every bug fix comes with a test that fails without it.
 - A file's first tests to load the plugin meet the machine at its busiest, with every other file
   doing the same, and they are the ones a loaded run times out. A file opens with a light test or
