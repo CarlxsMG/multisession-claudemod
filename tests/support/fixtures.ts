@@ -9,6 +9,7 @@ import type { Anim } from '../../src/figure/anim'
 import { DIAMOND_W } from '../../src/figure/diamond'
 import { DEFAULT_LOOK } from '../../src/figure/look'
 import { JUST_ENDED_MS } from '../../src/progress/runs'
+import { MISSED_MS } from '../../src/progress/tracker'
 import { engine } from './engine'
 import type { Seen } from './engine'
 
@@ -191,10 +192,8 @@ export async function freeCrew($: Parameters<TestBody>[0], on: On) {
 }
 
 // How long a worker the engine has free takes to leave the row when the end
-// of its turn never reached the crew: the end is seen five seconds after its
-// last sign of life (`MISSED_MS` in src/progress/tracker.ts, not the time a
-// free worker naps after), and then stands out for half a minute.
-export const AWAY_MS = 5000 + JUST_ENDED_MS
+// of its turn never reached the crew: the end is seen missed, then stands out.
+export const AWAY_MS = MISSED_MS + JUST_ENDED_MS
 
 // What a headless claude answers to get_usage, Fable's week at `fable` percent.
 export const usageReply = (fable: number) =>

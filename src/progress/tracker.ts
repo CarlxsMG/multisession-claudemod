@@ -44,9 +44,11 @@ const PROGRESS_MS = 1000
 const CHECKIN_TIMES_MS = 60_000
 const RUNS_KEEP = 80
 const CHECKINS_KEEP = 60
-// A run whose worker the engine has free or gone ends this long after its
-// last sign of life, when the end of its turn never came.
-const MISSED_MS = 5000
+/**
+ * A run whose worker the engine has free or gone ends this long after its
+ * last sign of life, when the end of its turn never came.
+ */
+export const MISSED_MS = 5000
 // Twice the engine's default: an end comes while the user may be reading
 // something else.
 const END_TOAST_MS = 8000
