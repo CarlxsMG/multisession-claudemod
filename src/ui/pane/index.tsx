@@ -57,7 +57,7 @@ export async function drawPane($: Engine, e: PaneEvent) {
   const kit = workerKit($, ui, sprite, look, now, await readWorkers($), await readRuns($))
   if (page === 'crew') return drawTeam($, ui, kit, now, width)
   const { view, ...dues } = await drawMain($, ui, sprite, kit, look, now, width, height)
-  oweRedraws(dues)
+  oweRedraws($, dues)
   return view
 }
 

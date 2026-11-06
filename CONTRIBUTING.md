@@ -155,8 +155,7 @@ request and someone will translate it.
   Spanish passes `{ options: { language: 'es' } }` and says why.
 - `tests/unit/` tests pure modules; `tests/golden/` holds the model-facing texts.
 - **The test's clock runs the plugin's timers** on the way to wherever it advances to, so a test
-  advances it no further than it needs. `engine(on)` refuses the pane's typing timer, which has
-  nothing to do unless a bubble types out; a test about that passes `{ typing: true }`.
+  advances it no further than it needs.
 - **Put a test in the file it fits before starting a new one.** The suite starts a child per file,
   as many at once as the machine has threads, and past eight or so they only wait on each other to
   load the plugin: on a 32-thread machine a load takes about N / 7.5 s with N files running.
