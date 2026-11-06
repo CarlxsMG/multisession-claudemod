@@ -2,6 +2,7 @@
 // says, which one shows while calls of several kinds come close together,
 // the word for it, and the call itself in a line.
 import type { Phase, Run } from '../../types'
+import { DELEGATE } from '../config'
 import { t } from '../i18n'
 import type { ToolCall } from '../util/input'
 import { basename } from '../util/path'
@@ -13,7 +14,7 @@ const READING = new Set(['Read', 'Grep', 'Glob', 'LS', 'NotebookRead'])
 const EDITING = new Set(['Edit', 'MultiEdit', 'Write', 'NotebookEdit'])
 const RUNNING = new Set(['Bash', 'PowerShell', 'BashOutput', 'KillShell'])
 const WEB = new Set(['WebSearch', 'WebFetch'])
-const DELEGATING = new Set(['Agent', 'Task', 'SendMessage', 'TaskStop', 'mcp__crew__delegate'])
+const DELEGATING = new Set(['Agent', 'Task', 'SendMessage', 'TaskStop', DELEGATE])
 const WAITING = new Set(['Monitor', 'TaskOutput', 'AskUserQuestion'])
 
 // A command that runs a test suite: the runners of the usual ecosystems,

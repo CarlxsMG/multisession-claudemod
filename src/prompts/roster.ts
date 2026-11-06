@@ -1,7 +1,7 @@
 // The roster tool's answer as a model reads it: a row per worker and the
 // lines around them. src/crew/roster.ts gathers what the rows say.
 import type { ParentLink, Plan, Takeover, Worker } from '../../types'
-import { ROSTER_FULL_REPORT_CUT, ROSTER_REPORT_CUT, ROSTER_ROWS } from '../config'
+import { DEFAULT_TYPE, ROSTER_FULL_REPORT_CUT, ROSTER_REPORT_CUT, ROSTER_ROWS } from '../config'
 import { ACTIVE } from '../crew/workers'
 import { stepText } from '../progress/plan'
 import { oneLine } from '../util/text'
@@ -38,7 +38,7 @@ const tokensText = (n: number): string => (n < 1000 ? `${n} tokens` : `~${Math.r
 /** One worker's row: who it is, where, what it did, and what it is doing now. */
 export function rosterRow(worker: Worker, facts: RowFacts, cut: RowCut): string {
   const { takeover, parent } = facts
-  const kind = worker.type && worker.type !== 'general-purpose' ? `${worker.type}, ` : ''
+  const kind = worker.type && worker.type !== DEFAULT_TYPE ? `${worker.type}, ` : ''
   const history = `${kind}${worker.model ? `model ${worker.model}, ` : ''}${plural(worker.tasks, 'task')}, ${tokensText(worker.tokens)}`
   const held = takeover !== undefined && takeover.held.length > 0 ? `, ${plural(takeover.held.length, 'task')} waiting` : ''
   const head = `- ${worker.name}: address "${worker.address}", ${worker.status}`

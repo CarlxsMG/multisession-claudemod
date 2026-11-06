@@ -2,6 +2,7 @@
 // free one of its kind in that repository, or a new one), the send or the
 // spawn, and a task held for a worker another one woke.
 import type { Intent, Takeover, Worker } from '../../types'
+import { DEFAULT_TYPE } from '../config'
 import { quiet, unrecognized } from '../engine'
 import type { Engine } from '../engine'
 import {
@@ -60,7 +61,7 @@ function readDelegateInput(input: object) {
     title: stringArg(input, 'title') || oneLine(task, 48),
     repo: stringArg(input, 'repo'),
     asked: stringArg(input, 'model'),
-    type: stringArg(input, 'subagent_type') || 'general-purpose',
+    type: stringArg(input, 'subagent_type') || DEFAULT_TYPE,
     worker: rawStringArg(input, 'worker'),
     isFresh: fieldOf(input, 'fresh') === true,
   }
@@ -111,7 +112,7 @@ async function delegate($: Engine, input: object, callId?: string): Promise<stri
       .filter(
         w =>
           samePath(w.cwd, cwd) &&
-          (w.type || 'general-purpose') === type &&
+          (w.type || DEFAULT_TYPE) === type &&
           REUSABLE.has(w.status) &&
           !woken.has(w.id) &&
           w.asked !== null &&

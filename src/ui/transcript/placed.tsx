@@ -7,6 +7,7 @@
 import type { MatchedHook } from 'claude-code'
 
 import type { Look } from '../../../types'
+import { PLUGIN } from '../../config'
 import type { Engine } from '../../engine'
 import { accentOf, nameColorOf } from '../../figure/accent'
 import type { Piece } from '../../progress/text/pieces'
@@ -39,7 +40,7 @@ function pieceStyle(piece: Piece, look: Look): { color?: string; bold?: boolean;
 type DrawPlacedHook = MatchedHook<'ui.render', { component: 'Placed' }>
 /** Draws a row the crew placed in the conversation, from the row it keeps. */
 export async function drawPlaced($: Engine, e: Parameters<DrawPlacedHook>[1], next: Parameters<DrawPlacedHook>[2]) {
-  if (e.props.plugin !== 'crew') return next(e)
+  if (e.props.plugin !== PLUGIN) return next(e)
   const list = await readCheckins($)
   const row = list.find(c => c.id === e.props.id)
   if (row === undefined) return next(e)
