@@ -21,7 +21,7 @@ import { ACTIVE } from './workers'
 export async function takeOver($: Engine, id: string, by: string) {
   const woken = ({ id, held }: Takeover): Takeover => ({ id, by, held })
   await updateTakeovers($, list =>
-    list.some(t => t.id === id) ? list.map(t => (t.id === id ? woken(t) : t)) : [...list, { id, by, held: [] }],
+    list.some(mark => mark.id === id) ? list.map(mark => (mark.id === id ? woken(mark) : mark)) : [...list, { id, by, held: [] }],
   )
 }
 
@@ -54,11 +54,11 @@ export function releaseIfDue($: Engine) {
 export async function release($: Engine): Promise<Takeover[]> {
   if ((await readTakeovers($)).length === 0) return []
   const list = await readWorkers($)
-  const isLifted = (t: Takeover) => t.missed === undefined && !ACTIVE.has(list.find(w => w.id === t.id)?.status ?? 'done')
+  const isLifted = (mark: Takeover) => mark.missed === undefined && !ACTIVE.has(list.find(w => w.id === mark.id)?.status ?? 'done')
   let lifted: Takeover[] = []
   await updateTakeovers($, marks => {
     lifted = marks.filter(isLifted)
-    return marks.filter(t => !isLifted(t))
+    return marks.filter(mark => !isLifted(mark))
   })
   const missed: Takeover[] = []
   for (const takeover of lifted) {

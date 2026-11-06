@@ -33,7 +33,7 @@ export async function onSubmit($: Engine, e: Parameters<OnSubmitHook>[1], next: 
   const pending = await readPendingNote($)
   // Held tasks that did not reach their worker while no crew tool was called
   // to say so: the orchestrator still waits for that worker's report.
-  const missed = (await readTakeovers($)).filter(t => t.missed !== undefined && t.isTold !== true)
+  const missed = (await readTakeovers($)).filter(mark => mark.missed !== undefined && mark.isTold !== true)
   if (pending === null && missed.length === 0) return next(e)
   const workers = await readWorkers($)
   const missedNotes = missed.map(m =>
@@ -45,7 +45,7 @@ export async function onSubmit($: Engine, e: Parameters<OnSubmitHook>[1], next: 
   if (entered.drop !== undefined) return entered
   if (missed.length > 0) {
     const told = new Set(missed.map(m => m.id))
-    await updateTakeovers($, list => list.map(t => (told.has(t.id) ? { ...t, isTold: true } : t)))
+    await updateTakeovers($, list => list.map(mark => (told.has(mark.id) ? { ...mark, isTold: true } : mark)))
   }
   if (pending === null) return entered
   await updatePendingNote($, n => (n !== null && sameSettings(n, pending) ? null : n))
