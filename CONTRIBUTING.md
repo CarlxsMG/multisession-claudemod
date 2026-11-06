@@ -144,7 +144,8 @@ request and someone will translate it.
   (an `engine(on)` that answers beneath the plugin, and the kit's `test`), `fixtures.ts` (crews at
   work, inputs, and what mounts and reads their drawings) and `raster.ts` (what reads a figure's
   cells back). A test that loads the plugin imports `test` from it rather than from
-  `claude-code/testing`, because its `test` passes the plugin under test its options.
+  `claude-code/testing`, because its `test` passes the plugin under test its options and gives it
+  15 s.
 - **Tests read the English UI**, the product's default: the kit passes `language: 'en'` to the
   plugin, and what a test imports from `src` speaks English too unless its file calls `setLocale`
   (the plugin under test and the test file do not share module instances). Spanish is covered by
@@ -160,9 +161,9 @@ request and someone will translate it.
   as many at once as the machine has threads, and past eight or so they only wait on each other to
   load the plugin: on a 32-thread machine a load takes about N / 7.5 s with N files running.
 - Every bug fix comes with a test that fails without it.
-- A file's first tests to load the plugin meet the machine at its busiest, with every other file
-  doing the same, and they are the ones a loaded run times out. A file opens with a light test or
-  one with the kit's `SLOW` limit, and a heavier test goes towards its end.
+- **A test has 15 s**, where the kit alone gives it 5 s. A file's first tests to load the plugin
+  meet the machine at its busiest, with every other file doing the same, and the load can take
+  most of 5 s. A test that hangs is noticed that much later.
 
 ## Commits and pull requests
 

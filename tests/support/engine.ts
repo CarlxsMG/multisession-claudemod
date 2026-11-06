@@ -6,10 +6,15 @@ import type { AgentInfo, AgentSpawnInput, HookFor, On } from 'claude-code'
 import { PLUGIN } from '../../src/config'
 import { APPLE_TYPE_TICK_MS, TYPE_TICK_MS } from '../../src/ui/pane/feed'
 
-/** The kit's `test`, with the plugin under test speaking English unless a test asks for another language. */
+// The kit gives a test 5 s, about what loading the plugin alone takes while
+// every test file does the same: such a test would time out with nothing wrong.
+// A test that hangs is noticed that much later.
+const TEST_LIMIT_MS = 15_000
+
+/** The kit's `test`, with longer to run and the plugin under test speaking English, unless a test asks for otherwise. */
 export function test(name: string, ...rest: TestRest) {
   const [options, body] = rest.length === 1 ? [{}, rest[0]] : rest
-  kitTest(name, { ...options, options: { language: 'en', ...options.options } }, body)
+  kitTest(name, { timeoutMs: TEST_LIMIT_MS, ...options, options: { language: 'en', ...options.options } }, body)
 }
 
 // Nothing sits beneath the plugin: each hook here stands for the engine.
