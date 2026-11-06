@@ -12,6 +12,9 @@ All notable changes to crew are written here. The format follows
   instead of cutting a name of four letters to its first and an ellipsis.
 - In the desktop app the side borders of the pane's message bubbles line up with their corners,
   and with the next bubble's.
+- In the desktop app the columns that line up on the terminal line up there too: the usage
+  beside the delegation switch, the switch's word, the editor's tabs and parts, and the
+  check-ins and summaries placed in the conversation.
 
 ## [0.2.0] - 2026-11-06
 
