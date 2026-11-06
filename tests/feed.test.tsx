@@ -159,7 +159,7 @@ test('someone outside the crew named like the orchestrator is drawn plain, not i
 })
 
 test('messages type out in bubbles, one after another', async ($, on) => {
-  const clock = engine(on, { typing: true })
+  const clock = engine(on)
   await $.session.start({ cwd: '/work/main', surface: 'terminal', isInteractive: true })
   await $.tool.call({
     tool: 'mcp__crew__delegate',
@@ -219,7 +219,7 @@ const delegateTests = ($: Parameters<TestBody>[0], repo = '/work/api') =>
   $.tool.call({ tool: DELEGATE, task: 'Run the tests and fix what fails', title: 'Arreglar tests', repo })
 
 test("a bubble grows on the clock alone from one typing period on, before the pane's next frame", async ($, on) => {
-  const clock = engine(on, { typing: true })
+  const clock = engine(on)
   await $.session.start({ cwd: '/work/main', surface: 'terminal', isInteractive: true })
   const ui = await $.ui.mount({ ...PANE, surface: 'terminal' })
   await delegateTests($)
@@ -239,7 +239,7 @@ test("a bubble grows on the clock alone from one typing period on, before the pa
 
 test('the typing timer runs while a bubble types and at no other time', async ($, on) => {
   const { counting, periods } = typingPeriods(on)
-  const clock = engine(counting, { typing: true })
+  const clock = engine(counting)
   await $.session.start({ cwd: '/work/main', surface: 'terminal', isInteractive: true })
   const ui = await $.ui.mount({ ...PANE, surface: 'terminal' })
   await clock.advance(1000)
@@ -267,7 +267,7 @@ test('the typing timer runs while a bubble types and at no other time', async ($
 
 test("in Terminal.app the typing timer runs at Terminal.app's pace", async ($, on) => {
   const { counting, periods } = typingPeriods(on)
-  const clock = engine(counting, { typing: true, host: { env: { TERM_PROGRAM: 'Apple_Terminal' } } })
+  const clock = engine(counting, { host: { env: { TERM_PROGRAM: 'Apple_Terminal' } } })
   await $.session.start({ cwd: '/work/main', surface: 'terminal', isInteractive: true })
   const ui = await $.ui.mount({ ...PANE, surface: 'terminal' })
   await delegateTests($)
@@ -292,7 +292,7 @@ const CLOSER: Plugin = {
 
 test('the pane closing stops the typing timer, and the next bubble it draws starts it again', { plugins: [CLOSER] }, async ($, on) => {
   const { counting, periods } = typingPeriods(on)
-  const clock = engine(counting, { typing: true })
+  const clock = engine(counting)
   on('ui.close', () => ({ value: undefined }))
   await $.session.start({ cwd: '/work/main', surface: 'terminal', isInteractive: true })
   const ui = await $.ui.mount({ ...PANE, surface: 'terminal' })
@@ -315,7 +315,7 @@ test('the pane closing stops the typing timer, and the next bubble it draws star
 
 test("a session's start stops the typing timer of the session before it", async ($, on) => {
   const { counting, periods } = typingPeriods(on)
-  const clock = engine(counting, { typing: true })
+  const clock = engine(counting)
   await $.session.start({ cwd: '/work/main', surface: 'terminal', isInteractive: true })
   const ui = await $.ui.mount({ ...PANE, surface: 'terminal' })
   await delegateTests($)
