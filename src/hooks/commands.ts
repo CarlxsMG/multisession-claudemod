@@ -8,10 +8,11 @@ import { quiet } from '../engine'
 import type { Engine } from '../engine'
 import { randomLookFor } from '../figure/look'
 import { lookCode, parseLookCode } from '../figure/share-code'
-import { t, verbOf } from '../i18n'
+import { verbOf } from '../i18n'
 import { parseEvery } from '../progress/check-in'
 import { placeCheckIn, setEvery } from '../progress/placed'
 import { seeCommandColumns } from '../progress/status'
+import { crewReply } from '../prompts/commands'
 import { changeLook } from '../settings/look'
 import { setMode } from '../settings/notes'
 import { readIsOn, readLook, readWorkers, updateView } from '../state/atoms'
@@ -24,61 +25,60 @@ export async function runCrewCommand($: Engine, e: Parameters<RunCrewCommandHook
   const verb = (args.split(/\s+/)[0] ?? '').toLowerCase()
   const rest = args.slice(verb.length).trim()
   const look = await readLook($)
-  const words = t().command
   seeCommandColumns(e.presentation.columns)
 
   switch (verb === '' ? '' : verbOf(verb)) {
     case '':
       await updateView($, () => 'main')
       await openPane($)
-      return { text: words.opened(look.name) }
+      return { text: crewReply.opened(look.name) }
     case 'edit':
       await updateView($, () => 'edit')
       await openPane($, true)
-      return { text: words.editing(look.name) }
+      return { text: crewReply.editing(look.name) }
     case 'team':
       await updateView($, () => 'crew')
       await openPane($)
-      return { text: words.teamOpened(look.name) }
+      return { text: crewReply.teamOpened(look.name) }
     case 'msg': {
       // Only the worker is split off: the message keeps its lines and spacing.
       const who = rest.split(/\s+/)[0] ?? ''
       const said = rest.slice(who.length).trim()
       const worker = findWorker(await readWorkers($), who)
-      if (worker === undefined || said === '') return { text: words.msgUsage }
+      if (worker === undefined || said === '') return { text: crewReply.msgUsage }
       await messageWorker($, worker, said)
-      return { text: words.sent(worker.name) }
+      return { text: crewReply.sent(worker.name) }
     }
     case 'code': {
       const code = lookCode(look)
       // The editor's toast sends the person here when a copy fails, so the code
       // is the answer also when a plugin denies this one, which rejects it.
       const copied = await quiet($, $.ui.copy({ text: code }), '/crew code')
-      return { text: words.code(look.name, copied?.isCopied === true, code) }
+      return { text: crewReply.code(look.name, copied?.isCopied === true, code) }
     }
     case 'import': {
       const parsed = parseLookCode(rest)
-      if (parsed === undefined) return { text: words.badCode }
+      if (parsed === undefined) return { text: crewReply.badCode }
       const saved = await changeLook($, parsed)
-      return { text: words.imported(saved.name) }
+      return { text: crewReply.imported(saved.name) }
     }
     case 'random': {
       const saved = await changeLook($, current => randomLookFor(current))
-      return { text: words.newLook(saved.name) }
+      return { text: crewReply.newLook(saved.name) }
     }
     case 'mode': {
       const value = rest === 'on' ? true : rest === 'off' ? false : !(await readIsOn($))
       await setMode($, value)
-      return { text: value ? words.modeOn(look.name) : words.modeOff(look.name) }
+      return { text: value ? crewReply.modeOn(look.name) : crewReply.modeOff(look.name) }
     }
     case 'clear': {
       await clearFinished($)
-      return { text: words.cleared }
+      return { text: crewReply.cleared }
     }
     case 'progress': {
       if (rest !== '') {
         const every = parseEvery(rest)
-        if (every === undefined) return { text: words.progressUsage }
+        if (every === undefined) return { text: crewReply.progressUsage }
         await setEvery($, every)
       }
       // A command's text is stored where the model reads it, so it says
@@ -88,6 +88,6 @@ export async function runCrewCommand($: Engine, e: Parameters<RunCrewCommandHook
       return {}
     }
     default:
-      return { text: words.help }
+      return { text: crewReply.help }
   }
 }

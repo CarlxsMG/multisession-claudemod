@@ -33,6 +33,9 @@ All notable changes to crew are written here. The format follows
   session about eleven times a second from start to end.
 - A round's summary of more than eight workers sizes its columns to the lines it shows, as a
   check-in does, not also to the workers it only counts.
+- What `/crew` answers, its help included, is in English whatever the UI speaks, because Claude
+  Code stores it where the model reads it. A Spanish UI keeps its pane, editor, toasts and rows,
+  the Spanish verbs (`/crew codigo`) still work, and a name stays as it was written.
 
 ### Fixed
 

@@ -9,7 +9,8 @@ still. Read this before changing what the models are told. The texts are not rep
 
 - **English, whatever the UI's language.** The builders in `src/prompts/` never call `t()`. What
   a person chose or a model wrote (a name, a catchphrase, a task, a report) goes in as it is.
-  [The texts outside `src/prompts/`](#outside-srcprompts) include the two that do not follow this.
+  [The texts outside `src/prompts/`](#outside-srcprompts) include one that does not follow this:
+  the engine's refusals and failed sends, passed on as they came.
 - **The brief is frozen per load.** `freezeBrief` (`src/settings/notes.ts`) builds it at
   `session.start` and keeps it in the `brief` atom. The system prompt and the `delegate` tool's
   description both take it from there and neither changes for the rest of the load, because a
@@ -43,9 +44,13 @@ reads](#every-model-with-the-crews-tools).
 | `delegate`'s result: start it yourself | Tool result | Auto mode refused the spawn with no verdict | `autoModeHandoff` | `result.autoMode`, `result.autoModeWithModel` |
 | `delegate`'s failure | The `.catch` of its hook in `hooks/register.tsx`, as a denial | `delegate` itself threw | `DELEGATE_FAILED` | `result.failed` |
 | The progress tool's refusal | Tool result, from `progressTool` (`src/hooks/tools.ts`) | The orchestrator called a worker's tool | `PROGRESS_NOT_FOR_MAIN` | `progress.orchestrator` |
+| What `/crew` answers: its replies, usage lines and help | Command output, from `runCrewCommand` (`src/hooks/commands.ts`), which the engine shows and stores in the conversation as a `<local-command-stdout>` row | Each `/crew` the person runs | `crewReply` (`src/prompts/commands.ts`) | `command.help`, `command.opened`, `command.editing`, `command.teamOpened`, `command.msgUsage`, `command.sent`, `command.code`, `command.codeCopied`, `command.badCode`, `command.imported`, `command.newLook`, `command.modeOn`, `command.modeOff`, `command.cleared`, `command.progressUsage` |
 
-The `/crew` command's replies are also stored where this model reads them: see
-[The `/crew` replies](#the-crew-replies).
+`tests/model-text.test.tsx` pins what `/crew` answers in an English and in a Spanish UI, in every
+personality. That the model reads it is the engine's part, which no test covers: `src/hooks/commands.ts`
+says so, and stored conversations hold those rows. `/crew code` puts a share code there. A reply says
+nothing of progress, by the rule above: `/crew progress` replies nothing and places a row, which no
+model reads, to say how the crew is doing.
 
 ## Workers and forks
 
@@ -106,17 +111,7 @@ asks it. What comes back is parsed by `parseMoodLines` and drawn beside the figu
 | An active worker's step in its roster row | `stepText` (`src/progress/plan.ts`) | As it appears in `roster.crew` | Numbers |
 | A worker's status in its roster row | The status values in `types/index.d.ts` | As they appear in `roster.crew` | English |
 | Tool names and limits named in the texts | `src/config.ts` | Wherever they appear | English |
-| The `/crew` command's replies | `command` in `src/i18n/en.ts` and `src/i18n/es.ts`, returned by `runCrewCommand` (`src/hooks/commands.ts`) | **No** | **The UI's** |
 | The engine's refusals and failed sends, passed on as they came | `notStarted`, `unreachable`, `heldMissed`, `heldMissedNote` and the roster's `not delivered` take them as an argument | Only the tests' own wording | The engine's |
-
-### The `/crew` replies
-
-These are written for the person, and [docs/i18n.md](i18n.md) has them translated. The engine shows
-a reply as the command's output and stores it in the conversation as a `<local-command-stdout>`
-row, where `src/hooks/commands.ts` says the model reads it; no test covers that, as it is the
-engine's part. So a `/crew` reply is the one text a model may read in the person's language, and
-`/crew code` puts a share code there. A reply says nothing of progress, by the rule above: `/crew
-progress` replies nothing and places a row, which no model reads, to say how the crew is doing.
 
 ## What the golden file does not hold
 

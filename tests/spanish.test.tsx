@@ -1,10 +1,11 @@
 // The crew's UI in Spanish, the one other language it speaks: the pane, the
-// editor, /crew, the team view, the rows placed in the conversation, the
-// bubbles, the toasts and the status line. The rest of the tests read the
-// English UI; the text models read is English in both.
+// editor, the team view, the rows placed in the conversation, the bubbles, the
+// toasts and the status line, and the Spanish verbs of /crew. The rest of the
+// tests read the English UI; the text models read, what /crew answers among it,
+// is English in both.
 import { expect } from 'claude-code/testing'
 import { DEFAULT_LOOK } from '../src/figure/look'
-import { lookCode } from '../src/figure/share-code'
+import { lookCode, parseLookCode } from '../src/figure/share-code'
 import { setLocale } from '../src/i18n/locale'
 import { phaseLabel } from '../src/progress/phase'
 import { declarePlan, stepShare, stepsLeft } from '../src/progress/plan'
@@ -128,29 +129,32 @@ test('a copy that failed says so in Spanish, and the verb it points to answers w
   await ui.press({ key: 'look-copy' })
   expect(toasts).toEqual(['Código no copiado: /crew codigo lo muestra'])
   await ui.unmount()
-  expect((await crewCommand($, 'codigo')).text).toMatch(/^Código de Nova:\nCREW1\./)
+  expect((await crewCommand($, 'codigo')).text).toMatch(/^Nova's code:\nCREW1\./)
 })
 
-test('/crew answers in Spanish and takes the verbs of either language', ES, async ($, on) => {
+test('/crew takes the verbs of either language and answers in English, with what the person chose as it is', ES, async ($, on) => {
   engine(on)
   on('ui.copy', () => ({ value: { isCopied: true } }))
   await $.session.start({ cwd: '/work/main', surface: 'terminal', isInteractive: true })
-  expect((await crewCommand($, 'help')).text).toMatch(/^\/crew {18}abre el panel\n\/crew equipo {11}todos los workers, uno por fila\n/)
-  expect((await crewCommand($, '')).text).toBe('Panel de Nova abierto.')
-  expect((await crewCommand($, 'equipo')).text).toBe('Equipo de Nova abierto.')
-  expect((await crewCommand($, 'team')).text).toBe('Equipo de Nova abierto.')
-  expect((await crewCommand($, 'editar')).text).toBe('Personalizando a Nova.')
-  expect((await crewCommand($, 'msg Pip')).text).toBe('Uso: /crew msg <worker> <texto>')
-  expect((await crewCommand($, 'modo off')).text).toBe('Nova trabajará sin delegar.')
-  expect((await crewCommand($, 'mode on')).text).toBe('Nova delegará en workers.')
-  expect((await crewCommand($, 'importar nada')).text).toBe('Ese código no es válido (empieza por CREW1.).')
-  expect((await crewCommand($, `importar ${lookCode({ ...DEFAULT_LOOK, name: 'Luna' })}`)).text).toBe('¡Hola, Luna! Mascota importada.')
-  expect((await crewCommand($, 'codigo')).text).toMatch(/^Código de Luna \(copiado\):\nCREW1\./)
-  expect((await crewCommand($, 'aleatorio')).text).toBe('Luna estrena look.')
-  expect((await crewCommand($, 'limpiar')).text).toBe('Workers terminados fuera del panel.')
-  expect((await crewCommand($, 'progreso 4m')).text).toBe('Uso: /crew progreso [1m|2m|3m|5m|10m|off]')
+  expect((await crewCommand($, 'ayuda')).text).toMatch(/^\/crew {18}opens the pane\n\/crew team {13}every worker, one to a row\n/)
+  expect((await crewCommand($, '')).text).toBe("Nova's pane is open.")
+  expect((await crewCommand($, 'equipo')).text).toBe("Nova's crew is open.")
+  expect((await crewCommand($, 'team')).text).toBe("Nova's crew is open.")
+  expect((await crewCommand($, 'editar')).text).toBe('Customizing Nova.')
+  expect((await crewCommand($, 'msg Pip')).text).toBe('Usage: /crew msg <worker> <text>')
+  expect((await crewCommand($, 'modo off')).text).toBe('Nova will work without delegating.')
+  expect((await crewCommand($, 'mode on')).text).toBe('Nova will delegate to workers.')
+  expect((await crewCommand($, 'importar nada')).text).toBe('That code is not valid (it starts with CREW1.).')
+  expect((await crewCommand($, `importar ${lookCode({ ...DEFAULT_LOOK, name: 'Luna', phrase: '¡A por ello!' })}`)).text).toBe('Hi, Luna! Mascot imported.')
+  const code = String((await crewCommand($, 'codigo')).text)
+  expect(code).toMatch(/^Luna's code \(copied\):\nCREW1\./)
+  expect(parseLookCode(code.split('\n')[1]!)?.phrase).toBe('¡A por ello!')
+  expect((await crewCommand($, 'código')).text).toMatch(/^Luna's code \(copied\):\nCREW1\./)
+  expect((await crewCommand($, 'aleatorio')).text).toBe('Luna has a new look.')
+  expect((await crewCommand($, 'limpiar')).text).toBe('The finished workers are off the pane.')
+  expect((await crewCommand($, 'progreso 4m')).text).toBe('Usage: /crew progress [1m|2m|3m|5m|10m|off]')
   await $.tool.call({ tool: DELEGATE, task: 'Run the tests', repo: '/work/api' })
-  expect((await crewCommand($, 'msg pip mira también el logout')).text).toBe('Mensaje enviado a Pip.')
+  expect((await crewCommand($, 'msg pip mira también el logout')).text).toBe('Message sent to Pip.')
 })
 
 test('the usage in Spanish', ES, async ($, on) => {
