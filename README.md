@@ -55,6 +55,22 @@ happens.
   Drawing only: what is stored and what any model reads stay as they were. ctrl+o shows each one
   whole.
 
+  Which surface shows what:
+
+  | Where | The crew's rows in the conversation |
+  | --- | --- |
+  | Terminal | The bubbles above. An editor that runs Claude Code in its own terminal, as JetBrains IDEs do, shows these. |
+  | Desktop app and VS Code | One-line cards: the worker's figure, who to whom, the title, the foot and how it ended. A press on `▸` shows the task or the report whole. |
+  | Phone | Claude Code's own rows. |
+
+  ```
+  ◆ Nova → Pip · Fix the tests · new                 ▸
+  ◆ Pip → Nova · All 42 tests pass; the fix was in…  ▸
+  ◆ Pip → Nova · ✓ done · 2m 5s · Fix the tests
+  ```
+
+  The pane shows the crew on all of them.
+
   The crew keeps nothing of a conversation on disk, so after Claude Code restarts a resumed
   conversation's earlier bubbles are drawn from what each row holds: the worker's name in the
   orchestrator's calls and in what workers send, a task's title in its delegate bubble, and how a
@@ -152,7 +168,8 @@ code.
   relative paths with either slash, `~\path` (the user folder, `USERPROFILE`, even without `HOME`)
   and network paths (`\\server\share`); case and slashes do not tell repositories apart.
 - The terminal draws the figures as cells and repaints them in place; the desktop app, the editors
-  and the phone draw them as SVG. The bubbles in the conversation are terminal only.
+  and the phone draw them as SVG. See **Bubbles in the conversation** for what each draws of the
+  crew's rows.
 - Windows Terminal and macOS Terminal look the same: the marks are characters that Cascadia Mono,
   SF Mono and Menlo all have.
 - Terminal.app, which Claude Code paints with 256 colours, gets each figure colour as the nearest

@@ -3,7 +3,7 @@ import { expect } from 'claude-code/testing'
 import type { Look, Member } from '../../types'
 import { DEFAULT_LOOK } from '../../src/figure/look'
 import { given, headsUp, heldFor, started } from '../../src/prompts/results'
-import { bubbleRows, endSeg } from '../../src/ui/transcript/bubble'
+import { bubbleRows, cardLine, endSeg } from '../../src/ui/transcript/bubble'
 import type { Seg } from '../../src/ui/transcript/bubble'
 import { resultFoots } from '../../src/ui/transcript/foots'
 import { test } from '../support/crew'
@@ -71,6 +71,27 @@ test("a crew call's result reads in the foot: delivered, woken, reused, new, hel
 test('a result the row cannot read keeps the engine\'s own drawing', () => {
   expect(resultFoots('SendMessage', { success: false, message: 'no' }, pip, [pip], l)).toBeUndefined()
   expect(resultFoots('mcp__crew__delegate', 'crew: `task` is required.', pip, [pip], l)).toBeUndefined()
+})
+
+test('a card is one line: the names always, the longest foot that leaves the title whole, then the title cut', () => {
+  const line = (title: string, cap: number, given: readonly (readonly Seg[])[] = [[{ text: 'reused · keeps its context' }], [{ text: 'reused' }]]) =>
+    cardLine(names, title, given, cap).line.map(x => x.text).join('')
+  expect(line('Arreglar tests', 60)).toBe('Nova → Pip · Arreglar tests · reused · keeps its context')
+  expect(line('Arreglar tests', 40)).toBe('Nova → Pip · Arreglar tests · reused')
+  expect(line('Arreglar tests', 30)).toBe('Nova → Pip · Arregla… · reused')
+  // Too little room for a title that says anything; then for the foot.
+  expect(line('Arreglar tests', 24)).toBe('Nova → Pip · reused')
+  expect(line('Arreglar tests', 12)).toBe('Nova → Pip')
+  // No title: the foot takes its room, and neither is there a stray separator.
+  expect(line('', 60)).toBe('Nova → Pip · reused · keeps its context')
+  expect(line('', 25)).toBe('Nova → Pip · reused')
+  expect(line('Arreglar tests', 60, [])).toBe('Nova → Pip · Arreglar tests')
+  expect(line('', 60, [])).toBe('Nova → Pip')
+  // Its breaks flattened, and what shows of it said.
+  expect(line('Línea uno.\n\nLínea dos.', 60, [])).toBe('Nova → Pip · Línea uno. Línea dos.')
+  expect(cardLine(names, 'Arreglar tests', [], 60).shown).toBe('Arreglar tests')
+  expect(cardLine(names, 'Arreglar tests', [], 20).shown).toBe('Arregl…')
+  expect(cardLine(names, 'Arreglar tests', [], 15).shown).toBe('')
 })
 
 test("a notification's end is marked for the three statuses a subagent's carries, any other word dim as it came", () => {

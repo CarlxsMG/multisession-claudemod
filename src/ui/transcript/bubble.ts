@@ -1,9 +1,9 @@
-// The crew rows of the conversation as chat bubbles, in rows of coloured
-// segments: how wide a row is, and what each bubble holds.
+// The crew rows of the conversation as chat bubbles or one-line cards, in
+// coloured segments: how wide a row is, and what each holds.
 import type { Look, Member } from '../../../types'
 import { accentOf } from '../../figure/accent'
 import { hash } from '../../util/random'
-import { headLines, oneLine } from '../../util/text'
+import { flat, headLines, oneLine } from '../../util/text'
 import { END, endMarked } from '../labels'
 
 /** The rows of its text a task's bubble shows, and a report's. */
@@ -51,6 +51,33 @@ export const bubbleCap = (width: number): number => (width >= WIDE_COLUMNS ? Mat
 export type Seg = { text: string; color?: string; bold?: boolean; dim?: boolean; press?: true }
 
 const lengthOf = (segs: readonly Seg[]): number => segs.reduce((n, x) => n + x.text.length, 0)
+
+/** A dim piece of text. */
+export const dim = (text: string): Seg => ({ text, dim: true })
+
+// What parts a card's pieces; a title with less room than this goes.
+const CARD_SEP = ' · '
+const CARD_TITLE_MIN = 4
+
+/**
+ * A crew row on one line, at most `cap` columns: who speaks to whom, which
+ * always shows; the title; and the longest of `foots` that leaves the title
+ * whole, else the shortest, the title cut to fit beside it. `shown`: what
+ * shows of the title.
+ *  Nova → Pip · Fix the tests · new
+ */
+export function cardLine(names: readonly Seg[], title: string, foots: readonly (readonly Seg[])[], cap: number): { line: Seg[]; shown: string } {
+  const whole = flat(title)
+  const besideNames = (foot: readonly Seg[]): number => lengthOf(names) + (foot.length === 0 ? 0 : CARD_SEP.length + lengthOf(foot))
+  const titleRoom = (foot: readonly Seg[]): number => cap - besideNames(foot) - CARD_SEP.length
+  const shortest = foots[foots.length - 1] ?? []
+  const foot = foots.find(f => (whole === '' ? besideNames(f) <= cap : titleRoom(f) >= whole.length)) ?? (besideNames(shortest) <= cap ? shortest : [])
+  const shown = titleRoom(foot) >= CARD_TITLE_MIN ? oneLine(whole, titleRoom(foot)) : ''
+  return {
+    line: [...names, ...(shown !== '' ? [dim(CARD_SEP), { text: shown }] : []), ...(foot.length > 0 ? [dim(CARD_SEP), ...foot] : [])],
+    shown,
+  }
+}
 
 /**
  * A chat bubble as the pane draws one, in rows of segments: who speaks to

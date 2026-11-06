@@ -8,6 +8,9 @@ All notable changes to crew are written here. The format follows
 
 ### Added
 
+- In the desktop app and VS Code the crew's rows in the conversation are one-line cards: the
+  worker's figure, who to whom, the title, the foot and how it ended, and a press on `▸` shows the
+  task or the report whole. The terminal keeps its bubbles and the phone Claude Code's own rows.
 - A `usageProbe` option (`on` or `off`, `on` by default) that turns off the headless `claude -p`
   the crew runs for Fable's weekly window; with `off` the pane shows the engine's windows only.
 - A `napAfter` option (`5s`, `30s`, `2m` or `never`, `5s` by default) that sets how long a free
