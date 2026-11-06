@@ -58,6 +58,8 @@ All notable changes to crew are written here. The format follows
   not as the engine's rows: from what each row holds (names, delegate titles, how a run ended
   and its time), with nothing kept on disk. A worker's colour comes back only where the row
   carries its id; elsewhere the bubble is grey.
+- A blank name submitted in the editor keeps the orchestrator's name instead of resetting it to
+  Nova.
 
 ## [0.1.0] - 2026-11-05
 

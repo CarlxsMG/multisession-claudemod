@@ -176,6 +176,21 @@ test('the persona tab renames the orchestrator and steps its name color round th
   await ui.unmount()
 })
 
+test('a blank name keeps the name, as the placeholder says it holds', async ($, on) => {
+  const { copies } = watched(on, LUNA)
+  await $.session.start(TERMINAL)
+  const ui = await $.ui.mount({ ...PANE, surface: 'terminal' })
+  await ui.press({ key: 'edit' })
+  const before = await ui.find({ type: 'Raster', key: 'preview' })
+
+  for (const text of ['', '   ']) await ui.input({ key: 'look-name', text })
+  expect(await heading(ui)).toEqual(['Luna · Pirate · customize', LUNA_GREEN])
+  // A change would have the figure cheer.
+  expect((await ui.find({ type: 'Raster', key: 'preview' }))?.props.cells).toEqual(before?.props.cells)
+  expect(await lookNow(ui, copies)).toEqual(LUNA)
+  await ui.unmount()
+})
+
 test('r and d answer on every tab, c only on Share, and d goes back to the main view', async ($, on) => {
   engine(on)
   await $.session.start(TERMINAL)
