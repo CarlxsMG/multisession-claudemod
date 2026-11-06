@@ -77,6 +77,9 @@ const pendingRows = atom({ plugin: 'crew', key: 'due' } as const, [], { shape: '
 // Moved on to redraw the pane alone: an invalidate would draw every crew row
 // of the conversation again too.
 const paneTick = atom({ plugin: 'crew', key: 'beat' } as const, 0)
+// The agents the engine has listed, which tells a busy worker it dropped from
+// one it has yet to list.
+const listed = atom({ plugin: 'crew', key: 'listed' } as const, [], { shape: 'listed-1' })
 // What calls under way leave for the hooks that follow them, which a
 // reload of the plugin's code may come between: what delegate meant each
 // new worker to be, the Agent calls that asked for a worktree, each
@@ -314,6 +317,14 @@ export function readPaneTick($: StateDollar) {
 
 export function updatePaneTick($: StateDollar, change: Change<typeof paneTick>) {
   return update($, paneTick, change)
+}
+
+export function readListed($: StateDollar) {
+  return read($, listed)
+}
+
+export function updateListed($: StateDollar, change: Change<typeof listed>) {
+  return update($, listed, change)
 }
 
 export function readIntents($: StateDollar) {

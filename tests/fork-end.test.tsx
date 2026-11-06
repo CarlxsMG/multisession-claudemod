@@ -64,3 +64,26 @@ test('a fork cleared before the engine ended it comes back busy, and takes its e
   await clock.advance(70_000)
   expect(await rowOf($, 'Bolt')).toMatch(/^- Bolt: address "agent-2", done, fork of Pip, /)
 })
+
+test('a busy worker the engine dropped across a reload is stopped, as it is within a load', SLOW, async ($, on) => {
+  const { clock, listed } = await forkCrew($, on)
+  // The engine lists it before the reload, and no more after it: no sync of
+  // the new load sees it, and its turn's end never reaches the crew.
+  listed.delete('agent-2')
+  await $.session.start({ cwd: '/work/main', surface: 'terminal', isInteractive: true })
+  await clock.advance(70_000)
+  expect(await rowOf($, 'Bolt')).toMatch(/^- Bolt: address "agent-2", stopped, fork of Pip, /)
+})
+
+test('a worker the engine never listed stays busy when quiet, across a reload too', SLOW, async ($, on) => {
+  let spawned = 0
+  const clock = engine(on, { nextId: () => `agent-${++spawned}` })
+  const start = () => $.session.start({ cwd: '/work/main', surface: 'terminal', isInteractive: true })
+  await start()
+  await $.tool.call({ tool: DELEGATE, task: 'Fix the relay queue', repo: '/work/api' })
+  await clock.advance(70_000)
+  expect(await rowOf($, 'Pip')).toMatch(/^- Pip: address "[^"]+", (starting|working), /)
+  await start()
+  await clock.advance(70_000)
+  expect(await rowOf($, 'Pip')).toMatch(/^- Pip: address "[^"]+", (starting|working), /)
+})

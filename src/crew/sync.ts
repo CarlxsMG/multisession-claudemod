@@ -4,8 +4,8 @@ import type { AgentInfo } from 'claude-code'
 import type { Worker, WorkerStatus } from '../../types'
 import { quiet } from '../engine'
 import type { Engine } from '../engine'
-import { runtime } from '../runtime'
-import { readDropped, readRuns, readWorkers, updateDropped, updateWorkers } from '../state/atoms'
+import { readDropped, readListed, readRuns, readWorkers, updateDropped, updateListed, updateWorkers } from '../state/atoms'
+import { appendKept } from '../util/bounded'
 import { enlist } from './feed'
 import { release } from './takeover'
 import { ACTIVE, FINISHED, claimName, makeWorker, prune, shelve, statusOf, takenNames, takenNow } from './workers'
@@ -17,9 +17,6 @@ export async function clearFinished($: Engine) {
   const ids = new Set(gone.map(w => w.id))
   await updateWorkers($, list => list.filter(w => !ids.has(w.id)))
 }
-
-// The agents the engine has listed in this load.
-const listed = runtime.sync
 
 // How long a busy worker the engine lists no more has been quiet when its
 // end, which never reached the crew, is taken for granted.
@@ -43,11 +40,27 @@ async function goneEnds($: Engine, list: readonly Worker[], infos: readonly Agen
   const ends = new Map<string, WorkerStatus>()
   if (quietOnes.length === 0) return ends
   const runs = await readRuns($)
+  const listed = new Set(await readListed($))
   for (const w of quietOnes) {
-    const end = runs.find(r => r.id === w.id)?.end || (listed.everListed.has(w.id) ? 'stopped' : '')
+    const end = runs.find(r => r.id === w.id)?.end || (listed.has(w.id) ? 'stopped' : '')
     if (end !== '') ends.set(w.id, end)
   }
   return ends
+}
+
+// Far more than the agents a session runs at once or has just lost.
+const LISTED_KEEP = 200
+
+/**
+ * Keeps which agents the engine has listed, for `goneEnds`, in the state: the
+ * engine may drop one just before a reload, or during it, and no sync of the
+ * next load would see it. Each write puts what it lists now last, so the cut
+ * only ever takes agents it dropped, the oldest first.
+ */
+async function noteListed($: Engine, infos: readonly AgentInfo[]) {
+  const known = new Set(await readListed($))
+  if (infos.every(info => known.has(info.id))) return
+  await updateListed($, ids => appendKept(ids, infos.map(info => info.id), LISTED_KEEP, id => id))
 }
 
 /**
@@ -58,7 +71,7 @@ async function goneEnds($: Engine, list: readonly Worker[], infos: readonly Agen
  */
 export async function syncAgents($: Engine) {
   const infos = await $.agent.list()
-  for (const info of infos) listed.everListed.add(info.id)
+  await noteListed($, infos)
   const list = await readWorkers($)
   const shelf = new Map((await readDropped($)).map(w => [w.id, w]))
   // A status the crew has no word for tells it nothing: the worker keeps the

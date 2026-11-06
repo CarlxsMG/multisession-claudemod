@@ -305,6 +305,7 @@ declare module 'claude-code' {
       checkins: Shaped<CheckIn[]>
       due: Shaped<PendingRow[]>
       beat: number
+      listed: Shaped<string[]>
       intents: Shaped<Intent[]>
       isolated: Shaped<string[]>
       sendGists: Shaped<SendGist[]>
