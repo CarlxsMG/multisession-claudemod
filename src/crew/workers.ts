@@ -3,11 +3,13 @@
 import type { AgentStatus } from 'claude-code'
 
 import type { Member, Worker, WorkerStatus } from '../../types'
+import { MATES } from '../config'
 import type { Engine } from '../engine'
 import { freshName, isWorkerName } from '../persona/names'
 import { runtime } from '../runtime'
 import { readDropped, readMembers, readWorkers, updateDropped, updateWorkers } from '../state/atoms'
 import { appendKept } from '../util/bounded'
+import { samePath } from '../util/path'
 import { hash } from '../util/random'
 import { cap } from '../util/text'
 
@@ -110,6 +112,16 @@ export function makeWorker(fields: Pick<Worker, 'id' | 'name' | 'address' | 'tas
 
 /** Active workers first, then whoever was heard from last. */
 export const byActivity = (a: Worker, b: Worker): number => Number(ACTIVE.has(b.status)) - Number(ACTIVE.has(a.status)) || b.updatedAt - a.updatedAt
+
+/**
+ * The teammates a worker named `name`, in `cwd`, hears of: the busy ones and
+ * those in its repository, most active first, up to `MATES`.
+ */
+export const matesOf = (list: readonly Worker[], name: string, cwd: string): Worker[] =>
+  list
+    .filter(w => w.name !== name && (ACTIVE.has(w.status) || samePath(w.cwd, cwd)))
+    .sort(byActivity)
+    .slice(0, MATES)
 
 // The workers the list keeps besides the active ones, the most recent.
 const KEPT_IDLE = 24

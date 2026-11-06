@@ -2,12 +2,13 @@
 // lines around them. src/crew/roster.ts gathers what the rows say.
 import type { ParentLink, Plan, Takeover, Worker } from '../../types'
 import { DEFAULT_TYPE, ROSTER_FULL_REPORT_CUT, ROSTER_REPORT_CUT, ROSTER_ROWS } from '../config'
-import { ACTIVE } from '../crew/workers'
 import { stepText } from '../progress/plan'
 import { oneLine } from '../util/text'
 
 /** What a worker's row says besides the worker itself. */
 export type RowFacts = {
+  /** Whether it is busy: its row then says what it is doing now. */
+  isActive: boolean
   /** Its takeover mark: who woke it, the tasks waiting for it, or why they did not arrive. */
   takeover?: Takeover
   /** The worker that started it, for one started from another worker's turn. */
@@ -25,8 +26,8 @@ export type RowFacts = {
  * alone has its own row in full.
  */
 export type RowCut = { task: number; report: number }
-export const rowCut = (w: Worker, isReported: boolean): RowCut => ({
-  task: ACTIVE.has(w.status) ? 80 : 60,
+export const rowCut = (isActive: boolean, isReported: boolean): RowCut => ({
+  task: isActive ? 80 : 60,
   report: isReported ? ROSTER_REPORT_CUT : 0,
 })
 export const FULL_ROW_CUT: RowCut = { task: 400, report: ROSTER_FULL_REPORT_CUT }
@@ -46,7 +47,7 @@ export function rosterRow(worker: Worker, facts: RowFacts, cut: RowCut): string 
   const where = `${parent ? `${parent.fork ? 'fork of' : 'started by'} ${parent.parent}, ` : ''}${facts.isInWorktree ? 'worktree of' : 'repo'} ${worker.cwd}`
   const task = `last task "${oneLine(worker.task, cut.task)}"`
   const report = cut.report > 0 && worker.answer ? `\n  last report: ${oneLine(worker.answer, cut.report)}` : ''
-  if (!ACTIVE.has(worker.status)) return `${head}${mark}, ${where}, ${history}, ${task}${report}`
+  if (!facts.isActive) return `${head}${mark}, ${where}, ${history}, ${task}${report}`
   const doing = worker.activity ? ` (${worker.activity})` : ''
   const step = facts.plan === undefined ? '' : `, step ${stepText(facts.plan)}`
   const age = Math.round((facts.now - worker.updatedAt) / 1000)

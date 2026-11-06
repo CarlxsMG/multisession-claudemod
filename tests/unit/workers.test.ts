@@ -1,8 +1,11 @@
 import { expect, test } from 'claude-code/testing'
 
 import type { Worker, WorkerStatus } from '../../types'
-import { chooseNapAfter, claimName, findWorker, makeWorker, napLeavesAt, napsAway, prune, statusOf, takenNames } from '../../src/crew/workers'
+import { MATES } from '../../src/config'
+import { chooseNapAfter, claimName, findWorker, makeWorker, matesOf, napLeavesAt, napsAway, prune, statusOf, takenNames } from '../../src/crew/workers'
 import { WORKER_NAMES, freshName, isWorkerName } from '../../src/persona/names'
+import { rosterRow, rowCut } from '../../src/prompts/roster'
+import { workerPreamble } from '../../src/prompts/worker'
 
 const worker = (id: string, name: string, status: WorkerStatus, updatedAt = 0): Worker => ({
   ...makeWorker({ id, name, address: name.toLowerCase(), task: '', type: 'general-purpose', cwd: '/work', status, model: '', asked: '' }, 0),
@@ -101,4 +104,33 @@ test("a worker's status from each of the engine's, and none from one the crew ha
   expect(states.map(statusOf)).toEqual(['starting', 'working', 'waiting', 'idle', 'done', 'failed', 'stopped'])
   expect(statusOf('paused')).toBeUndefined()
   expect(statusOf('toString')).toBeUndefined()
+})
+
+test('a worker hears of the busy ones and those in its repository, most active first, up to the limit, and not of itself', () => {
+  const list = [
+    worker('a', 'Me', 'working', 9),
+    worker('b', 'Old', 'idle', 1),
+    worker('c', 'New', 'idle', 5),
+    { ...worker('d', 'Far', 'idle', 8), cwd: '/other' },
+    { ...worker('e', 'Busy', 'working', 2), cwd: '/other' },
+  ]
+  expect(matesOf(list, 'Me', '/work').map(w => w.name)).toEqual(['Busy', 'New', 'Old'])
+  const many = Array.from({ length: MATES + 2 }, (_, i) => worker(`m${i}`, `W${i}`, 'idle', i))
+  expect(matesOf(many, 'Me', '/work').map(w => w.name)).toEqual(['W7', 'W6', 'W5', 'W4', 'W3', 'W2'])
+})
+
+test('the preamble names the mates it is given, as given, and says so when there are none', () => {
+  const mates = [worker('b', 'Old', 'idle', 1), worker('c', 'New', 'idle', 5)]
+  expect(workerPreamble('Me', 'Nova', 'Nova', '/work', mates, undefined, new Set(['c']))).toContain(
+    'SendMessage: Old ("old", work), New ("new", own worktree of work).',
+  )
+  expect(workerPreamble('Me', 'Nova', 'Nova', '/work', [], undefined, new Set())).toContain('SendMessage: none yet.')
+})
+
+test("a roster row says what its caller tells it of the worker, whatever the worker's status", () => {
+  const free = worker('a', 'Pip', 'idle')
+  const facts = { isInWorktree: false, now: 0 }
+  expect(rosterRow(free, { ...facts, isActive: true }, rowCut(true, false))).toContain('0 tool calls')
+  expect(rosterRow(free, { ...facts, isActive: false }, rowCut(false, false))).not.toContain('tool calls')
+  expect(rowCut(true, false).task).toBeGreaterThan(rowCut(false, false).task)
 })

@@ -380,6 +380,8 @@ is noticed in the debug log: `unrecognized($, kind, detail)` (`src/engine.ts`) w
   sentinel for the person); names are for display.
 - **The UI's text is read through `t()` at display time**, because the locale settles at session
   start, after the modules load.
+- **A text builder is told, it does not choose**: `src/prompts/` reads no worker's status and
+  `src/util/` no locale; their callers pass in the mates, whether a worker is busy, and the words.
 
 ## Forced by the tools
 
