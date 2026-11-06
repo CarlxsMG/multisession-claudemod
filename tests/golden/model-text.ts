@@ -353,6 +353,63 @@ export const GOLDEN: Record<string, string> = {
     "Write 8 lines per mood, each at most 28 characters, varied and in character, no emoji, no quotation marks.",
     "Reply with JSON only: {\"idle\":[...],\"thinking\":[...],\"working\":[...],\"delegating\":[...],\"happy\":[...],\"sleep\":[...]}",
   ].join('\n'),
+  "command.help": [
+    "/crew                  opens the pane",
+    "/crew team             every worker, one to a row",
+    "/crew edit             customize your mascot",
+    "/crew msg <worker> <text>",
+    "/crew code             copies your mascot's code",
+    "/crew import <code>",
+    "/crew random           a random mascot (keeps its name and phrase)",
+    "/crew mode on|off      the orchestrator delegates on its own, or not",
+    "/crew clear            takes the finished workers off the pane",
+    "/crew progress         how the workers are doing, now",
+    "/crew progress 1m|2m|3m|5m|10m|off   how often it says so by itself",
+  ].join('\n'),
+  "command.opened": [
+    "Mónica's pane is open.",
+  ].join('\n'),
+  "command.editing": [
+    "Customizing Mónica.",
+  ].join('\n'),
+  "command.teamOpened": [
+    "Mónica's crew is open.",
+  ].join('\n'),
+  "command.msgUsage": [
+    "Usage: /crew msg <worker> <text>",
+  ].join('\n'),
+  "command.sent": [
+    "Message sent to Pip.",
+  ].join('\n'),
+  "command.code": [
+    "Mónica's code:",
+    "<code>",
+  ].join('\n'),
+  "command.codeCopied": [
+    "Mónica's code (copied):",
+    "<code>",
+  ].join('\n'),
+  "command.badCode": [
+    "That code is not valid (it starts with CREW1.).",
+  ].join('\n'),
+  "command.imported": [
+    "Hi, Mónica! Mascot imported.",
+  ].join('\n'),
+  "command.newLook": [
+    "Mónica has a new look.",
+  ].join('\n'),
+  "command.modeOn": [
+    "Mónica will delegate to workers.",
+  ].join('\n'),
+  "command.modeOff": [
+    "Mónica will work without delegating.",
+  ].join('\n'),
+  "command.cleared": [
+    "The finished workers are off the pane.",
+  ].join('\n'),
+  "command.progressUsage": [
+    "Usage: /crew progress [1m|2m|3m|5m|10m|off]",
+  ].join('\n'),
   "usage.argv": [
     "[",
     "  \"claude\",",

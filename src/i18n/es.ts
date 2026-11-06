@@ -123,30 +123,6 @@ export const es: Messages = {
   command: {
     description: 'Panel del orquestador y su equipo de workers',
     argumentHint: '[editar | equipo | msg <worker> <texto> | codigo | importar <código> | aleatorio | modo on|off | limpiar | progreso [1m|2m|3m|5m|10m|off]]',
-    help: `/crew                  abre el panel
-/crew equipo           todos los workers, uno por fila
-/crew editar           personaliza tu mascota
-/crew msg <worker> <texto>
-/crew codigo           copia el código de tu mascota
-/crew importar <código>
-/crew aleatorio        mascota al azar (conserva nombre y frase)
-/crew modo on|off      el orquestador delega solo, o no
-/crew limpiar          quita los workers terminados del panel
-/crew progreso         cómo van los workers, ahora
-/crew progreso 1m|2m|3m|5m|10m|off   cada cuánto lo dice solo`,
-    opened: name => `Panel de ${name} abierto.`,
-    editing: name => `Personalizando a ${name}.`,
-    teamOpened: name => `Equipo de ${name} abierto.`,
-    msgUsage: 'Uso: /crew msg <worker> <texto>',
-    sent: name => `Mensaje enviado a ${name}.`,
-    code: (name, isCopied, code) => `Código de ${name}${isCopied ? ' (copiado)' : ''}:\n${code}`,
-    badCode: 'Ese código no es válido (empieza por CREW1.).',
-    imported: name => `¡Hola, ${name}! Mascota importada.`,
-    newLook: name => `${name} estrena look.`,
-    modeOn: name => `${name} delegará en workers.`,
-    modeOff: name => `${name} trabajará sin delegar.`,
-    cleared: 'Workers terminados fuera del panel.',
-    progressUsage: 'Uso: /crew progreso [1m|2m|3m|5m|10m|off]',
     verbs: {
       edit: ['editar'],
       team: ['equipo'],

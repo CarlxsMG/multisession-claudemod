@@ -91,7 +91,7 @@ happens.
 - **Share codes.** `/crew code` copies a `CREW1.…` code that someone else imports with
   `/crew import <code>`.
 - **English and Spanish.** The UI follows Claude Code's language setting, or the plugin's
-  `language` option.
+  `language` option. What `/crew` answers stays in English, as it reaches the model.
 
 ## Install
 
@@ -137,7 +137,7 @@ To work on the plugin itself, see [CONTRIBUTING.md](CONTRIBUTING.md).
 | `/crew progress 1m\|2m\|3m\|5m\|10m\|off` | How often check-ins come (3m by default) |
 
 The Spanish verbs (`equipo`, `editar`, `codigo`, `importar`, `aleatorio`, `modo`, `limpiar`,
-`progreso`) work in any language. With the pane focused, Tab moves between its buttons and Enter
+`progreso`) work in any language, though `/crew`'s help lists the English ones. With the pane focused, Tab moves between its buttons and Enter
 presses one. In the editor: `r` random, `d` done (`l` in Spanish) and, in Share, `c` copies the
 code.
 
@@ -146,7 +146,8 @@ code.
 - **Language** (`language` option of the plugin: `auto`, `en` or `es`; `auto` by default). With
   `auto`, the crew speaks the language of Claude Code's `language` setting (`Español`, `spanish`,
   `es-ES`…), and English when it names one the crew does not have. Everything a model reads stays
-  in English whatever the UI speaks.
+  in English whatever the UI speaks, and that includes what `/crew` answers, its help too: Claude
+  Code stores it in the conversation.
 - **Delegation** (`/crew mode on|off`, or the pane's switch). Kept across sessions.
 - **Check-in interval** (`/crew progress 1m|2m|3m|5m|10m|off`). Kept across sessions. `off` stops
   the check-ins and the round summary, not the status line, the end lines or the pane.

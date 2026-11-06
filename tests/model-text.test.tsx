@@ -1,12 +1,13 @@
 // Every text a model reads, exactly: the brief, the tool specs, the notes,
-// what workers and forks hear, the tools' results and the Haiku prompt. A
-// refactor keeps them byte for byte; a change in wording is a deliberate
-// change to tests/golden/model-text.ts, in a commit of its own.
+// what workers and forks hear, the tools' results, what /crew answers and the
+// Haiku prompt. A refactor keeps them byte for byte; a change in wording is a
+// deliberate change to tests/golden/model-text.ts, in a commit of its own.
 import { expect } from 'claude-code/testing'
 import type { TestBody } from 'claude-code/testing'
-import type { On } from 'claude-code'
+import type { On, UiCopyResult } from 'claude-code'
 
 import { DEFAULT_LOOK } from '../src/figure/look'
+import { lookCode, parseLookCode } from '../src/figure/share-code'
 import { VIBES } from '../src/persona/vibes'
 import { GOLDEN } from './golden/model-text'
 import { DELEGATE, NO_VERDICT, composeBrief, crewCommand, engine, progress, spawnAgent, startTold, test, wokenCrew, workerSend } from './support/crew'
@@ -277,6 +278,42 @@ test('the answer to a send that failed on its way', async ($, on) => {
   seen.failSends = true
   expectText('send.failed', await message('pip', 'Bolt: the lock is free', 'agent-2').catch((err: unknown) => String(err)))
 })
+
+// A reply is stored where the model reads it, so neither the UI's language nor
+// the personality changes a word of it, and what the person chose stands as
+// they wrote it. A share code holds the whole look, so the golden has `<code>`.
+async function expectReplies($: Dollar, on: On) {
+  engine(on)
+  let copy: UiCopyResult = { isCopied: true }
+  on('ui.copy', () => ({ value: copy }))
+  await start($)
+  await $.tool.call({ tool: DELEGATE, task: 'Run the tests', repo: '/work/api' })
+  const reply = async (args: string) => String((await crewCommand($, args)).text)
+  for (const vibe of Object.keys(VIBES)) {
+    expectText('command.imported', await reply(`import ${lookCode({ ...DEFAULT_LOOK, name: 'Mónica', phrase: '¡Allá vamos!', vibe })}`))
+    expectText('command.opened', await reply(''))
+    expectText('command.editing', await reply('edit'))
+    expectText('command.teamOpened', await reply('team'))
+    expectText('command.msgUsage', await reply('msg pip'))
+    expectText('command.sent', await reply('msg pip look at the logout too'))
+    copy = { isCopied: true }
+    const copied = await reply('code')
+    expect(parseLookCode(copied.split('\n')[1]!)?.phrase).toBe('¡Allá vamos!')
+    expectText('command.codeCopied', copied.replace(/CREW1\.\S+/, '<code>'))
+    copy = { isCopied: false, reason: 'no-clipboard' }
+    expectText('command.code', (await reply('code')).replace(/CREW1\.\S+/, '<code>'))
+    expectText('command.badCode', await reply('import nothing'))
+    expectText('command.newLook', await reply('random'))
+    expectText('command.modeOff', await reply('mode off'))
+    expectText('command.modeOn', await reply('mode on'))
+    expectText('command.cleared', await reply('clear'))
+    expectText('command.progressUsage', await reply('progress 4m'))
+    expectText('command.help', await reply('help'))
+  }
+}
+
+test('what /crew answers, in every personality', expectReplies)
+test('what /crew answers in a Spanish UI: the same words', { options: { language: 'es' } }, expectReplies)
 
 test('the usage probe: the command it runs and what it writes to it', async ($, on) => {
   const runs: { argv: readonly string[]; stdin: string }[] = []

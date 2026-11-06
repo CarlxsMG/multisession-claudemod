@@ -121,7 +121,7 @@ optional field keeps the tag.
 ## Text a model reads
 
 Nearly every text a model reads is in `src/prompts/`: the orchestrator's brief, the workers'
-preamble, the tool specs, the tool results, the roster and the `[crew]` note.
+preamble, the tool specs, the tool results, the roster, the `[crew]` note and what `/crew` answers.
 [docs/model-behavior.md](docs/model-behavior.md) lists each one, who reads it and when, and the few
 that live elsewhere. All of it is model behaviour, so:
 

@@ -95,7 +95,7 @@ falla en tiempo real.
 - **Códigos para compartir.** `/crew codigo` copia un código `CREW1.…` que otra persona importa
   con `/crew importar <código>`.
 - **Inglés y español.** La interfaz sigue el ajuste de idioma de Claude Code, o la opción
-  `language` del plugin.
+  `language` del plugin. Lo que responde `/crew` sale en inglés, porque llega al modelo.
 
 ## Instalarlo
 
@@ -141,7 +141,7 @@ Para trabajar en el propio plugin, mira [CONTRIBUTING.md](CONTRIBUTING.md) (en i
 | `/crew progreso 1m\|2m\|3m\|5m\|10m\|off` | Cada cuánto llegan los avisos (3m por defecto) |
 
 Los verbos en inglés (`team`, `edit`, `code`, `import`, `random`, `mode`, `clear`, `progress`)
-funcionan en cualquier idioma. Con el panel enfocado, Tab recorre sus botones y Enter los pulsa. En
+funcionan en cualquier idioma, y son los que lista la ayuda de `/crew`. Con el panel enfocado, Tab recorre sus botones y Enter los pulsa. En
 el editor: `r` aleatorio, `l` listo (`d` en inglés) y, en Compartir, `c` copia el código.
 
 ## Ajustes
@@ -149,7 +149,8 @@ el editor: `r` aleatorio, `l` listo (`d` en inglés) y, en Compartir, `c` copia 
 - **Idioma** (opción `language` del plugin: `auto`, `en` o `es`; `auto` por defecto). Con `auto`,
   el crew habla el idioma del ajuste `language` de Claude Code (`Español`, `spanish`, `es-ES`…), e
   inglés si nombra uno que el crew no tiene. Todo lo que lee un modelo sigue en inglés, hable la
-  interfaz lo que hable.
+  interfaz lo que hable, y eso incluye lo que responde `/crew`, también su ayuda: Claude Code lo
+  guarda en la conversación.
 - **Delegación** (`/crew modo on|off`, o el interruptor del panel). Se guarda entre sesiones.
 - **Cada cuánto llegan los avisos** (`/crew progreso 1m|2m|3m|5m|10m|off`). Se guarda entre
   sesiones. `off` quita los avisos y el resumen de la ronda, no la línea de estado, las líneas de
