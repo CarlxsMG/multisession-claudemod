@@ -120,8 +120,10 @@ optional field keeps the tag.
 
 ## Text a model reads
 
-Every text a model reads is in `src/prompts/`: the orchestrator's brief, the workers' preamble,
-the tool specs, the tool results, the roster and the `[crew]` note. It is model behaviour, so:
+Nearly every text a model reads is in `src/prompts/`: the orchestrator's brief, the workers'
+preamble, the tool specs, the tool results, the roster and the `[crew]` note.
+[docs/model-behavior.md](docs/model-behavior.md) lists each one, who reads it and when, and the few
+that live elsewhere. All of it is model behaviour, so:
 
 - it stays in English whatever the UI's language;
 - `tests/golden/model-text.ts` holds each text exactly, one line per element. A wording change
