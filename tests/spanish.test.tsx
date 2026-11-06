@@ -13,8 +13,6 @@ import { endNotice } from '../src/progress/text/ended'
 import { notePieces } from '../src/progress/text/note'
 import { given, headsUp, heldFor, started } from '../src/prompts/results'
 import { resultFoots } from '../src/ui/transcript/foots'
-import { unwrapPasted } from '../src/util/text'
-import { ago } from '../src/util/time'
 import type { Member } from '../types'
 import {
   DELEGATE,
@@ -153,7 +151,7 @@ test('the usage in Spanish', ES, async ($, on) => {
   await ui.unmount()
 })
 
-test("the feed in Spanish: the person's own line, and what they pasted", ES, async ($, on) => {
+test("the feed in Spanish: the person's own line, its age, and what they pasted", ES, async ($, on) => {
   const clock = engine(on)
   on('prompt.submit', (_, e) => ({ text: e.text }))
   await $.session.start({ cwd: '/work/main', surface: 'terminal', isInteractive: true })
@@ -164,7 +162,7 @@ test("the feed in Spanish: the person's own line, and what they pasted", ES, asy
   })
   await clock.advance(1000)
   const ui = await $.ui.mount({ ...PANE, surface: 'terminal' })
-  expect((await ui.find({ type: 'Text', text: /^ ─ tú → Nova · / }))?.text).toMatch(/“Mira esto: \[pegado\] Zod can exhaust memory y arréglalo”$/)
+  expect((await ui.find({ type: 'Text', text: /^ ─ tú → Nova · ahora / }))?.text).toMatch(/“Mira esto: \[pegado\] Zod can exhaust memory y arréglalo”$/)
   expect((await ui.find({ type: 'Text', text: /^tú$/ }))?.props.color).toBe('suggestion')
   expect(await ui.find({ type: 'Text', text: /^╭─ Tú/ })).toBeUndefined()
   await ui.unmount()
@@ -375,7 +373,7 @@ test('a delegate bubble in Spanish: new or reused, who else works there, and its
 
 // ---- the words the crew builds ----
 
-test('the words the crew builds in Spanish: phases, ages, pasted text, plans, ends, messages and results', () => {
+test('the words the crew builds in Spanish: phases, plans, ends, messages and results', () => {
   expect((['thinking', 'reading', 'editing', 'running', 'testing', 'web', 'delegating', 'waiting'] as const).map(phaseLabel)).toEqual([
     'pensando',
     'leyendo',
@@ -386,8 +384,6 @@ test('the words the crew builds in Spanish: phases, ages, pasted text, plans, en
     'delegando',
     'esperando',
   ])
-  expect(ago(10_000, 5_000)).toBe('ahora')
-  expect(unwrapPasted('see <pasted_content id="1">code</pasted_content> now')).toBe('see  [pegado] code  now')
 
   const third = declarePlan(declarePlan(undefined, 0, 5, 'Plan'), 3, 5, 'Escribir tests')
   expect(stepShare(third)).toBe('40 % de los pasos')

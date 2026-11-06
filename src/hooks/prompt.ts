@@ -27,7 +27,7 @@ type OnSubmitHook = HookFor<'prompt.submit'>
 /** Puts the user's message in the feed, and sends the pending "[crew]" notes with it. */
 export async function onSubmit($: Engine, e: Parameters<OnSubmitHook>[1], next: Parameters<OnSubmitHook>[2]) {
   if (e.origin.kind !== 'composer' || e.command !== undefined || e.isMeta) return next(e)
-  if (e.text.trim()) await say($, { name: t().user, id: USER_ID }, { name: (await readLook($)).name, id: ORCH_ID }, unwrapPasted(e.text), 'user')
+  if (e.text.trim()) await say($, { name: t().user, id: USER_ID }, { name: (await readLook($)).name, id: ORCH_ID }, unwrapPasted(e.text, t().pasted), 'user')
   // After a /clear or a resume the conversation is another one.
   await checkConversation($)
   const pending = await readPendingNote($)

@@ -33,8 +33,8 @@ test("a tool's stored result gives its text, from blocks, a message or a string"
   expect(firstText()).toBe('')
 })
 
-test('a pasted text loses the tags the desktop app wraps it in and is marked as pasted', () => {
-  expect(unwrapPasted('see <pasted_content id="1">code</pasted_content> now')).toBe('see  [pasted] code  now')
+test('a pasted text loses the tags the desktop app wraps it in and takes the marker it is given', () => {
+  expect(unwrapPasted('see <pasted_content id="1">code</pasted_content> now', '[clip]')).toBe('see  [clip] code  now')
 })
 
 test('a call is named by its tool and what it acts on, a path by its file name', () => {
@@ -45,9 +45,9 @@ test('a call is named by its tool and what it acts on, a path by its file name',
   expect(describe({ tool: 'TodoWrite' })).toBe('TodoWrite')
 })
 
-test('an age reads "now" under ten seconds, then in seconds, minutes and hours', () => {
-  expect(ago(10_000, 5_000)).toBe('now')
-  expect(ago(30_000, 0)).toBe('30s')
-  expect(ago(70_000, 0)).toBe('1m')
-  expect(ago(7_200_000, 0)).toBe('2h')
+test('an age reads the word it is given under ten seconds, then in seconds, minutes and hours', () => {
+  expect(ago(10_000, 5_000, 'just now')).toBe('just now')
+  expect(ago(30_000, 0, 'just now')).toBe('30s')
+  expect(ago(70_000, 0, 'just now')).toBe('1m')
+  expect(ago(7_200_000, 0, 'just now')).toBe('2h')
 })
