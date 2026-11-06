@@ -17,8 +17,7 @@ import { resetRuntime } from '../runtime'
 import { readModel } from '../settings/model'
 import { checkConversation, freezeBrief } from '../settings/notes'
 import { STORE_KEYS, readDropped, readWorkers, updateIsOn, updateLimits, updateLook, updateMoodLines, updateOrch } from '../state/atoms'
-import { tick, typeTick } from '../ui/pane/animation'
-import { APPLE_TYPE_TICK_MS, TYPE_TICK_MS } from '../ui/pane/feed'
+import { stopTyping, tick, typeForTerminal } from '../ui/pane/animation'
 import { openPaneOnAttach, openPaneWhenShown } from '../ui/pane/index'
 import { allowUsageProbe, hasApp, probeUsage, toLimits } from '../usage/limits'
 
@@ -29,6 +28,7 @@ type OnSessionStartHook = HookFor<'session.start'>
  * command and the pane.
  */
 export async function onSessionStart($: Engine, e: Parameters<OnSessionStartHook>[1], next: Parameters<OnSessionStartHook>[2]) {
+  stopTyping()
   resetRuntime()
   await settleLocale($)
   // Terminal.app gets the engine's 256 colors unless it was told it shows
@@ -36,6 +36,7 @@ export async function onSessionStart($: Engine, e: Parameters<OnSessionStartHook
   const isAppleTerminal = (await $.env.get('TERM_PROGRAM')) === 'Apple_Terminal'
   const isTruecolor = (await $.env.get('COLORTERM')) === 'truecolor' || (await $.env.get('FORCE_COLOR')) === '3'
   setPalette256(isAppleTerminal && !isTruecolor)
+  typeForTerminal(isAppleTerminal)
   const stored = await $.store.get(STORE_KEYS.look)
   await updateLook($, () => (stored !== undefined ? normalizeLook(stored) : defaultLook()))
   const storedOn = await $.store.get(STORE_KEYS.isOn)
@@ -63,7 +64,6 @@ export async function onSessionStart($: Engine, e: Parameters<OnSessionStartHook
   await $.tool.register(PROGRESS_SPEC)
   await enlist($, [...(await readDropped($)), ...(await readWorkers($))])
   $.clock.every(TICK_MS, () => tick($))
-  $.clock.every(isAppleTerminal ? APPLE_TYPE_TICK_MS : TYPE_TICK_MS, () => typeTick($))
   await startProgress($)
   const usage = await quiet($, $.session.usage(), 'usage')
   if (usage?.rateLimits) await updateLimits($, () => toLimits(usage.rateLimits))

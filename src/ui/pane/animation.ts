@@ -14,6 +14,7 @@ import { hasHeldCalls, writeCalls } from '../../progress/calls'
 import { runtime } from '../../runtime'
 import { ensureLines } from '../../settings/mood-lines'
 import { updatePaneTick } from '../../state/atoms'
+import { APPLE_TYPE_TICK_MS, TYPE_TICK_MS } from './feed'
 
 // What the timer and the pane's drawings leave each other. The rasters the
 // pane drew last, by key, each with how to draw any frame, are repainted in
@@ -52,7 +53,7 @@ export function noticeLook(look: Look) {
 /** The pane closed: none of its rasters is repainted, and no bubble types. */
 export function forgetPane() {
   forgetRasters()
-  state.typingUntil = 0
+  stopTyping()
   state.asPage = false
 }
 
@@ -84,9 +85,32 @@ export function pageGone() {
  * end it showed stops standing out, and the typing tick's until
  * `typingUntil`, while a bubble types out (0 for none of either).
  */
-export function oweRedraws(dues: { napDue: number; typingUntil: number }) {
+export function oweRedraws($: Engine, dues: { napDue: number; typingUntil: number }) {
   state.napDue = dues.napDue
   state.typingUntil = dues.typingUntil
+  if (dues.typingUntil === 0) stopTyping()
+  else startTyping($)
+}
+
+/** Whether the session runs in Terminal.app, whose bubbles type out at a pace of their own. */
+export function typeForTerminal(isAppleTerminal: boolean) {
+  state.isAppleTerminal = isAppleTerminal
+}
+
+// The timer that types bubbles out runs only while one does: the rest of a
+// session it would wake the process for nothing, about eleven times a second.
+// The drawing that shows a bubble starts it, so the bubble's first frame comes
+// a period later and not at the pane's next tick.
+function startTyping($: Engine) {
+  if (state.typer !== undefined) return
+  state.typer = $.clock.every(state.isAppleTerminal ? APPLE_TYPE_TICK_MS : TYPE_TICK_MS, () => typeTick($))
+}
+
+/** No bubble types out from now on, and the timer that types them stops. */
+export function stopTyping() {
+  state.typer?.cancel()
+  state.typer = undefined
+  state.typingUntil = 0
 }
 
 /**
@@ -147,11 +171,11 @@ export function tick($: Engine) {
   if (state.frame % LINES_FRAMES === LINES_PHASE) void quiet($, ensureLines($), 'mood lines')
 }
 
-/** While a bubble types out, each tick of its own timer draws the pane again. */
-export function typeTick($: Engine) {
-  if (state.typingUntil === 0) return
+// While a bubble types out, each tick of its own timer draws the pane again,
+// the last of them with the bubble whole.
+function typeTick($: Engine) {
   void $.clock.now().then(now => {
-    if (now >= state.typingUntil) state.typingUntil = 0
+    if (now >= state.typingUntil) stopTyping()
     return redrawPane($)
   })
 }

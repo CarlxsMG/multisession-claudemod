@@ -1,8 +1,11 @@
+import type { HookFor, On } from 'claude-code'
 import { expect } from 'claude-code/testing'
+import type { Plugin, TestBody } from 'claude-code/testing'
 import { nameColorOf } from '../src/figure/accent'
 import { DEFAULT_LOOK } from '../src/figure/look'
 import { parseMoodLines, pickLine } from '../src/persona/lines'
-import { PANE, WRITTEN, engine, spawnAgent, test } from './support/crew'
+import { APPLE_TYPE_TICK_MS, TYPE_TICK_MS } from '../src/ui/pane/feed'
+import { COMPOSER, DELEGATE, PANE, WRITTEN, engine, spawnAgent, test } from './support/crew'
 
 test('the two newest messages are bubbles and older ones one line each', async ($, on) => {
   let spawned = 0
@@ -191,4 +194,137 @@ test('messages type out in bubbles, one after another', async ($, on) => {
   expect(await ui.find({ type: 'Text', text: /^╭─ Nova → Pip · \S+ ─+╮$/ })).toBeDefined()
   expect(await ui.find({ type: 'Text', text: /^╭─ Pip → Nova · \S+ ─+╮$/ })).toBeDefined()
   await ui.unmount()
+})
+
+// Each period of the typing timer the clock is asked for, by its length: how a
+// test sees that timer run. An event takes one hook of a test's, the mock's, so
+// the count goes in that hook as the mock registers it.
+function typingPeriods(on: On) {
+  const periods: number[] = []
+  const counting = ((event: 'clock.every', hook: HookFor<'clock.every'>) =>
+    on(
+      event,
+      event !== 'clock.every'
+        ? hook
+        : (host, wait, next) => {
+            if (wait.ms === TYPE_TICK_MS || wait.ms === APPLE_TYPE_TICK_MS) periods.push(wait.ms)
+            return hook(host, wait, next)
+          },
+    )) as On
+  return { counting, periods }
+}
+
+// A task whose title types out in the pane, as a bubble that takes five periods.
+const delegateTests = ($: Parameters<TestBody>[0], repo = '/work/api') =>
+  $.tool.call({ tool: DELEGATE, task: 'Run the tests and fix what fails', title: 'Arreglar tests', repo })
+
+test("a bubble grows on the clock alone from one typing period on, before the pane's next frame", async ($, on) => {
+  const clock = engine(on, { typing: true })
+  await $.session.start({ cwd: '/work/main', surface: 'terminal', isInteractive: true })
+  const ui = await $.ui.mount({ ...PANE, surface: 'terminal' })
+  await delegateTests($)
+  await clock.settle()
+  expect(await ui.find({ type: 'Text', text: /^▌\s*$/ })).toBeDefined()
+  // No redraw from the test, and the pane's own timer draws it again far later.
+  await clock.advance(TYPE_TICK_MS)
+  expect(await ui.find({ type: 'Text', text: /^Arr▌\s*$/ })).toBeDefined()
+  await clock.advance(TYPE_TICK_MS)
+  expect(await ui.find({ type: 'Text', text: /^Arregl▌\s*$/ })).toBeDefined()
+  // The last period draws the bubble whole, with no cursor.
+  await clock.advance(4 * TYPE_TICK_MS)
+  expect(await ui.find({ type: 'Text', text: /^Arreglar tests\s*$/ })).toBeDefined()
+  expect(await ui.find({ type: 'Text', text: /▌/ })).toBeUndefined()
+  await ui.unmount()
+})
+
+test('the typing timer runs while a bubble types and at no other time', async ($, on) => {
+  const { counting, periods } = typingPeriods(on)
+  const clock = engine(counting, { typing: true })
+  await $.session.start({ cwd: '/work/main', surface: 'terminal', isInteractive: true })
+  const ui = await $.ui.mount({ ...PANE, surface: 'terminal' })
+  await clock.advance(1000)
+  expect(periods).toEqual([])
+
+  await delegateTests($)
+  await clock.settle()
+  await clock.advance(2 * TYPE_TICK_MS)
+  expect(periods.length).toBeGreaterThan(0)
+  expect(new Set(periods)).toEqual(new Set([TYPE_TICK_MS]))
+
+  await clock.advance(5000)
+  const typedOut = periods.length
+  await clock.advance(1000)
+  expect(periods.length).toBe(typedOut)
+
+  // The next bubble starts it again.
+  await $.turn.complete({ answer: 'Tests verdes: 42 ok', durationMs: 1000, isAborted: false, turnId: 't1', agentId: 'agent-1', reason: 'answer' })
+  await clock.settle()
+  await clock.advance(TYPE_TICK_MS)
+  expect(periods.length).toBeGreaterThan(typedOut)
+  expect(await ui.find({ type: 'Text', text: /^Tes▌\s*$/ })).toBeDefined()
+  await ui.unmount()
+})
+
+test("in Terminal.app the typing timer runs at Terminal.app's pace", async ($, on) => {
+  const { counting, periods } = typingPeriods(on)
+  const clock = engine(counting, { typing: true, host: { env: { TERM_PROGRAM: 'Apple_Terminal' } } })
+  await $.session.start({ cwd: '/work/main', surface: 'terminal', isInteractive: true })
+  const ui = await $.ui.mount({ ...PANE, surface: 'terminal' })
+  await delegateTests($)
+  await clock.settle()
+  await clock.advance(2 * APPLE_TYPE_TICK_MS)
+  expect(periods.length).toBeGreaterThan(0)
+  expect(new Set(periods)).toEqual(new Set([APPLE_TYPE_TICK_MS]))
+  await ui.unmount()
+})
+
+// A command that closes the pane, as the person's close mark does. A test's `$`
+// has no `$.ui.close`, so a plugin beside the crew calls it.
+const CLOSER: Plugin = {
+  name: 'closer',
+  register(on) {
+    on('command.run', { command: 'close-pane' }, async $ => {
+      await $.ui.close({ id: 'crew' })
+      return {}
+    })
+  },
+}
+
+test('the pane closing stops the typing timer, and the next bubble it draws starts it again', { plugins: [CLOSER] }, async ($, on) => {
+  const { counting, periods } = typingPeriods(on)
+  const clock = engine(counting, { typing: true })
+  on('ui.close', () => ({ value: undefined }))
+  await $.session.start({ cwd: '/work/main', surface: 'terminal', isInteractive: true })
+  const ui = await $.ui.mount({ ...PANE, surface: 'terminal' })
+  await delegateTests($)
+  await clock.settle()
+  await clock.advance(TYPE_TICK_MS)
+  await $.command.run({ command: 'close-pane', args: '', origin: COMPOSER, presentation: { isFullscreen: false, columns: 80 } })
+  await ui.unmount()
+  const closed = periods.length
+  await clock.advance(1000)
+  expect(periods.length).toBe(closed)
+
+  const again = await $.ui.mount({ ...PANE, surface: 'terminal' })
+  await delegateTests($, '/work/web')
+  await clock.settle()
+  await clock.advance(TYPE_TICK_MS)
+  expect(periods.length).toBeGreaterThan(closed)
+  await again.unmount()
+})
+
+test("a session's start stops the typing timer of the session before it", async ($, on) => {
+  const { counting, periods } = typingPeriods(on)
+  const clock = engine(counting, { typing: true })
+  await $.session.start({ cwd: '/work/main', surface: 'terminal', isInteractive: true })
+  const ui = await $.ui.mount({ ...PANE, surface: 'terminal' })
+  await delegateTests($)
+  await clock.settle()
+  await clock.advance(TYPE_TICK_MS)
+  await ui.unmount()
+  await $.session.start({ cwd: '/work/main', surface: 'terminal', isInteractive: true })
+  const restarted = periods.length
+  expect(restarted).toBeGreaterThan(0)
+  await clock.advance(1000)
+  expect(periods.length).toBe(restarted)
 })

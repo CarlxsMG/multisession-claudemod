@@ -29,6 +29,8 @@ All notable changes to crew are written here. The format follows
   and on its figure, so it reads apart from a failed one (`×`) without color.
 - The editor's figure cheers only for a change to the look: a press on the value already chosen
   leaves it as it was.
+- The timer that types out the pane's bubbles runs only while one types, instead of waking the
+  session about eleven times a second from start to end.
 
 ### Fixed
 
