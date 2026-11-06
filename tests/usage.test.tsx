@@ -1,7 +1,7 @@
 import { expect } from 'claude-code/testing'
-import { PANE, SLOW, engine, test, usageReply } from './support/crew'
+import { PANE, engine, test, usageReply } from './support/crew'
 
-test("the account's usage sits beside the delegation switch and follows each measure", SLOW, async ($, on) => {
+test("the account's usage sits beside the delegation switch and follows each measure", async ($, on) => {
   const probes: { argv: readonly string[]; stdin: string }[] = []
   const clock = engine(on, {
     rateLimits: [

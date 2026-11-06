@@ -3,9 +3,9 @@
 // agents.
 import { expect } from 'claude-code/testing'
 import { notePieces } from '../src/progress/text/note'
-import { DELEGATE, SLOW, crewCommand, progress, progressCrew, test, workerSend } from './support/crew'
+import { DELEGATE, crewCommand, progress, progressCrew, test, workerSend } from './support/crew'
 
-test('the newest check-in follows the round in place, its times once a minute; the rows before it keep what they showed', SLOW, async ($, on) => {
+test('the newest check-in follows the round in place, its times once a minute; the rows before it keep what they showed', async ($, on) => {
   const { clock, placed, mainTurn, delegate, lines } = await progressCrew($, on)
   await delegate('Publish the plugin', '/work/api', 'Publicar')
   await progress($, 'agent-1', 0, 9, 'Plan')
@@ -42,7 +42,7 @@ test('the newest check-in follows the round in place, its times once a minute; t
   expect(await lines(placed[0]!)).toEqual(['─ crew · round 3m · Pip reading 1/9 3m'])
 })
 
-test('with check-ins off, as the store keeps them from an earlier session, no row comes, nor a summary', SLOW, async ($, on) => {
+test('with check-ins off, as the store keeps them from an earlier session, no row comes, nor a summary', async ($, on) => {
   const { clock, placed, delegate, end } = await progressCrew($, on, { progress: 0 })
   await delegate('Run the tests', '/work/api', 'Arreglar tests')
   await delegate('Review the README', '/work/web', 'Revisar README')
@@ -56,7 +56,7 @@ test('with check-ins off, as the store keeps them from an earlier session, no ro
   expect(placed).toHaveLength(0)
 })
 
-test('/crew progress 1m or 10m sets how often, in the store, and says so in a row; the reply says nothing', SLOW, async ($, on) => {
+test('/crew progress 1m or 10m sets how often, in the store, and says so in a row; the reply says nothing', async ($, on) => {
   const { clock, placed, delegate, end, lines } = await progressCrew($, on)
   await delegate('Run the tests', '/work/api', 'Arreglar tests')
   await delegate('Review the README', '/work/web', 'Revisar README')
@@ -107,7 +107,7 @@ test('/crew progress 1m or 10m sets how often, in the store, and says so in a ro
 
 // A quarter of an hour of the clock, a progress tick a second: more than the
 // default time on a busy machine.
-test("a round of two workers, or one longer than the interval, ends in one summary row, after the orchestrator's turn", SLOW, async ($, on) => {
+test("a round of two workers, or one longer than the interval, ends in one summary row, after the orchestrator's turn", async ($, on) => {
   const { clock, placed, mainTurn, delegate, end, lines } = await progressCrew($, on)
   // One worker under the interval: nothing.
   await delegate('Quick look', '/work/api', 'Vistazo')
@@ -147,7 +147,7 @@ test("a round of two workers, or one longer than the interval, ends in one summa
   expect(placed).toHaveLength(3)
 })
 
-test("a check-in row comes every 3 minutes of work when something changed, and waits for the orchestrator's turn to end", SLOW, async ($, on) => {
+test("a check-in row comes every 3 minutes of work when something changed, and waits for the orchestrator's turn to end", async ($, on) => {
   const { clock, placed, mainTurn, delegate, lines } = await progressCrew($, on)
   await delegate('Run the tests', '/work/api', 'Arreglar tests')
   await $.tool.call({ tool: 'Read', file_path: '/work/api/a.ts', agentId: 'agent-1' })

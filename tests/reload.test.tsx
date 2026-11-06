@@ -4,7 +4,7 @@
 // in one test is that reload.
 import { expect } from 'claude-code/testing'
 import type { AgentSpawnInput } from 'claude-code'
-import { DELEGATE, NO_VERDICT, SLOW, engine, frameRows, mountSaid, progressCrew, spawnAgent, test, workerSend } from './support/crew'
+import { DELEGATE, NO_VERDICT, engine, frameRows, mountSaid, progressCrew, spawnAgent, test, workerSend } from './support/crew'
 import type { Seen } from './support/crew'
 
 const TERMINAL = { cwd: '/work/main', surface: 'terminal', isInteractive: true } as const
@@ -12,7 +12,7 @@ const TERMINAL = { cwd: '/work/main', surface: 'terminal', isInteractive: true }
 // What a load keeps in memory beside its atoms starts afresh with each
 // session: a reload reads again only the modules whose code changed, and
 // the others' bookkeeping must not outlive the session it was kept for.
-test("a session started again in the same load keeps nothing of the earlier one's bookkeeping", SLOW, async ($, on) => {
+test("a session started again in the same load keeps nothing of the earlier one's bookkeeping", async ($, on) => {
   const clock = engine(on)
   const logged: string[] = []
   on('ui.log', (_, e) => {

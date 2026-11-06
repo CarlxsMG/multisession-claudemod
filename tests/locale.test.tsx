@@ -1,7 +1,7 @@
 import { expect } from 'claude-code/testing'
 import type { TestBody } from 'claude-code/testing'
 import { DEFAULT_LOOK } from '../src/figure/look'
-import { PANE, SLOW, WRITTEN, crewCommand, engine, test } from './support/crew'
+import { PANE, WRITTEN, crewCommand, engine, test } from './support/crew'
 
 // The orchestrator's figure as a screen reader hears it: the shortest word
 // of the pane's that tells its language.
@@ -12,7 +12,7 @@ async function orchAlt($: Parameters<TestBody>[0]) {
   return alt
 }
 
-test('Haiku writes the mood lines in the language the crew speaks, and again in another', { ...SLOW, options: { language: 'auto' } }, async ($, on) => {
+test('Haiku writes the mood lines in the language the crew speaks, and again in another', { options: { language: 'auto' } }, async ($, on) => {
   const clock = engine(on, { stored: { look: { ...DEFAULT_LOOK, phrase: 'Ship it' } } })
   let language = 'english'
   on('settings.read', () => ({ value: { language } }))

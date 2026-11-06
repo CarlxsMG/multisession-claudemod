@@ -127,9 +127,3 @@ export function engine(on: On, options: EngineOptions = {}) {
   on('ui.render', () => ({ type: 'engine', ref: 0 }))
   return clock
 }
-
-// For a test that takes over a second or two unloaded, most of them because
-// their mocked clock advances minutes and every tick on the way runs the
-// plugin's timers: with the test files run side by side, that nears the
-// default 5 s.
-export const SLOW = { timeoutMs: 15_000 }

@@ -2,7 +2,7 @@
 // rest, and each surface that shows them.
 import { expect } from 'claude-code/testing'
 import { declarePlan, hasGrown, stepBar, stepShare, stepsLeft, todoPlan } from '../src/progress/plan'
-import { SLOW, progress, progressCrew, teamTexts, test } from './support/crew'
+import { progress, progressCrew, teamTexts, test } from './support/crew'
 
 test('a plan is its step, the share of the steps done and, once one is, a guess at the rest', () => {
   const declared = declarePlan(undefined, 0, 5, 'Plan')
@@ -34,7 +34,7 @@ test('a plan is its step, the share of the steps done and, once one is, a guess 
   expect(todoPlan(third, todos)).toBe(third)
 })
 
-test("a worker's plan shows as its step in the status line, the team view, the check-ins and the summary", SLOW, async ($, on) => {
+test("a worker's plan shows as its step in the status line, the team view, the check-ins and the summary", async ($, on) => {
   const { clock, status, placed, delegate, end, lines } = await progressCrew($, on)
   await delegate('Fix the tests', '/work/api', 'Arreglar tests')
   await delegate('Review the README', '/work/web', 'Revisar README')
@@ -129,7 +129,7 @@ test('a plan that grows says so, and the time left is guessed only once a step i
   expect(texts).toContain('≈4m more (estimated)')
 })
 
-test('without a plan there is no step, no share and no guess: the phase as before', SLOW, async ($, on) => {
+test('without a plan there is no step, no share and no guess: the phase as before', async ($, on) => {
   const { clock, status, placed, delegate, lines } = await progressCrew($, on)
   await delegate('Fix the tests', '/work/api', 'Arreglar tests')
   await $.tool.call({ tool: 'Bash', command: 'npm test', agentId: 'agent-1' })
@@ -141,7 +141,7 @@ test('without a plan there is no step, no share and no guess: the phase as befor
   expect(texts.some(t => /step|%|≈|█|░/.test(t))).toBe(false)
 })
 
-test('a worker that declared its plan and said no step more ends with it whole; a stopped one gives where it stopped', SLOW, async ($, on) => {
+test('a worker that declared its plan and said no step more ends with it whole; a stopped one gives where it stopped', async ($, on) => {
   const { clock, placed, delegate, end, lines } = await progressCrew($, on)
   await delegate('Map the code', '/work/hive', 'Map code for beehives task')
   await delegate('Review the README', '/work/web', 'Revisar README')

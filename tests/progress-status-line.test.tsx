@@ -6,7 +6,7 @@ import { STICK_MS, isTestRun, nextPhase, phaseLabel, phaseOf } from '../src/prog
 import { declarePlan } from '../src/progress/plan'
 import { JUST_ENDED_MS } from '../src/progress/runs'
 import { statusText } from '../src/progress/text/status-line'
-import { SLOW, progressCrew, test } from './support/crew'
+import { progressCrew, test } from './support/crew'
 
 test("a worker's phase comes from the kinds of its calls, and reading between edits is still editing", () => {
   expect(phaseOf({ tool: 'Read', file_path: '/a.ts' })).toBe('reading')
@@ -68,47 +68,43 @@ test("a worker's phase comes from the kinds of its calls, and reading between ed
   for (const text of ['4m', '15m', 'soon', '']) expect(parseEvery(text)).toBeUndefined()
 })
 
-test(
-  'the status line names each active worker, its phase, its run time and its task, then each end for half a minute, and clears when none is',
-  SLOW,
-  async ($, on) => {
-    const { clock, status, delegate, end } = await progressCrew($, on)
-    await clock.advance(1000)
-    expect(status()).toBeUndefined()
+test('the status line names each active worker, its phase, its run time and its task, then each end for half a minute, and clears when none is', async ($, on) => {
+  const { clock, status, delegate, end } = await progressCrew($, on)
+  await clock.advance(1000)
+  expect(status()).toBeUndefined()
 
-    expect(await delegate('Run the tests', '/work/api', 'Arreglar tests')).toMatch(/^Started Pip /)
-    await clock.advance(1000)
-    expect(status()).toBe('crew · Pip thinking 1s Arreglar tests')
-    await $.tool.call({ tool: 'Read', file_path: '/work/api/a.ts', agentId: 'agent-1' })
-    await clock.advance(60_000)
-    expect(status()).toBe('crew · Pip reading 1m Arreglar tests')
+  expect(await delegate('Run the tests', '/work/api', 'Arreglar tests')).toMatch(/^Started Pip /)
+  await clock.advance(1000)
+  expect(status()).toBe('crew · Pip thinking 1s Arreglar tests')
+  await $.tool.call({ tool: 'Read', file_path: '/work/api/a.ts', agentId: 'agent-1' })
+  await clock.advance(60_000)
+  expect(status()).toBe('crew · Pip reading 1m Arreglar tests')
 
-    expect(await delegate('Review the README', '/work/web', 'Revisar README')).toMatch(/^Started Bolt /)
-    await $.tool.call({ tool: 'Edit', file_path: '/work/web/README.md', old_string: 'a', new_string: 'b', agentId: 'agent-2' })
-    await clock.advance(120_000)
-    expect(status()).toBe('crew · Pip reading 3m Arreglar tests · Bolt editing 2m Revisar README')
+  expect(await delegate('Review the README', '/work/web', 'Revisar README')).toMatch(/^Started Bolt /)
+  await $.tool.call({ tool: 'Edit', file_path: '/work/web/README.md', old_string: 'a', new_string: 'b', agentId: 'agent-2' })
+  await clock.advance(120_000)
+  expect(status()).toBe('crew · Pip reading 3m Arreglar tests · Bolt editing 2m Revisar README')
 
-    // Each end is marked after those at work, in the order they came.
-    await end('agent-1')
-    await clock.advance(1000)
-    expect(status()).toBe('crew · Bolt editing 2m Revisar README · ✓ Pip done')
-    await end('agent-2', 'error')
-    await clock.advance(1000)
-    expect(status()).toBe('crew · ✓ Pip done · × Bolt failed')
-    await clock.advance(JUST_ENDED_MS - 2000)
-    expect(status()).toBe('crew · × Bolt failed')
-    await clock.advance(1000)
-    expect(status()).toBeUndefined()
+  // Each end is marked after those at work, in the order they came.
+  await end('agent-1')
+  await clock.advance(1000)
+  expect(status()).toBe('crew · Bolt editing 2m Revisar README · ✓ Pip done')
+  await end('agent-2', 'error')
+  await clock.advance(1000)
+  expect(status()).toBe('crew · ✓ Pip done · × Bolt failed')
+  await clock.advance(JUST_ENDED_MS - 2000)
+  expect(status()).toBe('crew · × Bolt failed')
+  await clock.advance(1000)
+  expect(status()).toBeUndefined()
 
-    // A reused worker's time is its new run's, from nothing.
-    expect(await delegate('Now the login', '/work/api', 'Login')).toMatch(/^Given to Pip /)
-    await clock.advance(1000)
-    expect(status()).toBe('crew · Pip thinking 1s Login')
-    await $.tool.call({ tool: 'Bash', command: 'npm test', agentId: 'agent-1' })
-    await clock.advance(120_000)
-    expect(status()).toBe('crew · Pip testing 2m Login')
-  },
-)
+  // A reused worker's time is its new run's, from nothing.
+  expect(await delegate('Now the login', '/work/api', 'Login')).toMatch(/^Given to Pip /)
+  await clock.advance(1000)
+  expect(status()).toBe('crew · Pip thinking 1s Login')
+  await $.tool.call({ tool: 'Bash', command: 'npm test', agentId: 'agent-1' })
+  await clock.advance(120_000)
+  expect(status()).toBe('crew · Pip testing 2m Login')
+})
 
 test('the status line gives up the titles first, then the ends, then the workers that do not fit', () => {
   const pip = { name: 'Pip', phase: 'editing' as const, ms: 360_000, title: 'Arreglar tests' }

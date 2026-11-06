@@ -1,7 +1,7 @@
 import { expect } from 'claude-code/testing'
 import type { TestBody } from 'claude-code/testing'
 import type { AgentInfo, On } from 'claude-code'
-import { DELEGATE, SLOW, crewCommand, engine, spawnAgent, test } from './support/crew'
+import { DELEGATE, crewCommand, engine, spawnAgent, test } from './support/crew'
 
 type Dollar = Parameters<TestBody>[0]
 
@@ -35,7 +35,7 @@ async function forkCrew($: Dollar, on: On) {
   return { clock, listed }
 }
 
-test('a fork the engine ends late stays done, and done once the engine drops it', SLOW, async ($, on) => {
+test('a fork the engine ends late stays done, and done once the engine drops it', async ($, on) => {
   const { clock, listed } = await forkCrew($, on)
   expect(await rowOf($, 'Bolt')).toMatch(/^- Bolt: address "agent-2", (starting|working), fork of Pip, /)
 
@@ -48,7 +48,7 @@ test('a fork the engine ends late stays done, and done once the engine drops it'
   expect(await rowOf($, 'Bolt')).toMatch(/^- Bolt: address "agent-2", done, fork of Pip, /)
 })
 
-test('a busy worker the engine dropped without an end the crew heard is stopped, its run closed', SLOW, async ($, on) => {
+test('a busy worker the engine dropped without an end the crew heard is stopped, its run closed', async ($, on) => {
   const { clock, listed } = await forkCrew($, on)
   // Its turn's end never reaches the crew.
   listed.delete('agent-2')
@@ -60,7 +60,7 @@ test('a busy worker the engine dropped without an end the crew heard is stopped,
   expect(await rowOf($, 'Pip')).toMatch(/^- Pip: address "pip", (starting|working), /)
 })
 
-test('a fork cleared before the engine ended it comes back busy, and takes its end once the engine drops it', SLOW, async ($, on) => {
+test('a fork cleared before the engine ended it comes back busy, and takes its end once the engine drops it', async ($, on) => {
   const { clock, listed } = await forkCrew($, on)
   await finish($, 'agent-2')
   // Cleared while the engine still lists it as running, it comes back from
@@ -73,7 +73,7 @@ test('a fork cleared before the engine ended it comes back busy, and takes its e
   expect(await rowOf($, 'Bolt')).toMatch(/^- Bolt: address "agent-2", done, fork of Pip, /)
 })
 
-test('a busy worker the engine dropped across a reload is stopped, as it is within a load', SLOW, async ($, on) => {
+test('a busy worker the engine dropped across a reload is stopped, as it is within a load', async ($, on) => {
   const { clock, listed } = await forkCrew($, on)
   // The engine lists it before the reload, and no more after it: no sync of
   // the new load sees it, and its turn's end never reaches the crew.
@@ -83,7 +83,7 @@ test('a busy worker the engine dropped across a reload is stopped, as it is with
   expect(await rowOf($, 'Bolt')).toMatch(/^- Bolt: address "agent-2", stopped, fork of Pip, /)
 })
 
-test('a worker the engine never listed stays busy when quiet, across a reload too', SLOW, async ($, on) => {
+test('a worker the engine never listed stays busy when quiet, across a reload too', async ($, on) => {
   let spawned = 0
   const clock = engine(on, { nextId: () => `agent-${++spawned}` })
   const start = () => $.session.start({ cwd: '/work/main', surface: 'terminal', isInteractive: true })
