@@ -28,22 +28,21 @@ function fresh() {
     due: { relay: true, release: false },
     /** `src/crew/workers.ts`: the names given in this load, the moment each is chosen. */
     names: { claimed: new Set<string>() },
+    /** `src/progress/run-store.ts`: how long each worker's last run took. */
+    runs: { ranFor: new Map<string, number>() },
     /**
-     * `src/progress/tracker.ts`: the check-in interval in minutes (0 for off)
-     * as the store keeps it (undefined before it is read: the default), the
-     * status line as last pinned (undefined until the first progress tick
-     * pins what is true then), the transcript's width as its rows were last
-     * drawn and the terminal's as a command last ran, how long each worker's
-     * last run took, and whether a progress tick is under way.
+     * `src/progress/status.ts`: the status line as last pinned (undefined
+     * until the first progress tick pins what is true then), the transcript's
+     * width as its rows were last drawn and the terminal's as a command last ran.
      */
-    progress: {
-      everyMin: undefined as number | undefined,
-      statusShown: undefined as string | undefined,
-      rowColumns: 0,
-      commandColumns: 80,
-      ranFor: new Map<string, number>(),
-      isTicking: false,
-    },
+    status: { shown: undefined as string | undefined, rowColumns: 0, commandColumns: 80 },
+    /**
+     * `src/progress/placed.ts`: the check-in interval in minutes (0 for off) as
+     * the store keeps it (undefined before it is read: the default).
+     */
+    placed: { everyMin: undefined as number | undefined },
+    /** `src/progress/tick.ts`: whether a progress tick is under way. */
+    tick: { isTicking: false },
     /** `src/progress/calls.ts`: the workers' tool calls held for the pane's next frame. */
     calls: { held: new Map<string, HeldCalls>() },
     /** `src/usage/limits.ts`: whether this session may ask for the usage, and when it last did. */
@@ -91,7 +90,7 @@ function fresh() {
  * (`src/crew/delegate.ts`'s delegate calls, `src/progress/calls.ts`'s
  * writes), which a call or a write an earlier session started still holds
  * its place in, and the count that keeps placed rows' ids apart
- * (`src/progress/tracker.ts`), as those rows outlive the load.
+ * (`src/progress/placed.ts`), as those rows outlive the load.
  */
 const carried = {
   delegating: Promise.resolve() as Promise<unknown>,

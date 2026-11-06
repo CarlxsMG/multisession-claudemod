@@ -31,6 +31,8 @@ All notable changes to crew are written here. The format follows
   leaves it as it was.
 - The timer that types out the pane's bubbles runs only while one types, instead of waking the
   session about eleven times a second from start to end.
+- A round's summary of more than eight workers sizes its columns to the lines it shows, as a
+  check-in does, not also to the workers it only counts.
 
 ### Fixed
 

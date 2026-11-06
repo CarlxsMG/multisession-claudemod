@@ -3,6 +3,8 @@
 // agents.
 import { expect } from 'claude-code/testing'
 import { notePieces } from '../src/progress/text/note'
+import { checkInRows } from '../src/progress/text/rows'
+import type { CheckIn, CheckLine } from '../types'
 import { DELEGATE, crewCommand, progress, progressCrew, test, workerSend } from './support/crew'
 
 test('the newest check-in follows the round in place, its times once a minute; the rows before it keep what they showed', async ($, on) => {
@@ -187,6 +189,16 @@ test("a check-in row comes every 3 minutes of work when something changed, and w
   expect(placed).toHaveLength(4)
   await clock.advance(180_000)
   expect(placed).toHaveLength(4)
+})
+
+test("a summary's columns are as wide as the lines it shows need, whatever the lines it only counts", () => {
+  const line = (name: string, ms: number): CheckLine => ({ id: name, name, phase: 'editing', end: 'done', ms, doing: 'Work', tools: 1 })
+  const lines = [...Array.from({ length: 8 }, () => line('Pip', 60_000)), line('Longername', 7_200_000)]
+  const row: CheckIn = { id: 'row', kind: 'summary', at: 0, roundMs: 7_200_000, every: 3, isAsked: false, lines }
+  const rows = checkInRows(row, 80, true).map(pieces => pieces.map(p => p.text).join(''))
+  expect(rows).toHaveLength(10)
+  expect(rows[1]).toBe('  ✓ Pip  1m 0s  Work')
+  expect(rows[9]).toBe('  +1 more')
 })
 
 test("a message's line says who to whom, its gist, and whether it woke the recipient or never got there; the gist gives way first", () => {

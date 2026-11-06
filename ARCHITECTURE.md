@@ -43,7 +43,7 @@ the debug log. Its `unrecognized` logs there an engine text the crew reads in no
 | `src/hooks/` | The hook bodies: the session's events (`session.ts`), the `/crew` command (`commands.ts`), the crew's tools (`tools.ts`), every tool call watched (`watch.ts`), turn starts and ends (`turns.ts`), the system prompt and the user's messages (`prompt.ts`). |
 | `src/crew/` | The crew itself: the worker list and its statuses (`workers.ts`), `delegate` (`delegate.ts`), the spawn hook (`spawn.ts`), the send hook (`sends.ts`), relays (`relay.ts`), takeovers and held tasks (`takeover.ts`), one way to send and record (`deliver.ts`), the sync with the engine's agents (`sync.ts`), the user's message to a worker (`message.ts`), what the pane and the rows are drawn from (`feed.ts`), and the roster's data (`roster.ts`). |
 | `src/prompts/` | Nearly every text a model reads ([docs/model-behavior.md](docs/model-behavior.md) lists them all): the orchestrator's brief and `[crew]` note (`orchestrator.ts`), the workers' preamble and the texts the crew sends them (`worker.ts`), the tool specs (`tools.ts`), the tool results and their parsers (`results.ts`), and the roster's text (`roster.ts`). |
-| `src/progress/` | Progress, which no model reads: `tracker.ts` is the only module that records runs with the engine; `runs.ts`, `round.ts`, `plan.ts`, `phase.ts`, `check-in.ts` are pure; `text/` builds the status line, the team view, the cards and the placed rows. |
+| `src/progress/` | Progress, which no model reads: `run-store.ts` is the only module that records runs with the engine, `calls.ts` holds tool calls for the pane's next frame, `todos.ts` reads a plan off a todo list, `status.ts` pins the status line, `placed.ts` places the rows and keeps the check-in interval, and `tick.ts` is the progress tick; `runs.ts`, `round.ts`, `plan.ts`, `phase.ts`, `check-in.ts` are pure; `text/` builds the status line, the team view, the cards and the placed rows. |
 | `src/persona/` | Personalities (`vibes.ts`, the model prompt of each), the figure's lines (`lines.ts`, including the Haiku prompt), worker names (`names.ts`). |
 | `src/settings/` | What the user changes: the look (`look.ts`), delegation and the `[crew]` note (`notes.ts`), Haiku's mood lines (`mood-lines.ts`), the main session's model (`model.ts`). |
 | `src/figure/` | The pictures: the catalog of parts and colours, the orchestrator's critter, the workers' diamonds, the animation of each state, rasterizing to cells or SVG, looks and share codes, accent colours, the 256-colour mapping. |
@@ -114,8 +114,8 @@ touches only in the file that declares the atom.
 
 What the hooks, the timers and the drawings of one load leave each other in memory, not worth a
 write to `$.state`: the names Agent calls' agents were renamed to, the relay and release flags,
-the names given, the agents the engine listed, the progress tracker's interval, status line,
-widths and run times, the tool calls and the end-of-task rows' first drawings held for the next
+the names given, the agents the engine listed, the check-in interval, the status line, its
+widths and the run times, the tool calls and the end-of-task rows' first drawings held for the next
 frame (a drawing may not write the state), the usage probe's permission and time, the pane's
 frame, the look it last showed, rasters and the redraws it owes, the last `[crew]` check, the mood lines asked for, and
 the kinds of engine wording logged. It is one typed object

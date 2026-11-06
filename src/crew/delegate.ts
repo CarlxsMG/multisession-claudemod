@@ -56,101 +56,81 @@ function readDelegateInput(input: object) {
   }
 }
 
-// `callId`: the main conversation's call, which its row names the worker of.
-async function delegate($: Engine, input: object, callId?: string): Promise<string> {
-  const { task, title, repo, asked, type, worker, isFresh } = readDelegateInput(input)
-  if (task === '') return TASK_REQUIRED
-  const sessionCwd = await $.session.cwd()
-  let cwd = sessionCwd
-  if (repo !== '') {
-    // Windows has no HOME outside Git Bash: its home is USERPROFILE.
-    const home = /^~([\\/]|$)/.test(repo) ? (await $.env.get('HOME')) || (await $.env.get('USERPROFILE')) || '' : ''
-    cwd = joinPath(sessionCwd, home ? home + repo.slice(1) : repo)
-    if (!(await $.fs.exists(cwd))) return noRepo(cwd)
-  }
-  // The Agent tool's `model` takes an alias only, so a full id goes as its
-  // family, for the spawn and for the reuse that compares it with what a
-  // worker was asked. A haiku request takes the session's model: a worker
-  // runs on the model the user put the session on unless it is asked for
-  // another, so on haiku only in a session on haiku.
-  const alias = asked === '' ? '' : modelAlias(asked)
-  if (alias === undefined) return noModel(asked)
-  const model = alias === 'haiku' ? '' : alias
-  // Any type the Agent tool can dispatch, but a fork is that tool's own.
-  if (type === 'fork') return FORK_REFUSED
+// The directory a call's `repo` names, against the session's.
+async function repoDir($: Engine, sessionCwd: string, repo: string): Promise<string> {
+  // Windows has no HOME outside Git Bash: its home is USERPROFILE.
+  const home = /^~([\\/]|$)/.test(repo) ? (await $.env.get('HOME')) || (await $.env.get('USERPROFILE')) || '' : ''
+  return joinPath(sessionCwd, home ? home + repo.slice(1) : repo)
+}
+
+// The most recent free worker of that type the crew started there, on the
+// model asked for (none asked for: one started on the session's), however
+// long its history: it compacts. A failed one is never free.
+function freeWorker(list: readonly Worker[], woken: ReadonlyMap<string, Takeover>, cwd: string, type: string, model: string): Worker | undefined {
+  return list
+    .filter(
+      w =>
+        samePath(w.cwd, cwd) &&
+        (w.type || DEFAULT_TYPE) === type &&
+        REUSABLE.has(w.status) &&
+        !woken.has(w.id) &&
+        w.asked !== null &&
+        (model === '' ? w.asked === '' : w.asked === model || w.model === model),
+    )
+    .sort((a, b) => b.updatedAt - a.updatedAt)[0]
+}
+
+// What a delegate call asks for, read and resolved. `callId`: the main
+// conversation's call, which its row names the worker of.
+type Asked = { task: string; title: string; cwd: string; sessionCwd: string; type: string; model: string; callId: string | undefined }
+
+// Gives the task to a worker that exists, which any mark on it allows; its
+// answer, or undefined when it could not be reached and was not named, which
+// leaves the task to a new worker.
+async function giveTask(
+  $: Engine,
+  chosen: Worker,
+  mark: Takeover | undefined,
+  { task, title, callId }: Asked,
+  isNamed: boolean,
+  list: readonly Worker[],
+  inWorktree: ReadonlySet<string>,
+): Promise<string | undefined> {
   const look = await readLook($)
-  const list = await readWorkers($)
-  const inWorktree = new Set(await readWorktrees($))
-  const woken = new Map((await readTakeovers($)).map(t => [t.id, t]))
-
-  // A blank `worker` names no one: the task goes as if it had none.
-  const isNamed = worker !== undefined && worker.trim() !== ''
-  let chosen: Worker | undefined
-  if (isNamed) {
-    chosen = findWorker(list, worker)
-    if (chosen === undefined) {
-      return noWorker(
-        worker,
-        list.map(w => w.address),
-      )
-    }
-  } else if (!isFresh) {
-    // The most recent free worker of that type the crew started there, on
-    // the model asked for (none asked for: one started on the session's),
-    // however long its history: it compacts. A failed one is never free.
-    chosen = list
-      .filter(
-        w =>
-          samePath(w.cwd, cwd) &&
-          (w.type || DEFAULT_TYPE) === type &&
-          REUSABLE.has(w.status) &&
-          !woken.has(w.id) &&
-          w.asked !== null &&
-          (model === '' ? w.asked === '' : w.asked === model || w.model === model),
-      )
-      .sort((a, b) => b.updatedAt - a.updatedAt)[0]
+  // Tasks held for it that once did not reach it go first, together.
+  const before = mark?.held ?? []
+  const all = [...before, { task, title }]
+  const body = before.length > 0 ? heldTasks(all) : task
+  // Delegate's own workers always had the crew's preamble; any other agent
+  // may not have (a fork, one started with delegation off): it hears it all.
+  const sent = await deliver($, {
+    id: chosen.id,
+    worker: chosen,
+    text: `${body}\n\n${taskClose(chosen.asked)}`,
+    line: { from: { name: look.name, id: ORCH_ID }, to: chosen.name, text: body, tone: 'orch', isQuietIfLost: true },
+    patch: w => ({ status: 'working', task: title, tasks: w.tasks + all.length }),
+    job: title,
+  })
+  if (sent.isDelivered && mark !== undefined) await updateTakeovers($, list => list.filter(t => t.id !== chosen.id))
+  if (!sent.isDelivered && mark !== undefined) {
+    await updateTakeovers($, list => list.map(t => (t.id === chosen.id ? { ...t, held: [...t.held, { task, title }], missed: sent.reason, isTold: true } : t)))
+    return heldMissed(chosen, all.length, sent.reason)
   }
-
-  // An agent its worker woke reports to that worker until the run ends: the
-  // task waits, and goes from here then.
-  const mark = chosen !== undefined ? woken.get(chosen.id) : undefined
-  if (chosen !== undefined && mark !== undefined && mark.missed === undefined) return hold($, chosen, mark, task, title, callId)
-
-  if (chosen !== undefined) {
-    // Tasks held for it that once did not reach it go first, together.
-    const before = mark?.held ?? []
-    const all = [...before, { task, title }]
-    const body = before.length > 0 ? heldTasks(all) : task
-    // Delegate's own workers always had the crew's preamble; any other agent
-    // may not have (a fork, one started with delegation off): it hears it all.
-    const sent = await deliver($, {
-      id: chosen.id,
-      worker: chosen,
-      text: `${body}\n\n${taskClose(chosen.asked)}`,
-      line: { from: { name: look.name, id: ORCH_ID }, to: chosen.name, text: body, tone: 'orch', isQuietIfLost: true },
-      patch: w => ({ status: 'working', task: title, tasks: w.tasks + all.length }),
-      job: title,
-    })
-    if (sent.isDelivered && mark !== undefined) await updateTakeovers($, list => list.filter(t => t.id !== chosen.id))
-    if (!sent.isDelivered && mark !== undefined) {
-      await updateTakeovers($, list =>
-        list.map(t => (t.id === chosen.id ? { ...t, held: [...t.held, { task, title }], missed: sent.reason, isTold: true } : t)),
-      )
-      return heldMissed(chosen, all.length, sent.reason)
-    }
-    if (sent.isDelivered) {
-      await setOrch($, 'delegating', `${title} → ${chosen.name}`)
-      await markCall($, callId, chosen.id)
-      // It works where it always did: the heads-up is about its repository,
-      // and none for one in a worktree of its own.
-      const own = inWorktree.has(chosen.id)
-      const where = own ? `a worktree of ${chosen.cwd}` : chosen.cwd
-      const warn = own ? '' : busyHere(list, chosen.cwd, inWorktree, chosen.id)
-      return given(chosen, where, (before.length > 0 ? heldWentFirst(before.length) : '') + warn)
-    }
-    if (isNamed) return unreachable(chosen.name, sent.reason)
+  if (sent.isDelivered) {
+    await setOrch($, 'delegating', `${title} → ${chosen.name}`)
+    await markCall($, callId, chosen.id)
+    // It works where it always did: the heads-up is about its repository,
+    // and none for one in a worktree of its own.
+    const own = inWorktree.has(chosen.id)
+    const where = own ? `a worktree of ${chosen.cwd}` : chosen.cwd
+    const warn = own ? '' : busyHere(list, chosen.cwd, inWorktree, chosen.id)
+    return given(chosen, where, (before.length > 0 ? heldWentFirst(before.length) : '') + warn)
   }
+  return isNamed ? unreachable(chosen.name, sent.reason) : undefined
+}
 
+// Starts a new worker for the task, under a name free now.
+async function startWorker($: Engine, { task, title, cwd, sessionCwd, type, model, callId }: Asked, list: readonly Worker[], inWorktree: ReadonlySet<string>) {
   const { name } = claimName(await takenNow($, list))
   const address = name.toLowerCase()
   await intend($, { address, cwd, type })
@@ -191,6 +171,48 @@ async function delegate($: Engine, input: object, callId?: string): Promise<stri
   const id = spawned.agentId ?? (await readWorkers($)).find(w => w.address === address)?.id
   if (id !== undefined) await markCall($, callId, id)
   return started(name, address, spawned.agentId, cwd, busyHere(list, cwd, inWorktree))
+}
+
+async function delegate($: Engine, input: object, callId?: string): Promise<string> {
+  const { task, title, repo, asked, type, worker, isFresh } = readDelegateInput(input)
+  if (task === '') return TASK_REQUIRED
+  const sessionCwd = await $.session.cwd()
+  const cwd = repo === '' ? sessionCwd : await repoDir($, sessionCwd, repo)
+  if (repo !== '' && !(await $.fs.exists(cwd))) return noRepo(cwd)
+  // The Agent tool's `model` takes an alias only, so a full id goes as its
+  // family, for the spawn and for the reuse that compares it with what a
+  // worker was asked. A haiku request takes the session's model: a worker
+  // runs on the model the user put the session on unless it is asked for
+  // another, so on haiku only in a session on haiku.
+  const alias = asked === '' ? '' : modelAlias(asked)
+  if (alias === undefined) return noModel(asked)
+  const model = alias === 'haiku' ? '' : alias
+  // Any type the Agent tool can dispatch, but a fork is that tool's own.
+  if (type === 'fork') return FORK_REFUSED
+  const list = await readWorkers($)
+  const inWorktree = new Set(await readWorktrees($))
+  const woken = new Map((await readTakeovers($)).map(t => [t.id, t]))
+
+  // A blank `worker` names no one: the task goes as if it had none.
+  const isNamed = worker !== undefined && worker.trim() !== ''
+  const chosen = isNamed ? findWorker(list, worker) : isFresh ? undefined : freeWorker(list, woken, cwd, type, model)
+  if (isNamed && chosen === undefined) {
+    return noWorker(
+      worker,
+      list.map(w => w.address),
+    )
+  }
+
+  const call: Asked = { task, title, cwd, sessionCwd, type, model, callId }
+  if (chosen !== undefined) {
+    // An agent its worker woke reports to that worker until the run ends: the
+    // task waits, and goes from here then.
+    const mark = woken.get(chosen.id)
+    if (mark !== undefined && mark.missed === undefined) return hold($, chosen, mark, task, title, callId)
+    const answer = await giveTask($, chosen, mark, call, isNamed, list, inWorktree)
+    if (answer !== undefined) return answer
+  }
+  return startWorker($, call, list, inWorktree)
 }
 
 // Keeps a task for a woken worker until its run ends, and says so.
