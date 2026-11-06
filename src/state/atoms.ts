@@ -30,11 +30,7 @@ const worktrees = atom({ plugin: 'crew', key: 'worktrees' } as const, [], { shap
 // The agents another worker started, with that worker's name.
 const parents = atom({ plugin: 'crew', key: 'parents' } as const, [], { shape: 'parents-1' })
 const messages = atom({ plugin: 'crew', key: 'messages' } as const, [], { shape: 'messages-2' })
-const orch = atom(
-  { plugin: 'crew', key: 'orch' } as const,
-  { mood: 'idle', activity: '', since: 0 },
-  { shape: 'orch-1' },
-)
+const orch = atom({ plugin: 'crew', key: 'orch' } as const, { mood: 'idle', activity: '', since: 0 }, { shape: 'orch-1' })
 const view = atom({ plugin: 'crew', key: 'view' } as const, 'main')
 const editTab = atom({ plugin: 'crew', key: 'tab' } as const, 'persona')
 const moodLines = atom({ plugin: 'crew', key: 'lines' } as const, { sig: '', moods: {} }, { shape: 'lines-1' })

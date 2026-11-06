@@ -17,7 +17,11 @@ export function parseLookCode(code: string): Look | undefined {
   const at = code.indexOf(CODE_PREFIX)
   if (at < 0) return undefined
   try {
-    const body = code.slice(at + CODE_PREFIX.length).trim().split(/\s/)[0] ?? ''
+    const body =
+      code
+        .slice(at + CODE_PREFIX.length)
+        .trim()
+        .split(/\s/)[0] ?? ''
     return normalizeLook(JSON.parse(new TextDecoder().decode(fromBase64(body))))
   } catch {
     return undefined

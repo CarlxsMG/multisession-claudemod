@@ -50,7 +50,5 @@ async function write($: Engine, taken: [string, HeldCalls][]) {
       return { ...w, tools: w.tools + h.calls.length, ...(isNews ? { activity: h.activity, updatedAt: last } : {}) }
     }),
   )
-  await updateRuns($, list =>
-    taken.reduce((runs, [id, h]) => h.calls.reduce((acc, c) => countCall(acc, id, c.kind, c.at), runs), list),
-  )
+  await updateRuns($, list => taken.reduce((runs, [id, h]) => h.calls.reduce((acc, c) => countCall(acc, id, c.kind, c.at), runs), list))
 }

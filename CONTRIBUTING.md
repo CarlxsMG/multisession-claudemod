@@ -36,12 +36,13 @@ it lists the MCP tools connected on your machine.
 
 ## Checks
 
-Every change passes all three:
+Every change passes all four:
 
 ```
 claude plugin validate .
 claude plugin test .
 npx -p typescript tsc -p .
+npx --yes prettier@3.9.10 --check .
 ```
 
 - `validate` checks the manifest, the marketplace and the hooks module, including which state
@@ -50,14 +51,20 @@ npx -p typescript tsc -p .
   Claude Code, against the engine's test kit (`claude-code/testing`). It takes about a minute,
   most of it the kit loading the plugin afresh for each test.
 - `tsc` needs `.claude-plugin/types/`, so it does **not** run on a fresh clone: load the plugin
-  once first (see Setup). `validate` and `test` need no generated types, which is why CI runs only
-  those two. **`tsc` is a local check**: CI cannot run it, so a type error reaches `main` unless
+  once first (see Setup). `validate` and `test` need no generated types, which is why CI runs those
+  two and not this one. **`tsc` is a local check**: CI cannot run it, so a type error reaches `main` unless
   you run it before you push. Claude Code writes the types only when a session loads the plugin,
   and a runner has no login: a headless `claude --plugin-dir . -p` with none, or with a placeholder
   API key, ends before it writes them, `validate`, `test` and `plugin init` write none, and no
   package publishes them (checked on 2.1.318).
-- CI runs `test` on Linux, Windows and macOS. A pull request merges once `validate` and the Linux
-  and Windows tests pass: a macOS runner can take a long time to start, so that job does not hold
+- `prettier` checks the layout of the code and config, as `.prettierrc.json` sets it; `--write` in
+  place of `--check` fixes what it reports. `.prettierignore` leaves out Markdown and
+  `tests/golden/model-text.ts`. The version is pinned (`PRETTIER_VERSION` in
+  `.github/workflows/ci.yml`) because a new release can move lines: raise it in a commit of its own
+  that holds the reformat, and list that commit in `.git-blame-ignore-revs`, which GitHub's blame
+  reads and `git config blame.ignoreRevsFile .git-blame-ignore-revs` makes yours read.
+- CI runs `test` on Linux, Windows and macOS. A pull request merges once `validate`, `prettier` and
+  the Linux and Windows tests pass: a macOS runner can take a long time to start, so that job does not hold
   the merge. It still runs on every pull request and push, and a failed one is a failure to fix.
 
 ## How the code is written
@@ -67,8 +74,8 @@ npx -p typescript tsc -p .
 - **A comment says why the code is as it is now**, never its history: not what changed, what it
   used to be, who or when. No commented-out code. Every module opens with a `//` header saying
   what it is for, and every export has a JSDoc comment.
-- **Style:** no semicolons, single quotes, two-space indent, lines up to about 160 columns, named
-  imports in ASCII order.
+- **Style:** Prettier sets the layout (no semicolons, single quotes, two-space indent, 160 columns).
+  It does not sort imports: named imports go in ASCII order.
 - **The runtime strips types only:** no `enum`, no parameter properties, nothing else in
   TypeScript that emits code.
 - **A module's `let` cannot be assigned from another module.** What a load keeps in memory beside

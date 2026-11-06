@@ -9,9 +9,7 @@ const personaLine = (look: Pick<Look, 'name' | 'vibe'>): string =>
   `Persona: ${look.name} is ${vibeOf(look).prompt}. Let it color greetings and short status lines only; technical content stays precise and plain.`
 
 const modeLine = (on: boolean): string =>
-  on
-    ? 'Delegation is ON: you orchestrate, per the crew brief.'
-    : 'Delegation is OFF: do the work yourself; use the crew only when the user asks.'
+  on ? 'Delegation is ON: you orchestrate, per the crew brief.' : 'Delegation is OFF: do the work yourself; use the crew only when the user asks.'
 
 /**
  * The orchestrator's brief: a section of the system prompt, where the model
@@ -37,5 +35,4 @@ ${personaLine(look)}`
 }
 
 /** The "[crew]" note a user message carries when the settings changed. */
-export const crewNote = (t: CrewSettings): string =>
-  `[crew] The user changed the crew settings. ${modeLine(t.on)} You are ${t.name}. ${personaLine(t)}`
+export const crewNote = (t: CrewSettings): string => `[crew] The user changed the crew settings. ${modeLine(t.on)} You are ${t.name}. ${personaLine(t)}`

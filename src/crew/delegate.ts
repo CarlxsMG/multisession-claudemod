@@ -25,16 +25,7 @@ import {
 import { modelAlias } from '../model-label'
 import { heldTasks, taskClose } from '../prompts/worker'
 import { runtime } from '../runtime'
-import {
-  readIntents,
-  readLook,
-  readParents,
-  readTakeovers,
-  readWorkers,
-  readWorktrees,
-  updateIntents,
-  updateTakeovers,
-} from '../state/atoms'
+import { readIntents, readLook, readParents, readTakeovers, readWorkers, readWorktrees, updateIntents, updateTakeovers } from '../state/atoms'
 import { appendKept } from '../util/bounded'
 import { fieldOf, rawStringArg, stringArg } from '../util/input'
 import { joinPath, samePath } from '../util/path'
@@ -47,9 +38,7 @@ import { ACTIVE, REUSABLE, claimName, findWorker, takenNow, unclaimNames } from 
 // The heads-up of the tool's result, from the workers busy in the
 // repository; one in a worktree of its own edits apart.
 function busyHere(list: readonly Worker[], cwd: string, inWorktree: ReadonlySet<string>, except?: string): string {
-  return headsUp(
-    list.filter(w => samePath(w.cwd, cwd) && w.id !== except && !inWorktree.has(w.id) && ACTIVE.has(w.status)).map(w => w.name),
-  )
+  return headsUp(list.filter(w => samePath(w.cwd, cwd) && w.id !== except && !inWorktree.has(w.id) && ACTIVE.has(w.status)).map(w => w.name))
 }
 
 // The delegate tool's input, every field the model may leave out with its
@@ -75,9 +64,7 @@ async function delegate($: Engine, input: object, callId?: string): Promise<stri
   let cwd = sessionCwd
   if (repo !== '') {
     // Windows has no HOME outside Git Bash: its home is USERPROFILE.
-    const home = /^~([\\/]|$)/.test(repo)
-      ? (await $.env.get('HOME')) || (await $.env.get('USERPROFILE')) || ''
-      : ''
+    const home = /^~([\\/]|$)/.test(repo) ? (await $.env.get('HOME')) || (await $.env.get('USERPROFILE')) || '' : ''
     cwd = joinPath(sessionCwd, home ? home + repo.slice(1) : repo)
     if (!(await $.fs.exists(cwd))) return noRepo(cwd)
   }
@@ -102,7 +89,10 @@ async function delegate($: Engine, input: object, callId?: string): Promise<stri
   if (isNamed) {
     chosen = findWorker(list, worker)
     if (chosen === undefined) {
-      return noWorker(worker, list.map(w => w.address))
+      return noWorker(
+        worker,
+        list.map(w => w.address),
+      )
     }
   } else if (!isFresh) {
     // The most recent free worker of that type the crew started there, on
@@ -143,7 +133,9 @@ async function delegate($: Engine, input: object, callId?: string): Promise<stri
     })
     if (sent.isDelivered && mark !== undefined) await updateTakeovers($, list => list.filter(t => t.id !== chosen.id))
     if (!sent.isDelivered && mark !== undefined) {
-      await updateTakeovers($, list => list.map(t => (t.id === chosen.id ? { ...t, held: [...t.held, { task, title }], missed: sent.reason, isTold: true } : t)))
+      await updateTakeovers($, list =>
+        list.map(t => (t.id === chosen.id ? { ...t, held: [...t.held, { task, title }], missed: sent.reason, isTold: true } : t)),
+      )
       return heldMissed(chosen, all.length, sent.reason)
     }
     if (sent.isDelivered) {
@@ -260,7 +252,12 @@ function unintend($: Engine, address: string) {
  * call gave, else, for one with no name that is no fork, by its task. `key`
  * is the address it was meant under, and nothing is meant under it any more.
  */
-export async function takeIntent($: Engine, name: string | undefined, prompt: string, isFork: boolean): Promise<{ key: string | undefined; intent: Intent | undefined }> {
+export async function takeIntent(
+  $: Engine,
+  name: string | undefined,
+  prompt: string,
+  isFork: boolean,
+): Promise<{ key: string | undefined; intent: Intent | undefined }> {
   const list = await readIntents($)
   const key = name?.toLowerCase() ?? (name === undefined && !isFork ? list.find(x => x.task === prompt.trim())?.address : undefined)
   const intent = key !== undefined ? list.find(x => x.address === key) : undefined

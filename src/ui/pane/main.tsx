@@ -16,16 +16,7 @@ import { vibeOf } from '../../persona/vibes'
 import { JUST_ENDED_MS, isOpen } from '../../progress/runs'
 import { cardText } from '../../progress/text/card'
 import { setMode } from '../../settings/notes'
-import {
-  readIsOn,
-  readLimits,
-  readMainModel,
-  readMessages,
-  readModelLimits,
-  readMoodLines,
-  readOrch,
-  updateView,
-} from '../../state/atoms'
+import { readIsOn, readLimits, readMainModel, readMessages, readModelLimits, readMoodLines, readOrch, updateView } from '../../state/atoms'
 import { LIMITS_SHOWN, limitColor, limitLabel } from '../../usage/limits'
 import { wrapText } from '../../util/text'
 import { END, cardLabel, statusLabel } from '../labels'
@@ -67,7 +58,9 @@ export async function drawMain($: Engine, ui: PaneUi, sprite: Sprite, kit: Worke
   const lastMsg = msgs[msgs.length - 1]
   const orchMail =
     lastMsg !== undefined && now - lastMsg.at < MAIL_SHOWN_MS && (isOrchIn(lastMsg, 'from') || isOrchIn(lastMsg, 'to'))
-      ? isOrchIn(lastMsg, 'to') ? 'in' : 'out'
+      ? isOrchIn(lastMsg, 'to')
+        ? 'in'
+        : 'out'
       : undefined
 
   // A line's sender or recipient in its color: the person's, the
@@ -85,8 +78,7 @@ export async function drawMain($: Engine, ui: PaneUi, sprite: Sprite, kit: Worke
   // above its head, and the controls go below, flush right: level with the
   // podium when nothing else is said, a few rows lower when the column runs
   // past the figure.
-  const doing =
-    orch.activity !== '' && anim !== 'idle' && anim !== 'sleep' ? wrapText(orch.activity, Math.max(10, width - FIGURE_W - 2), 2) : []
+  const doing = orch.activity !== '' && anim !== 'idle' && anim !== 'sleep' ? wrapText(orch.activity, Math.max(10, width - FIGURE_W - 2), 2) : []
   // The bubble and the controls take three rows each.
   const headRows = Math.max(pictureRows(true), 6 + doing.length + (list.length > 0 ? 1 : 0))
 
@@ -114,10 +106,14 @@ export async function drawMain($: Engine, ui: PaneUi, sprite: Sprite, kit: Worke
               <Text italic>{pickLine(look, anim, orch.since, now, latest?.name ?? t().pane.anyWorker, extra.moods)}</Text>
             </Box>
             {doing.map(line => (
-              <Text dimColor wrap="truncate-end">{line}</Text>
+              <Text dimColor wrap="truncate-end">
+                {line}
+              </Text>
             ))}
             {list.length > 0 && (
-              <Text dimColor wrap="truncate-end">{t().pane.count(list.length, active.length)}</Text>
+              <Text dimColor wrap="truncate-end">
+                {t().pane.count(list.length, active.length)}
+              </Text>
             )}
           </Box>
           <Box flexDirection="row" justifyContent="flex-end" columnGap={1}>
@@ -160,10 +156,9 @@ export async function drawMain($: Engine, ui: PaneUi, sprite: Sprite, kit: Worke
   const dues = inRow.flatMap(w => {
     const r = lastRun.get(w.id)
     const leavesAt = napLeavesAt(w)
-    return [
-      ...(leavesAt !== undefined ? [leavesAt] : []),
-      ...(r !== undefined && justEnded(w) !== undefined ? [r.endedAt + JUST_ENDED_MS] : []),
-    ].filter(at => at > now)
+    return [...(leavesAt !== undefined ? [leavesAt] : []), ...(r !== undefined && justEnded(w) !== undefined ? [r.endedAt + JUST_ENDED_MS] : [])].filter(
+      at => at > now,
+    )
   })
   const napDue = dues.length > 0 ? Math.min(...dues) : 0
   const perRow = Math.max(1, Math.floor((width + 1) / (DIAMOND_W + 1)))

@@ -42,12 +42,18 @@ function toolBeneath(on: On, tool: string, fault: { isOn: boolean }, afterNext =
 
 // ---- a crew row falls back to the engine's ----
 
-const mountCall = ($: Dollar, surface: Surface, requestId: string, props: Row) => $.ui.mount({ plugin: 'crew', surface, component: 'ToolUse', requestId, props, viewport: VIEWPORT })
-const mountResult = ($: Dollar, surface: Surface, requestId: string, props: Result) => $.ui.mount({ plugin: 'crew', surface, component: 'ToolResult', requestId, props })
-const mountSaid = ($: Dollar, surface: Surface, requestId: string, props: Said) => $.ui.mount({ plugin: 'crew', surface, component: 'UserMessage', requestId, props, viewport: VIEWPORT })
+const mountCall = ($: Dollar, surface: Surface, requestId: string, props: Row) =>
+  $.ui.mount({ plugin: 'crew', surface, component: 'ToolUse', requestId, props, viewport: VIEWPORT })
+const mountResult = ($: Dollar, surface: Surface, requestId: string, props: Result) =>
+  $.ui.mount({ plugin: 'crew', surface, component: 'ToolResult', requestId, props })
+const mountSaid = ($: Dollar, surface: Surface, requestId: string, props: Said) =>
+  $.ui.mount({ plugin: 'crew', surface, component: 'UserMessage', requestId, props, viewport: VIEWPORT })
 
 // A row the crew draws while its state answers, and the engine's once it does not.
-async function fallsBack(fault: { isOn: boolean }, mount: (requestId: string) => Promise<{ drawn: () => Promise<{ type: string }>; unmount: () => Promise<void> }>) {
+async function fallsBack(
+  fault: { isOn: boolean },
+  mount: (requestId: string) => Promise<{ drawn: () => Promise<{ type: string }>; unmount: () => Promise<void> }>,
+) {
   const drawn = await mount('drawn')
   expect((await drawn.drawn()).type).not.toBe('engine')
   await drawn.unmount()
@@ -110,7 +116,9 @@ const OWN_DRAWINGS: Failure[] = SURFACES.flatMap((surface): Failure[] => [
       await crew.delegate('Fix the tests', '/work/api', 'Tests')
       await crewCommand($, 'progress')
       const id = crew.placed.at(-1)!
-      await fallsBack(fault, requestId => $.ui.mount({ plugin: 'crew', surface, component: 'Placed', requestId, props: { id, plugin: 'crew' }, viewport: VIEWPORT }))
+      await fallsBack(fault, requestId =>
+        $.ui.mount({ plugin: 'crew', surface, component: 'Placed', requestId, props: { id, plugin: 'crew' }, viewport: VIEWPORT }),
+      )
     },
   },
   {
@@ -202,7 +210,14 @@ const GOES_ON: Failure[] = [
       const fault = stateFault(on)
       await $.session.start(START)
       fault.isOn = true
-      const prompt = await $.prompt.compose({ model: 'test-model', promptModel: 'test-model', surfaces: ['terminal'], tools: [], outputStyle: null, traits: [] })
+      const prompt = await $.prompt.compose({
+        model: 'test-model',
+        promptModel: 'test-model',
+        surfaces: ['terminal'],
+        tools: [],
+        outputStyle: null,
+        traits: [],
+      })
       expect(prompt.sections.map(s => s.id)).toEqual(['intro'])
       expect(composed).toBe(1)
     },

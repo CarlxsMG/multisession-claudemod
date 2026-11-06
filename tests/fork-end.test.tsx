@@ -6,7 +6,9 @@ import { DELEGATE, SLOW, crewCommand, engine, spawnAgent, test } from './support
 type Dollar = Parameters<TestBody>[0]
 
 const rowOf = async ($: Dollar, name: string) =>
-  String((await $.tool.call({ tool: 'mcp__crew__roster' })).result).split('\n').find(line => line.startsWith(`- ${name}: `)) ?? ''
+  String((await $.tool.call({ tool: 'mcp__crew__roster' })).result)
+    .split('\n')
+    .find(line => line.startsWith(`- ${name}: `)) ?? ''
 const finish = ($: Dollar, agentId: string) =>
   $.turn.complete({ answer: 'Done: PR merged.', durationMs: 1000, isAborted: false, turnId: `t-${agentId}`, agentId, reason: 'answer' })
 
@@ -16,7 +18,13 @@ async function forkCrew($: Dollar, on: On) {
   let spawned = 0
   const listed = new Map<string, AgentInfo['status']>()
   const agents = (): AgentInfo[] =>
-    [...listed].map(([id, status]) => ({ id, description: id, type: id === 'agent-2' ? 'fork' : 'general-purpose', status, ...(id === 'agent-1' ? { name: 'pip' } : {}) }))
+    [...listed].map(([id, status]) => ({
+      id,
+      description: id,
+      type: id === 'agent-2' ? 'fork' : 'general-purpose',
+      status,
+      ...(id === 'agent-1' ? { name: 'pip' } : {}),
+    }))
   const clock = engine(on, { nextId: () => `agent-${++spawned}`, agents })
   await $.session.start({ cwd: '/work/main', surface: 'terminal', isInteractive: true })
   await $.tool.call({ tool: DELEGATE, task: 'Fix the relay queue, then split it', repo: '/work/api' })

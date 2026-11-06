@@ -1,0 +1,14 @@
+{
+  "semi": false,
+  "singleQuote": true,
+  "printWidth": 160,
+  "arrowParens": "avoid",
+  "trailingComma": "all",
+  "endOfLine": "lf",
+  "overrides": [
+    {
+      "files": "*.yml",
+      "options": { "singleQuote": false }
+    }
+  ]
+}

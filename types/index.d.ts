@@ -28,14 +28,7 @@ export type Look = {
  * A worker's status: busy (`starting`, `working`, `waiting`), free (`idle`),
  * or how its run ended.
  */
-export type WorkerStatus =
-  | 'starting'
-  | 'working'
-  | 'waiting'
-  | 'idle'
-  | 'done'
-  | 'failed'
-  | 'stopped'
+export type WorkerStatus = 'starting' | 'working' | 'waiting' | 'idle' | 'done' | 'failed' | 'stopped'
 
 /** A worker of the crew: an agent the crew started or adopted. */
 export type Worker = {

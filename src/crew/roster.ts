@@ -38,12 +38,19 @@ export async function rosterText($: Engine, key?: string, isMain = true): Promis
   // One worker in full, with as much of its last report as was kept.
   if (key !== undefined && key.trim() !== '') {
     const worker = findWorker(list, key)
-    if (worker === undefined) return noWorker(key, list.map(x => x.address))
+    if (worker === undefined)
+      return noWorker(
+        key,
+        list.map(x => x.address),
+      )
     return rosterRow(worker, factsOf(worker.id), FULL_ROW_CUT)
   }
   const sorted = [...list].sort(byActivity)
   const reported = new Set(
-    sorted.filter(w => !ACTIVE.has(w.status) && w.answer).slice(0, ROSTER_REPORTS).map(w => w.id),
+    sorted
+      .filter(w => !ACTIVE.has(w.status) && w.answer)
+      .slice(0, ROSTER_REPORTS)
+      .map(w => w.id),
   )
   const rows = sorted.slice(0, ROSTER_ROWS).map(w => rosterRow(w, factsOf(w.id), rowCut(w, reported.has(w.id))))
   return rosterList(look.name, list.length, rows)

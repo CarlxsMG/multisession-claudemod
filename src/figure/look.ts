@@ -36,9 +36,7 @@ const oneOf = (table: Record<string, unknown>, value: unknown, fallback: string)
   typeof value === 'string' && Object.hasOwn(table, value) ? value : fallback
 
 const indexIn = (list: readonly unknown[], value: unknown, fallback: number): number =>
-  typeof value === 'number' && Number.isInteger(value) && value >= 0 && value < list.length
-    ? value
-    : fallback
+  typeof value === 'number' && Number.isInteger(value) && value >= 0 && value < list.length ? value : fallback
 
 const text = (value: unknown, fallback: string, max: number): string =>
   typeof value === 'string' && value.trim() !== '' ? value.trim().slice(0, max) : fallback

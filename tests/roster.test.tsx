@@ -8,12 +8,17 @@ test('workers the user clears or the list lets go stay off until they wake, and 
   const infos = (): AgentInfo[] =>
     Array.from({ length: spawned }, (_, k) => {
       const id = `agent-${k + 1}`
-      return { id, name: id === 'agent-1' ? 'pip' : undefined, description: `Task ${k + 1}`, type: 'general-purpose', status: running.has(id) ? 'running' : 'completed' }
+      return {
+        id,
+        name: id === 'agent-1' ? 'pip' : undefined,
+        description: `Task ${k + 1}`,
+        type: 'general-purpose',
+        status: running.has(id) ? 'running' : 'completed',
+      }
     })
   const clock = engine(on, { nextId: () => `agent-${++spawned}`, agents: infos })
   await $.session.start({ cwd: '/work/main', surface: 'terminal', isInteractive: true })
-  const roster = async (worker?: string) =>
-    String((await $.tool.call({ tool: 'mcp__crew__roster', ...(worker ? { worker } : {}) })).result)
+  const roster = async (worker?: string) => String((await $.tool.call({ tool: 'mcp__crew__roster', ...(worker ? { worker } : {}) })).result)
 
   for (let i = 1; i <= 27; i++) {
     await $.tool.call({ tool: 'mcp__crew__delegate', task: `Task ${i}`, repo: `/work/r${i}`, fresh: true })
@@ -36,7 +41,9 @@ test('workers the user clears or the list lets go stay off until they wake, and 
   // Woken by a message, Pip is back with its repository, history and report.
   running.add('agent-1')
   await clock.advance(4000)
-  expect(await roster('pip')).toMatch(/^- Pip: address "pip", working, repo \/work\/r1, model test-model, 1 task, ~45k tokens, last task "Task 1".*\n {2}last report: Informe 1$/)
+  expect(await roster('pip')).toMatch(
+    /^- Pip: address "pip", working, repo \/work\/r1, model test-model, 1 task, ~45k tokens, last task "Task 1".*\n {2}last report: Informe 1$/,
+  )
   expect((await roster()).split('\n')[0]).toBe("Nova's crew (1):")
 })
 
@@ -47,8 +54,7 @@ test('the roster shows one worker in full when asked', async ($, on) => {
   await $.tool.call({ tool: 'mcp__crew__delegate', task: 'Map the billing code', title: 'Billing map', repo: '/work/api' })
   const answer = `Billing: ${'y'.repeat(500)}`
   await $.turn.complete({ answer, durationMs: 1, isAborted: false, turnId: 't1', agentId: 'agent-1', reason: 'answer' })
-  const roster = async (worker?: string) =>
-    String((await $.tool.call({ tool: 'mcp__crew__roster', ...(worker ? { worker } : {}) })).result)
+  const roster = async (worker?: string) => String((await $.tool.call({ tool: 'mcp__crew__roster', ...(worker ? { worker } : {}) })).result)
 
   const one = await roster('pip')
   expect(one).toMatch(/^- Pip: address "pip", done, repo \/work\/api, .*last task "Billing map"\n {2}last report: Billing: y+$/)
@@ -96,7 +102,15 @@ test('the roster keeps to the active in full and cuts old reports', async ($, on
   }
   for (let i = 1; i <= 13; i++) {
     await clock.advance(1000)
-    await $.turn.complete({ answer: `Informe ${i}: ${'x'.repeat(300)}`, durationMs: 1000, isAborted: false, turnId: `t${i}`, agentId: `agent-${i}`, reason: 'answer', usage: USAGE })
+    await $.turn.complete({
+      answer: `Informe ${i}: ${'x'.repeat(300)}`,
+      durationMs: 1000,
+      isAborted: false,
+      turnId: `t${i}`,
+      agentId: `agent-${i}`,
+      reason: 'answer',
+      usage: USAGE,
+    })
   }
 
   const text = String((await $.tool.call({ tool: 'mcp__crew__roster' })).result)

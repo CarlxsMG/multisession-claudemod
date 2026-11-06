@@ -31,8 +31,7 @@ const foldedStep = (x: CheckLine): Piece[] => (x.plan === undefined ? [] : [{ te
 
 // The step column of whole lines, as wide as the widest step, in rows where
 // any worker has a plan.
-const stepColumn = (x: CheckLine, width: number, gap: string): Piece[] =>
-  width === 0 ? [] : [{ text: gap + pad(lineStep(x), width), role: 'step' }]
+const stepColumn = (x: CheckLine, width: number, gap: string): Piece[] => (width === 0 ? [] : [{ text: gap + pad(lineStep(x), width), role: 'step' }])
 
 /**
  * A check-in or a summary as rows of pieces, each row at most `width`
@@ -45,7 +44,11 @@ const stepColumn = (x: CheckLine, width: number, gap: string): Piece[] =>
 export function checkInRows(row: CheckIn, width: number, isWhole: boolean): Piece[][] {
   if (row.kind === 'end') return row.lines.flatMap(x => (x.end === '' ? [] : [fitPieces(endPieces({ ...x, end: x.end }), width)]))
   if (row.kind === 'message') return row.note === undefined ? [] : [notePieces(row.note, width)]
-  const head = (text: string): Piece[] => [{ text: '─ ', role: 'head' }, { text: 'crew', role: 'crew' }, { text, role: 'head' }]
+  const head = (text: string): Piece[] => [
+    { text: '─ ', role: 'head' },
+    { text: 'crew', role: 'crew' },
+    { text, role: 'head' },
+  ]
   const running = row.lines.filter(x => x.end === '').length
   if (row.kind === 'summary') {
     const title = isWhole ? t().progress.roundOver(shortTime(row.roundMs)) : t().progress.roundOf(shortTime(row.roundMs))

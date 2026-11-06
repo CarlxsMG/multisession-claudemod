@@ -92,12 +92,8 @@ export const register: Register = (on, options) => {
   // terminal draws bubbles, the desktop app and VS Code one-line cards a press
   // opens (see crewCard), and every other surface, the phone's among them, the
   // engine's own rows: a matcher selects only the surfaces it names.
-  on('ui.render', { component: 'ToolUse', surface: 'terminal', props: { tool: CREW_TOOLS } }, ($, e, next) =>
-    drawToolUse($, e, next),
-  )
-  on('ui.render', { component: 'ToolUse', surface: ['desktop', 'vscode'], props: { tool: CREW_TOOLS } }, ($, e, next) =>
-    drawToolCard($, e, next),
-  )
+  on('ui.render', { component: 'ToolUse', surface: 'terminal', props: { tool: CREW_TOOLS } }, ($, e, next) => drawToolUse($, e, next))
+  on('ui.render', { component: 'ToolUse', surface: ['desktop', 'vscode'], props: { tool: CREW_TOOLS } }, ($, e, next) => drawToolCard($, e, next))
   on('ui.render', { component: 'ToolResult', surface: ['terminal', 'desktop', 'vscode'], props: { tool: CREW_TOOLS } }, ($, e, next) =>
     drawToolResult($, e, next),
   )

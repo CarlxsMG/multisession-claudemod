@@ -30,4 +30,7 @@ export function endPieces(x: EndLine): Piece[] {
 }
 
 /** The same line as plain text, for the toast. */
-export const endNotice = (x: EndLine): string => endPieces(x).map(p => p.text).join('')
+export const endNotice = (x: EndLine): string =>
+  endPieces(x)
+    .map(p => p.text)
+    .join('')

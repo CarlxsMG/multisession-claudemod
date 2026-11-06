@@ -29,8 +29,12 @@ test("a worker's end bubble says how long its run took when the notification doe
 })
 
 test("a run's end toast says who, how, the task and the time; a failed or stopped one the step it stopped on", () => {
-  expect(endNotice({ id: 'a', name: 'Pip', end: 'done', doing: 'Arreglar tests', plan: declarePlan(undefined, 4, 4, 'x'), ms: 725_000 })).toBe('✓ Pip finished: Arreglar tests · 12m 5s')
-  expect(endNotice({ id: 'b', name: 'Bolt', end: 'failed', doing: 'Revisar README', plan: declarePlan(undefined, 2, 4, 'x'), ms: 180_000 })).toBe('× Bolt failed: Revisar README · step 2/4 · 3m 0s')
+  expect(endNotice({ id: 'a', name: 'Pip', end: 'done', doing: 'Arreglar tests', plan: declarePlan(undefined, 4, 4, 'x'), ms: 725_000 })).toBe(
+    '✓ Pip finished: Arreglar tests · 12m 5s',
+  )
+  expect(endNotice({ id: 'b', name: 'Bolt', end: 'failed', doing: 'Revisar README', plan: declarePlan(undefined, 2, 4, 'x'), ms: 180_000 })).toBe(
+    '× Bolt failed: Revisar README · step 2/4 · 3m 0s',
+  )
   expect(endNotice({ id: 'c', name: 'Mika', end: 'stopped', doing: '', ms: 4_000 })).toBe('■ Mika stopped · 4s')
 })
 
@@ -52,7 +56,14 @@ test('an agent its worker woke ends in one line here, its report going to that w
   await done('agent-1')
   await clock.advance(2000)
   const first = async (id: string) => {
-    const ui = await $.ui.mount({ plugin: 'crew', surface: 'terminal', component: 'Placed', requestId: id, props: { id, plugin: 'crew' }, viewport: { columns: 80, rows: 40 } })
+    const ui = await $.ui.mount({
+      plugin: 'crew',
+      surface: 'terminal',
+      component: 'Placed',
+      requestId: id,
+      props: { id, plugin: 'crew' },
+      viewport: { columns: 80, rows: 40 },
+    })
     const box = await ui.find({ type: 'Box' })
     await ui.unmount()
     return textIn(box?.children?.[0])
@@ -100,7 +111,7 @@ test("a worker's end is seen at once: a toast, and for half a minute its card's 
   expect(toasts).toHaveLength(2)
 })
 
-test("a worker whose report goes to its parent ends in one line of its own here, once the main turn is over; one reporting here, in its bubble alone", async ($, on) => {
+test('a worker whose report goes to its parent ends in one line of its own here, once the main turn is over; one reporting here, in its bubble alone', async ($, on) => {
   const { clock, placed, toasts, delegate, end, mainTurn, lines } = await progressCrew($, on)
   await delegate('Investigate the checkout', '/work/shop', 'Checkout')
   await spawnAgent($, { prompt: 'File the tickets', description: 'Tickets', subagentType: 'general-purpose', parentAgentId: 'agent-1' })

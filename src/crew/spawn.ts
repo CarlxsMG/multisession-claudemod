@@ -124,9 +124,7 @@ export async function onSpawn($: Engine, e: Parameters<OnSpawnHook>[1], next: Pa
   // One the orchestrator started for delegate runs where delegate meant it
   // to, which its Agent call cannot say, and in the background as
   // delegate's own do.
-  const intendedRun = isCrew && intent.task !== undefined
-    ? { background: true, ...(e.cwd === undefined && !samePath(cwd, sessionCwd) ? { cwd } : {}) }
-    : {}
+  const intendedRun = isCrew && intent.task !== undefined ? { background: true, ...(e.cwd === undefined && !samePath(cwd, sessionCwd) ? { cwd } : {}) } : {}
   const started = await next({ ...e, prompt, ...model, ...intendedRun })
   if (started.agentId === undefined) {
     if (claim !== undefined) unclaimNames(name, ...(claim.isWantedFree && e.name !== undefined ? [e.name] : []))

@@ -125,11 +125,7 @@ test("a round of two workers, or one longer than the interval, ends in one summa
   await end('agent-1')
   await clock.advance(1000)
   expect(placed).toHaveLength(1)
-  expect(await lines(placed[0]!)).toEqual([
-    '─ crew · round over · 1m',
-    '  × Bolt    40s  Revisar README',
-    '  ✓ Pip   1m 0s  Arreglar tests',
-  ])
+  expect(await lines(placed[0]!)).toEqual(['─ crew · round over · 1m', '  × Bolt    40s  Revisar README', '  ✓ Pip   1m 0s  Arreglar tests'])
   await clock.advance(200_000)
   expect(placed).toHaveLength(1)
 
@@ -179,11 +175,7 @@ test("a check-in row comes every 3 minutes of work when something changed, and w
   await done()
   await clock.advance(1000)
   expect(placed).toHaveLength(3)
-  expect(await lines(placed[2]!)).toEqual([
-    '─ crew · 2 active · round 12m',
-    '  Pip   editing   12m  Edit a.ts',
-    '  Bolt  thinking   3m',
-  ])
+  expect(await lines(placed[2]!)).toEqual(['─ crew · 2 active · round 12m', '  Pip   editing   12m  Edit a.ts', '  Bolt  thinking   3m'])
   // The rows before it fold to one line each, as they were.
   expect(await lines(placed[0]!)).toEqual(['─ crew · round 3m · Pip reading 3m'])
   expect(await lines(placed[1]!)).toEqual(['─ crew · round 9m · Pip editing 9m'])

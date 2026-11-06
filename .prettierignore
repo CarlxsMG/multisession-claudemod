@@ -1,0 +1,4 @@
+# Prose, wrapped by hand; a table's padding would churn on every edit.
+*.md
+# One line per element, so a wording change shows as a line diff. Prettier joins the short lists and mixes the quotes.
+tests/golden/model-text.ts

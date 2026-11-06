@@ -22,7 +22,10 @@ export function toBase64(bytes: Uint8Array): string {
 
 /** The bytes base64 text holds, plain or URL-safe. */
 export function fromBase64(code: string): Uint8Array {
-  const clean = code.replace(/-/g, '+').replace(/_/g, '/').replace(/[^A-Za-z0-9+/]/g, '')
+  const clean = code
+    .replace(/-/g, '+')
+    .replace(/_/g, '/')
+    .replace(/[^A-Za-z0-9+/]/g, '')
   const bytes: number[] = []
   let buffer = 0
   let bits = 0

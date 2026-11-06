@@ -45,7 +45,8 @@ export type Ask = { task: string; repo: string; model?: string; fresh?: boolean 
 
 export const USAGE = { input_tokens: 40_000, output_tokens: 3_000, cache_read_input_tokens: 500_000, cache_creation_input_tokens: 2_000, model: 'test-model' }
 
-export const GIT_LINE = /\n- In a git repository: start with `git status`, leave changes you did not make alone, and read `git log`\/`git blame` before changing code\./
+export const GIT_LINE =
+  /\n- In a git repository: start with `git status`, leave changes you did not make alone, and read `git log`\/`git blame` before changing code\./
 export const COMMENT_LINE =
   /\n- A comment says why the code is as it is now, never its history: not what changed or what it was, who or when \("now…", "no longer…", "was…", "previously…", "removed…"\), and no commented-out code\.\n/
 
@@ -91,13 +92,7 @@ export const crewCommand = ($: Parameters<TestBody>[0], args: string) =>
 // A session that starts with delegation `isOn` in conversation `id`, each
 // conversation's settings last told as `toldBy` has them, and what its
 // messages carry beside them.
-export async function startTold(
-  $: Parameters<TestBody>[0],
-  on: On,
-  toldBy: Record<string, unknown>,
-  isOn: boolean,
-  id: { now: string } = { now: 'sess-1' },
-) {
+export async function startTold($: Parameters<TestBody>[0], on: On, toldBy: Record<string, unknown>, isOn: boolean, id: { now: string } = { now: 'sess-1' }) {
   engine(on, { stored: { isOn, toldBy }, session: () => id.now })
   const contexts: (readonly string[] | undefined)[] = []
   on('prompt.submit', (_, e) => {
@@ -116,8 +111,13 @@ export const NOVA_OFF = { ...NOVA_ON, on: false }
 // A worker's own SendMessage, as the engine raises it from that worker's
 // loop: the model's, or stamped with the crew's name, as the model of an
 // agent the crew spawned sends.
-export const workerSend = ($: Parameters<TestBody>[0], to: string, text: string, agentId: string, origin: { kind: 'model' } | { kind: 'plugin'; name: string } = { kind: 'model' }) =>
-  $.session.send({ to, text, agentId, origin } as Parameters<typeof $.session.send>[0])
+export const workerSend = (
+  $: Parameters<TestBody>[0],
+  to: string,
+  text: string,
+  agentId: string,
+  origin: { kind: 'model' } | { kind: 'plugin'; name: string } = { kind: 'model' },
+) => $.session.send({ to, text, agentId, origin } as Parameters<typeof $.session.send>[0])
 
 // Pip in /work/api and Bolt, the agent Pip started there with the Agent
 // tool: Bolt done and then woken by Pip's message, which the engine resumes
@@ -127,10 +127,8 @@ export async function wokenCrew($: Parameters<TestBody>[0], on: On, agents?: () 
   const seen: Seen = { prompts: [], sends: [] }
   const clock = engine(on, { nextId: () => `agent-${++spawned}`, agents, seen })
   await $.session.start({ cwd: '/work/main', surface: 'terminal', isInteractive: true })
-  const delegate = async (input: Record<string, unknown>) =>
-    String((await $.tool.call({ tool: DELEGATE, ...input })).result)
-  const roster = async (worker?: string) =>
-    String((await $.tool.call({ tool: 'mcp__crew__roster', ...(worker ? { worker } : {}) })).result)
+  const delegate = async (input: Record<string, unknown>) => String((await $.tool.call({ tool: DELEGATE, ...input })).result)
+  const roster = async (worker?: string) => String((await $.tool.call({ tool: 'mcp__crew__roster', ...(worker ? { worker } : {}) })).result)
   const done = (agentId: string) =>
     $.turn.complete({ answer: `Hecho ${agentId}`, durationMs: 1, isAborted: false, turnId: `t-${agentId}-${seen.sends.length}`, agentId, reason: 'answer' })
   const message = (to: string, text: string, agentId: string) => workerSend($, to, text, agentId)
@@ -154,7 +152,11 @@ export async function napCrew($: Parameters<TestBody>[0], on: On, n: number) {
   const states = new Map<string, AgentInfo['status']>()
   const agents = (): AgentInfo[] =>
     Array.from({ length: spawned }, (_, i) => `agent-${i + 1}`).map(id => ({
-      id, name: id, description: 'x', type: DEFAULT_TYPE, status: states.get(id) ?? 'running',
+      id,
+      name: id,
+      description: 'x',
+      type: DEFAULT_TYPE,
+      status: states.get(id) ?? 'running',
     }))
   const clock = engine(on, { nextId: () => `agent-${++spawned}`, agents })
   await $.session.start({ cwd: '/work/main', surface: 'terminal', isInteractive: true })
@@ -211,7 +213,16 @@ export const usageReply = (fable: number) =>
 
 // ---- the conversation's crew rows ----
 
-export type Row = { tool: string; tool_use_id: string; input: Record<string, unknown>; isRunning: boolean; isErrored: boolean; isInterrupted: boolean; isExpanded?: boolean; output?: unknown }
+export type Row = {
+  tool: string
+  tool_use_id: string
+  input: Record<string, unknown>
+  isRunning: boolean
+  isErrored: boolean
+  isInterrupted: boolean
+  isExpanded?: boolean
+  output?: unknown
+}
 
 export const toolRow = (tool: string, id: string, input: Record<string, unknown>, extra: Partial<Row> = {}): Row => ({
   tool,
@@ -230,7 +241,13 @@ export const CLICKS = { columns: 80, rows: 40, isFullscreen: true }
 export const mountRow = ($: Parameters<TestBody>[0], props: Row, viewport: { columns: number; rows: number; isFullscreen?: boolean } = CLICKS) =>
   $.ui.mount({ plugin: PLUGIN, surface: 'terminal', component: 'ToolUse', requestId: props.tool_use_id, props, viewport })
 
-export type Said = { text: string; origin: { kind: 'task-notification' | 'unclassified' | 'composer' | 'peer' }; isExpanded: boolean; from?: { name: string }; task?: { id?: string; status?: string; durationMs?: number } }
+export type Said = {
+  text: string
+  origin: { kind: 'task-notification' | 'unclassified' | 'composer' | 'peer' }
+  isExpanded: boolean
+  from?: { name: string }
+  task?: { id?: string; status?: string; durationMs?: number }
+}
 
 export const mountSaid = ($: Parameters<TestBody>[0], id: string, props: Said, viewport: { columns: number; rows: number; isFullscreen?: boolean } = CLICKS) =>
   $.ui.mount({ plugin: PLUGIN, surface: 'terminal', component: 'UserMessage', requestId: id, props, viewport })
@@ -268,7 +285,11 @@ export async function progressCrew($: Parameters<TestBody>[0], on: On, stored: R
   const states = new Map<string, AgentInfo['status']>()
   const agents = (): AgentInfo[] =>
     Array.from({ length: spawned }, (_, i) => `agent-${i + 1}`).map(id => ({
-      id, name: id, description: 'x', type: DEFAULT_TYPE, status: states.get(id) ?? 'running',
+      id,
+      name: id,
+      description: 'x',
+      type: DEFAULT_TYPE,
+      status: states.get(id) ?? 'running',
     }))
   const seen = { prompts: [] as string[], sends: [] as string[], tools: [] as string[] }
   const clock = engine(on, { nextId: () => `agent-${++spawned}`, agents, seen, rateLimits: [], stored })
@@ -315,7 +336,14 @@ export async function progressCrew($: Parameters<TestBody>[0], on: On, stored: R
   const status = () => statuses[statuses.length - 1]
   // A placed row's lines as drawn in a terminal `columns` wide.
   const lines = async (id: string, columns = 80) => {
-    const ui = await $.ui.mount({ plugin: PLUGIN, surface: 'terminal', component: 'Placed', requestId: id, props: { id, plugin: PLUGIN }, viewport: { columns, rows: 40 } })
+    const ui = await $.ui.mount({
+      plugin: PLUGIN,
+      surface: 'terminal',
+      component: 'Placed',
+      requestId: id,
+      props: { id, plugin: PLUGIN },
+      viewport: { columns, rows: 40 },
+    })
     const box = await ui.find({ type: 'Box' })
     await ui.unmount()
     return (box?.children ?? []).map(textIn)

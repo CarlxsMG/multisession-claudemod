@@ -242,7 +242,12 @@ for (const surface of CARD_SURFACES) {
     await lineMatches(call, /^Nova → Pip · Arreglar tests · new$/)
     await opensTo(call, 'toolu_r1', TASK)
     expect(String(svg.props.source)).toContain(accentHex({ seed: hash('agent-7') }, DEFAULT_LOOK))
-    const result = await mountResultOn($, surface, { tool: DELEGATE, tool_use_id: 'toolu_r1', output: started('Pip', 'pip', 'agent-7', '/work/api', ''), isErrored: false })
+    const result = await mountResultOn($, surface, {
+      tool: DELEGATE,
+      tool_use_id: 'toolu_r1',
+      output: started('Pip', 'pip', 'agent-7', '/work/api', ''),
+      isErrored: false,
+    })
     expect(await isBlank(result)).toBe(true)
     await result.unmount()
     await call.unmount()
@@ -301,7 +306,11 @@ for (const surface of CARD_SURFACES) {
 
     // Someone else's call, and the person's own words.
     await $.tool.call({ tool: 'SendMessage', tool_use_id: 'toolu_e2', to: 'stranger', message: 'Hola' })
-    const other = await mountCall($, surface, toolRow('SendMessage', 'toolu_e2', { to: 'stranger', message: 'Hola' }, { output: { success: true, message: 'ok' } }))
+    const other = await mountCall(
+      $,
+      surface,
+      toolRow('SendMessage', 'toolu_e2', { to: 'stranger', message: 'Hola' }, { output: { success: true, message: 'ok' } }),
+    )
     expect((await other.drawn()).type).toBe('engine')
     await other.unmount()
     const own = await mountSaidOn($, surface, 'e-m1', { text: 'Hola', origin: { kind: 'composer' }, isExpanded: false })
@@ -366,11 +375,16 @@ for (const surface of SURFACES) {
   })
 }
 
-test('a text the surface refuses keeps the engine\'s row', async ($, on) => {
+test("a text the surface refuses keeps the engine's row", async ($, on) => {
   engine(on)
   await $.session.start({ cwd: '/work/main', surface: 'desktop', isInteractive: true })
   await $.tool.call({ tool: DELEGATE, task: 'Run the tests', title: 'Tests', repo: '/work/api' })
-  const ui = await mountSaidOn($, 'desktop', 'bad', { text: 'Salida: \u001b[31mrojo\u001b[0m', origin: { kind: 'unclassified' }, isExpanded: false, from: { name: 'pip' } })
+  const ui = await mountSaidOn($, 'desktop', 'bad', {
+    text: 'Salida: \u001b[31mrojo\u001b[0m',
+    origin: { kind: 'unclassified' },
+    isExpanded: false,
+    from: { name: 'pip' },
+  })
   expect((await ui.drawn()).type).toBe('engine')
   await ui.unmount()
 })

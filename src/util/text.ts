@@ -3,8 +3,7 @@
 import { t } from '../i18n'
 
 /** `text` in at most `max` columns, its last one an ellipsis when cut. */
-export const cut = (text: string, max: number): string =>
-  text.length <= max ? text : max <= 0 ? '' : `${text.slice(0, max - 1)}…`
+export const cut = (text: string, max: number): string => (text.length <= max ? text : max <= 0 ? '' : `${text.slice(0, max - 1)}…`)
 
 /** `text` on one line: every run of whitespace a single space. */
 export const flat = (text: string): string => text.replace(/\s+/g, ' ').trim()
@@ -20,8 +19,7 @@ const endCut = (line: string, width: number): string => (line.length >= width ? 
  * The desktop app wraps what the person pasted into a prompt in
  * <pasted_content> tags, for the model: the log marks it as pasted instead.
  */
-export const unwrapPasted = (text: string): string =>
-  text.replace(/<pasted_content\b[^>]*>/g, ` ${t().pasted} `).replace(/<\/pasted_content>/g, ' ')
+export const unwrapPasted = (text: string): string => text.replace(/<pasted_content\b[^>]*>/g, ` ${t().pasted} `).replace(/<\/pasted_content>/g, ' ')
 
 /** The text with its first letter in capitals. */
 export const cap = (text: string): string => text.charAt(0).toUpperCase() + text.slice(1)
@@ -84,7 +82,11 @@ export function headLines(text: string, width: number, max: number): string[] {
 export function textOf(output: unknown, depth = 0): string {
   if (typeof output === 'string') return output
   if (depth > 3 || typeof output !== 'object' || output === null) return ''
-  if (Array.isArray(output)) return output.map(x => textOf(x, depth + 1)).filter(x => x !== '').join('\n')
+  if (Array.isArray(output))
+    return output
+      .map(x => textOf(x, depth + 1))
+      .filter(x => x !== '')
+      .join('\n')
   const fields = output as Record<string, unknown>
   for (const key of ['text', 'message', 'result', 'content']) {
     if (key in fields) return textOf(fields[key], depth + 1)

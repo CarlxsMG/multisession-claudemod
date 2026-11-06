@@ -75,6 +75,14 @@ async function relayOne($: Engine, pending: Relay, lookName: string) {
   if (!sent.isDelivered) $.ui.toast(t().missedRelay(name, pending.by, sent.reason))
   // What follows only records: the message went, or the toast said it did
   // not, and a record that fails leaves its line out of the conversation.
-  const note = { fromId: pending.byId, from: pending.by, toId: pending.id, to: name, gist: pending.gist, wakes: sent.isDelivered && wasFree, isLost: !sent.isDelivered }
+  const note = {
+    fromId: pending.byId,
+    from: pending.by,
+    toId: pending.id,
+    to: name,
+    gist: pending.gist,
+    wakes: sent.isDelivered && wasFree,
+    isLost: !sent.isDelivered,
+  }
   await quiet($, noteMessage($, note), 'record relay')
 }

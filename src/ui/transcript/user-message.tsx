@@ -117,7 +117,9 @@ export async function drawUserMessage($: Engine, e: Parameters<DrawUserMessageHo
   const row = await saidRow($, e)
   if (row === undefined) return next(e)
   const cap = bubbleCap(rowWidth(e.viewport?.columns))
-  return crewBubble($, e, $.ui.resolve(e), e.props.isExpanded, row.rows, (rows, mark) => bubbleRows(row.names, row.tail, row.text, rows, cap, row.color, [], mark))
+  return crewBubble($, e, $.ui.resolve(e), e.props.isExpanded, row.rows, (rows, mark) =>
+    bubbleRows(row.names, row.tail, row.text, rows, cap, row.color, [], mark),
+  )
 }
 
 type DrawUserCardHook = MatchedHook<'ui.render', { component: 'UserMessage'; surface: readonly ['desktop', 'vscode'] }>

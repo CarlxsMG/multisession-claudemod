@@ -36,8 +36,7 @@ const STATUS_OF: Record<AgentStatus, WorkerStatus> = {
  * undefined for a name the crew has none for: an engine newer than the types
  * the crew was built against may report one.
  */
-export const statusOf = (status: string): WorkerStatus | undefined =>
-  Object.hasOwn(STATUS_OF, status) ? STATUS_OF[status as AgentStatus] : undefined
+export const statusOf = (status: string): WorkerStatus | undefined => (Object.hasOwn(STATUS_OF, status) ? STATUS_OF[status as AgentStatus] : undefined)
 
 // The names given in this load, the moment each is chosen: spawns of one
 // response run at once, and each reads the list before the other's worker
@@ -49,8 +48,7 @@ const names = runtime.names
  * every member of the session `members` holds (the list, the shelf, the cast
  * the rows keep).
  */
-export const takenNames = (members: readonly Member[]): Set<string> =>
-  new Set(members.flatMap(m => [m.name.toLowerCase(), m.address.toLowerCase()]))
+export const takenNames = (members: readonly Member[]): Set<string> => new Set(members.flatMap(m => [m.name.toLowerCase(), m.address.toLowerCase()]))
 
 /**
  * What a new worker may not be called now: the names and addresses of the
@@ -86,17 +84,15 @@ export const unclaimNames = (...given: string[]) => {
  */
 export const findWorker = <W extends Member>(list: readonly W[], key: string): W | undefined => {
   // A SendMessage address may carry a " [ref]".
-  const k = key.replace(/\s*\[[^\]]*\]\s*$/, '').trim().toLowerCase()
-  return list.find(
-    w => w.id === key || w.address.toLowerCase() === k || w.name.toLowerCase() === k,
-  )
+  const k = key
+    .replace(/\s*\[[^\]]*\]\s*$/, '')
+    .trim()
+    .toLowerCase()
+  return list.find(w => w.id === key || w.address.toLowerCase() === k || w.name.toLowerCase() === k)
 }
 
 /** A worker that starts now, on its first task, with the seed its color and figure come from. */
-export function makeWorker(
-  fields: Pick<Worker, 'id' | 'name' | 'address' | 'task' | 'type' | 'cwd' | 'status' | 'model' | 'asked'>,
-  now: number,
-): Worker {
+export function makeWorker(fields: Pick<Worker, 'id' | 'name' | 'address' | 'task' | 'type' | 'cwd' | 'status' | 'model' | 'asked'>, now: number): Worker {
   return {
     ...fields,
     activity: '',
@@ -113,8 +109,7 @@ export function makeWorker(
 }
 
 /** Active workers first, then whoever was heard from last. */
-export const byActivity = (a: Worker, b: Worker): number =>
-  Number(ACTIVE.has(b.status)) - Number(ACTIVE.has(a.status)) || b.updatedAt - a.updatedAt
+export const byActivity = (a: Worker, b: Worker): number => Number(ACTIVE.has(b.status)) - Number(ACTIVE.has(a.status)) || b.updatedAt - a.updatedAt
 
 // The workers the list keeps besides the active ones, the most recent.
 const KEPT_IDLE = 24
@@ -147,9 +142,7 @@ export async function unshelve($: Engine, id: string) {
   if (kept === undefined) return
   await updateDropped($, list => list.filter(w => w.id !== id))
   const now = await $.clock.now()
-  await updateWorkers($, list =>
-    list.some(w => w.id === id) ? list : [...list, { ...kept, status: 'working' as const, updatedAt: now }],
-  )
+  await updateWorkers($, list => (list.some(w => w.id === id) ? list : [...list, { ...kept, status: 'working' as const, updatedAt: now }]))
 }
 
 // A worker that is not busy, free or finished, leaves the panel's row a time
@@ -170,21 +163,14 @@ export function chooseNapAfter(option: unknown) {
 }
 
 /** When a worker that is not busy leaves the pane's row; undefined for a busy one, and with `napAfter` at `never`. */
-export const napLeavesAt = (w: Worker): number | undefined =>
-  ACTIVE.has(w.status) || napShownMs === undefined ? undefined : w.updatedAt + napShownMs
+export const napLeavesAt = (w: Worker): number | undefined => (ACTIVE.has(w.status) || napShownMs === undefined ? undefined : w.updatedAt + napShownMs)
 
 /** Whether a worker that is not busy has rested long enough to leave the pane's row. */
 export const napsAway = (w: Worker, now: number): boolean => (napLeavesAt(w) ?? Infinity) <= now
 
 /** Changes a worker's fields and touches it; one the list no longer has is left alone. */
-export async function patchWorker(
-  $: Engine,
-  id: string,
-  patch: (w: Worker, now: number) => Partial<Worker>,
-) {
+export async function patchWorker($: Engine, id: string, patch: (w: Worker, now: number) => Partial<Worker>) {
   if (!(await readWorkers($)).some(w => w.id === id)) return
   const now = await $.clock.now()
-  await updateWorkers($, list =>
-    list.map(w => (w.id === id ? { ...w, ...patch(w, now), updatedAt: now } : w)),
-  )
+  await updateWorkers($, list => list.map(w => (w.id === id ? { ...w, ...patch(w, now), updatedAt: now } : w)))
 }

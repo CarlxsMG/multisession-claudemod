@@ -12,6 +12,9 @@ env:
   # The Claude Code release crew's tests and validation are known to pass on. Raise it once
   # they pass on the new one locally.
   CLAUDE_CODE_VERSION: 2.1.318
+  # The Prettier release the code is formatted with. A new one can move lines, so raise it in a
+  # commit of its own that holds the reformat, and list that commit in .git-blame-ignore-revs.
+  PRETTIER_VERSION: 3.9.10
   # No auto-update, telemetry or error reporting from a runner.
   CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC: "1"
 
@@ -21,6 +24,18 @@ defaults:
     shell: bash
 
 jobs:
+  format:
+    name: Code formatted
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: "22"
+      - name: prettier --check
+        run: npx --yes "prettier@${PRETTIER_VERSION}" --check .
+
   validate:
     name: Plugin validates
     runs-on: ubuntu-latest

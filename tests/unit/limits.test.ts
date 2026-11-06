@@ -31,7 +31,7 @@ test("a get_usage reply gives each model's own window, rounded, and none when it
   expect(parseModelLimits(reply(null))).toEqual([])
 })
 
-test('a reply that is not the crew\'s, or not JSON, gives nothing to show', () => {
+test("a reply that is not the crew's, or not JSON, gives nothing to show", () => {
   expect(parseModelLimits('')).toBeUndefined()
   expect(parseModelLimits(JSON.stringify({ type: 'control_response', response: { request_id: 'other' } }))).toBeUndefined()
   expect(parseModelLimits('{"crew-usage" broken')).toBeUndefined()
@@ -50,7 +50,9 @@ test('a get_usage reply in a shape the crew does not read says what is odd in it
     return heard
   }
   // As a subscription's account answers: every window named, the ones it lacks null.
-  expect(odd(reply({ five_hour: null, seven_day: { utilization: 94 }, model_scoped: [{ display_name: 'Fable', utilization: 0, resets_at: null }] }))).toEqual([])
+  expect(odd(reply({ five_hour: null, seven_day: { utilization: 94 }, model_scoped: [{ display_name: 'Fable', utilization: 0, resets_at: null }] }))).toEqual(
+    [],
+  )
   expect(odd(reply({ five_hour: null, model_scoped: [] }))).toEqual([])
   expect(odd(reply({ five_hour: null, model_scoped: null }))).toEqual([])
   expect(odd(reply(null))).toEqual([])
@@ -58,6 +60,9 @@ test('a get_usage reply in a shape the crew does not read says what is odd in it
   expect(odd(reply({ model_scoped: [{ name: 'Fable', percent: 30 }] }))).toEqual(['get_usage answered a model window without display_name or utilization'])
   expect(odd('')).toEqual(['no answer to get_usage'])
   expect(odd('{"crew-usage" broken')).toEqual(['get_usage answered a line that is not JSON'])
-  const refused = { type: 'control_response', response: { subtype: 'error', request_id: 'crew-usage', error: 'Unsupported control request subtype: get_usage' } }
+  const refused = {
+    type: 'control_response',
+    response: { subtype: 'error', request_id: 'crew-usage', error: 'Unsupported control request subtype: get_usage' },
+  }
   expect(odd(JSON.stringify(refused))).toEqual(['get_usage answered no rate_limits: Unsupported control request subtype: get_usage'])
 })

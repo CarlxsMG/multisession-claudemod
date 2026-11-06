@@ -87,7 +87,11 @@ export function oweRedraws(dues: { napDue: number; typingUntil: number }) {
  * nothing else.
  */
 export function redrawPane($: Engine) {
-  return quiet($, updatePaneTick($, n => n + 1), 'redraw')
+  return quiet(
+    $,
+    updatePaneTick($, n => n + 1),
+    'redraw',
+  )
 }
 
 /**
@@ -101,7 +105,8 @@ export function tick($: Engine) {
     const cells = draw(state.frame).cells
     if (blitted.get(key) === cells) continue
     blitted.set(key, cells)
-    void $.ui.blit({ requestId: PANE, key, cells })
+    void $.ui
+      .blit({ requestId: PANE, key, cells })
       .then(r => {
         // Not taken: the next frame is sent whatever it holds.
         if (r.deny !== undefined && state.blitted.get(key) === cells) state.blitted.delete(key)

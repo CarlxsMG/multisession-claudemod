@@ -125,7 +125,10 @@ test('a delegate bubble says in its bottom border whether the worker is new or r
   expect(third.output).toMatch(/^Given to Pip /)
   expect(await third.row.find({ type: 'Text', text: /^╰─ reused · keeps its context · ! Bolt works here ─+╯$/ })).toBeDefined()
   await third.row.unmount()
-  const narrow = await mountRow($, toolRow(DELEGATE, 'toolu_h3', { task: 'Y el registro', title: 'Registro', repo: '/work/api' }, { output: third.output }), { ...CLICKS, columns: 56 })
+  const narrow = await mountRow($, toolRow(DELEGATE, 'toolu_h3', { task: 'Y el registro', title: 'Registro', repo: '/work/api' }, { output: third.output }), {
+    ...CLICKS,
+    columns: 56,
+  })
   expect(await narrow.find({ type: 'Text', text: /^╰─ reused · ! Bolt works here ─+╯$/ })).toBeDefined()
   await narrow.unmount()
 
@@ -153,7 +156,7 @@ test('a delegate row reads "→ crew" while it runs, and one that reached nobody
   await ui.unmount()
 })
 
-test('the orchestrator\'s SendMessage and TaskStop to a worker are drawn in its color; anyone else\'s keep the engine\'s', async ($, on) => {
+test("the orchestrator's SendMessage and TaskStop to a worker are drawn in its color; anyone else's keep the engine's", async ($, on) => {
   let spawned = 0
   engine(on, { nextId: () => `agent-${++spawned}` })
   await $.session.start({ cwd: '/work/main', surface: 'terminal', isInteractive: true })
@@ -191,7 +194,10 @@ test('the orchestrator\'s SendMessage and TaskStop to a worker are drawn in its 
   await $.tool.call({ tool: 'SendMessage', tool_use_id: 'toolu_s3', ...away })
   // Answered, too: the crew saw those calls, so neither is drawn from what it says.
   const delivered = { success: true, message: 'Message sent' }
-  for (const [id, input] of [['toolu_s2', aside], ['toolu_s3', away]] as const) {
+  for (const [id, input] of [
+    ['toolu_s2', aside],
+    ['toolu_s3', away],
+  ] as const) {
     const ui = await mountRow($, toolRow('SendMessage', id, input))
     expect((await ui.drawn()).type).toBe('engine')
     await ui.redraw(toolRow('SendMessage', id, input, { output: delivered }))
@@ -214,7 +220,7 @@ test('the orchestrator\'s SendMessage and TaskStop to a worker are drawn in its 
   await stopped.unmount()
 })
 
-test('a worker\'s report and hand-back come in its color, to whoever started it', async ($, on) => {
+test("a worker's report and hand-back come in its color, to whoever started it", async ($, on) => {
   let spawned = 0
   engine(on, { nextId: () => `agent-${++spawned}` })
   await $.session.start({ cwd: '/work/main', surface: 'terminal', isInteractive: true })
@@ -260,7 +266,12 @@ test('a worker\'s report and hand-back come in its color, to whoever started it'
 
   // An agent Pip started reports to Pip; Pip's message to it says so too.
   await $.agent.spawn({ prompt: 'File the tickets', description: 'Tickets', subagentType: 'general-purpose', parentAgentId: 'agent-1' } as AgentSpawnInput)
-  const nested = await mountSaid($, 'm4', { text: 'Agent "Tickets" completed', origin: { kind: 'task-notification' }, isExpanded: false, task: { id: 'agent-2', status: 'completed' } })
+  const nested = await mountSaid($, 'm4', {
+    text: 'Agent "Tickets" completed',
+    origin: { kind: 'task-notification' },
+    isExpanded: false,
+    task: { id: 'agent-2', status: 'completed' },
+  })
   const pipColor = (await nested.find({ type: 'Text', text: /^Pip$/ }))?.props.color
   expect(await frameRows(nested)).toEqual([
     expect.stringMatching(/^╭─ Bolt → Pip · ✓ done ─+╮$/),
@@ -275,7 +286,7 @@ test('a worker\'s report and hand-back come in its color, to whoever started it'
   await told.unmount()
 })
 
-test('a worker\'s end is a small bubble: how it ended above, the task it just did inside', async ($, on) => {
+test("a worker's end is a small bubble: how it ended above, the task it just did inside", async ($, on) => {
   let spawned = 0
   engine(on, { nextId: () => `agent-${++spawned}` })
   await $.session.start({ cwd: '/work/main', surface: 'terminal', isInteractive: true })
@@ -315,7 +326,10 @@ test('a worker\'s end is a small bubble: how it ended above, the task it just di
   await $.turn.complete({ answer: 'ok', durationMs: 1, isAborted: false, turnId: 't1', agentId: 'agent-1', reason: 'answer' })
   await $.tool.call({ tool: DELEGATE, task: 'Ahora el borde', title: 'Prueba borde: reutilizado', repo: '/work/api' })
   const second = await ended('end-2', 'agent-1', 'failed', 2_000)
-  expect((await bubble(second)).slice(0, 2)).toEqual([expect.stringMatching(/^╭─ Pip → Nova · × failed · 2s ─+╮$/), expect.stringMatching(/^│ Prueba borde: reutilizado +│$/)])
+  expect((await bubble(second)).slice(0, 2)).toEqual([
+    expect.stringMatching(/^╭─ Pip → Nova · × failed · 2s ─+╮$/),
+    expect.stringMatching(/^│ Prueba borde: reutilizado +│$/),
+  ])
   expect((await second.find({ type: 'Text', text: /^╭─ $/ }))?.props.color).toBe('warning')
   expect((await second.find({ type: 'Text', text: /^× failed$/ }))?.props.color).toBe('error')
   await first.redraw()
@@ -347,7 +361,11 @@ test('a worker\'s end is a small bubble: how it ended above, the task it just di
 test('on a narrow terminal a bubble takes the row and never overflows it', async ($, on) => {
   engine(on)
   await $.session.start({ cwd: '/work/main', surface: 'terminal', isInteractive: true })
-  const input = { task: 'Revisa el flujo de pago entero y dime qué falla cuando la tarjeta caduca a mitad de compra.', title: 'Un título bastante largo que no cabe entero', repo: '/work/api' }
+  const input = {
+    task: 'Revisa el flujo de pago entero y dime qué falla cuando la tarjeta caduca a mitad de compra.',
+    title: 'Un título bastante largo que no cabe entero',
+    repo: '/work/api',
+  }
   const output = String((await $.tool.call({ tool: DELEGATE, tool_use_id: 'toolu_n1', ...input })).result)
   const ui = await $.ui.mount({
     plugin: 'crew',
@@ -428,7 +446,12 @@ test('a cut bubble opens whole on a click and closes on another; where nothing r
   expect(await frameRows(whole)).toHaveLength(8)
   await whole.unmount()
 
-  await $.tool.call({ tool: 'SendMessage', to: 'pip', summary: 'Un título larguísimo para el aviso de que el worker ha terminado su trabajo de hoy', message: 'x' })
+  await $.tool.call({
+    tool: 'SendMessage',
+    to: 'pip',
+    summary: 'Un título larguísimo para el aviso de que el worker ha terminado su trabajo de hoy',
+    message: 'x',
+  })
   const note: Said = { text: 'Agent "Largo" finished', origin: { kind: 'task-notification' }, isExpanded: false, task: { id: 'agent-1', status: 'completed' } }
   const cut = await mountSaid($, 'c-note', note, { columns: 50, rows: 30, isFullscreen: true })
   expect(await frameRows(cut)).toHaveLength(3)
@@ -469,7 +492,10 @@ test("a resumed conversation's crew calls, which no state of this session knows,
 
   // A reused worker and a held task: their results name the worker, not its
   // id, so it takes the plain color.
-  const reused = await mountRow($, toolRow(DELEGATE, 'toolu_r2', { task: 'Y el registro', title: 'Registro' }, { output: given({ name: 'Bolt', address: 'bolt' }, '/work/web', '') }))
+  const reused = await mountRow(
+    $,
+    toolRow(DELEGATE, 'toolu_r2', { task: 'Y el registro', title: 'Registro' }, { output: given({ name: 'Bolt', address: 'bolt' }, '/work/web', '') }),
+  )
   expect(await frameRows(reused)).toEqual([
     expect.stringMatching(/^╭─ Nova → Bolt · Registro ─+╮$/),
     expect.stringMatching(/^│ Y el registro +│$/),

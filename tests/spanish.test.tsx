@@ -140,7 +140,13 @@ test('/crew answers in Spanish and takes the verbs of either language', ES, asyn
 })
 
 test('the usage in Spanish', ES, async ($, on) => {
-  engine(on, { rateLimits: [{ kind: 'seven_day', percentUsed: 41.4 }, { kind: 'five_hour', percentUsed: 12.5 }], probe: () => usageReply(8) })
+  engine(on, {
+    rateLimits: [
+      { kind: 'seven_day', percentUsed: 41.4 },
+      { kind: 'five_hour', percentUsed: 12.5 },
+    ],
+    probe: () => usageReply(8),
+  })
   await $.session.start({ cwd: '/work/main', surface: 'terminal', isInteractive: true })
   const ui = await $.ui.mount({ ...PANE, surface: 'terminal' })
   await ui.redraw()
@@ -153,7 +159,11 @@ test("the feed in Spanish: the person's own line, and what they pasted", ES, asy
   const clock = engine(on)
   on('prompt.submit', (_, e) => ({ text: e.text }))
   await $.session.start({ cwd: '/work/main', surface: 'terminal', isInteractive: true })
-  await $.prompt.submit({ text: 'Mira esto:\n<pasted_content id="071b">\nZod can exhaust memory\n</pasted_content>\ny arréglalo', wait: false, origin: { kind: 'composer' } })
+  await $.prompt.submit({
+    text: 'Mira esto:\n<pasted_content id="071b">\nZod can exhaust memory\n</pasted_content>\ny arréglalo',
+    wait: false,
+    origin: { kind: 'composer' },
+  })
   await clock.advance(1000)
   const ui = await $.ui.mount({ ...PANE, surface: 'terminal' })
   expect((await ui.find({ type: 'Text', text: /^ ─ tú → Nova · / }))?.text).toMatch(/“Mira esto: \[pegado\] Zod can exhaust memory y arréglalo”$/)
@@ -227,11 +237,7 @@ test('a check-in in Spanish: whole while it is the newest, then folded, and what
   await delegate('Review the README', '/work/web', 'Revisar README')
   await clock.advance(180_000)
   expect(placed).toHaveLength(2)
-  expect(await lines(placed[1]!)).toEqual([
-    '─ crew · 2 activos · ronda 6m',
-    '  Pip   editando  6m  Edit a.ts',
-    '  Bolt  pensando  3m',
-  ])
+  expect(await lines(placed[1]!)).toEqual(['─ crew · 2 activos · ronda 6m', '  Pip   editando  6m  Edit a.ts', '  Bolt  pensando  3m'])
   expect(await lines(placed[0]!)).toEqual(['─ crew · ronda 3m · Pip leyendo 3m'])
 
   await end('agent-2')
@@ -260,11 +266,7 @@ test('a summary row in Spanish: how each ended and its time, then folded under t
   await end('agent-1')
   await clock.advance(1000)
   expect(placed).toHaveLength(1)
-  expect(await lines(placed[0]!)).toEqual([
-    '─ crew · ronda terminada · 1m',
-    '  × Bolt    40s  2/4  Revisar README',
-    '  ✓ Pip   1m 0s       Arreglar tests',
-  ])
+  expect(await lines(placed[0]!)).toEqual(['─ crew · ronda terminada · 1m', '  × Bolt    40s  2/4  Revisar README', '  ✓ Pip   1m 0s       Arreglar tests'])
   await delegate('Migrate the schema', '/work/db', 'Migración')
   await clock.advance(200_000)
   await end('agent-3')
@@ -363,7 +365,10 @@ test('a delegate bubble in Spanish: new or reused, who else works there, and its
 
   const ask = { to: 'pip', summary: 'Amplía el login', message: 'Añade el caso de la contraseña caducada.' }
   await $.tool.call({ tool: 'SendMessage', tool_use_id: 'toolu_s1', ...ask })
-  const sent = await mountRow($, toolRow('SendMessage', 'toolu_s1', ask, { output: { success: true, message: 'Resuming agent pip', resumedAgentId: 'agent-1' } }))
+  const sent = await mountRow(
+    $,
+    toolRow('SendMessage', 'toolu_s1', ask, { output: { success: true, message: 'Resuming agent pip', resumedAgentId: 'agent-1' } }),
+  )
   expect(await sent.find({ type: 'Text', text: /^╰─ despierta a Pip ─+╯$/ })).toBeDefined()
   await sent.redraw(toolRow('SendMessage', 'toolu_s1', ask, { output: { success: true, message: "Message sent to pip's inbox" } }))
   expect(await sent.find({ type: 'Text', text: /^╰─ entregado ─+╯$/ })).toBeDefined()
@@ -373,7 +378,16 @@ test('a delegate bubble in Spanish: new or reused, who else works there, and its
 // ---- the words the crew builds ----
 
 test('the words the crew builds in Spanish: phases, ages, pasted text, plans, ends, messages and results', () => {
-  expect((['thinking', 'reading', 'editing', 'running', 'testing', 'web', 'delegating', 'waiting'] as const).map(phaseLabel)).toEqual(['pensando', 'leyendo', 'editando', 'ejecutando', 'probando', 'navegando', 'delegando', 'esperando'])
+  expect((['thinking', 'reading', 'editing', 'running', 'testing', 'web', 'delegating', 'waiting'] as const).map(phaseLabel)).toEqual([
+    'pensando',
+    'leyendo',
+    'editando',
+    'ejecutando',
+    'probando',
+    'navegando',
+    'delegando',
+    'esperando',
+  ])
   expect(ago(10_000, 5_000)).toBe('ahora')
   expect(unwrapPasted('see <pasted_content id="1">code</pasted_content> now')).toBe('see  [pegado] code  now')
 
@@ -381,8 +395,12 @@ test('the words the crew builds in Spanish: phases, ages, pasted text, plans, en
   expect(stepShare(third)).toBe('40 % de los pasos')
   expect(stepsLeft(third, 360_000)).toBe('≈9m más (estimado)')
 
-  expect(endNotice({ id: 'a', name: 'Pip', end: 'done', doing: 'Arreglar tests', plan: declarePlan(undefined, 4, 4, 'x'), ms: 725_000 })).toBe('✓ Pip terminó: Arreglar tests · 12m 5s')
-  expect(endNotice({ id: 'b', name: 'Bolt', end: 'failed', doing: 'Revisar README', plan: declarePlan(undefined, 2, 4, 'x'), ms: 180_000 })).toBe('× Bolt falló: Revisar README · paso 2/4 · 3m 0s')
+  expect(endNotice({ id: 'a', name: 'Pip', end: 'done', doing: 'Arreglar tests', plan: declarePlan(undefined, 4, 4, 'x'), ms: 725_000 })).toBe(
+    '✓ Pip terminó: Arreglar tests · 12m 5s',
+  )
+  expect(endNotice({ id: 'b', name: 'Bolt', end: 'failed', doing: 'Revisar README', plan: declarePlan(undefined, 2, 4, 'x'), ms: 180_000 })).toBe(
+    '× Bolt falló: Revisar README · paso 2/4 · 3m 0s',
+  )
   expect(endNotice({ id: 'c', name: 'Mika', end: 'stopped', doing: '', ms: 4_000 })).toBe('■ Mika detenido · 4s')
 
   const text = (pieces: { text: string }[]) => pieces.map(p => p.text).join('')

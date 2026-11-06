@@ -14,8 +14,7 @@ export const DELEGATE_FAILED = 'crew: delegate failed; use the Agent tool instea
 export const noRepo = (cwd: string): string => `crew: ${cwd} does not exist.`
 
 /** A `model` that names none of the families the Agent tool takes. */
-export const noModel = (asked: string): string =>
-  `crew: no model "${asked}"; nothing started. Models: sonnet, opus, fable, or none for the session's.`
+export const noModel = (asked: string): string => `crew: no model "${asked}"; nothing started. Models: sonnet, opus, fable, or none for the session's.`
 
 /** No worker by that name or address: delegate's and the roster's alike. */
 export const noWorker = (key: string, addresses: readonly string[]): string =>
@@ -40,8 +39,7 @@ export const heldMissedNote = (w: Pick<Worker, 'name' | 'address'>, count: numbe
   `[crew] ${count === 1 ? 'The task' : `The ${count} tasks`} ${missedBody(w, count, reason)}`
 
 /** What a task given to a worker whose held tasks once missed it adds: those went first. */
-export const heldWentFirst = (count: number): string =>
-  ` ${count === 1 ? 'The task' : `The ${count} tasks`} held for it went first, in the same message.`
+export const heldWentFirst = (count: number): string => ` ${count === 1 ? 'The task' : `The ${count} tasks`} held for it went first, in the same message.`
 
 export const notStarted = (deny: string): string => `crew: could not start a worker: ${deny}`
 

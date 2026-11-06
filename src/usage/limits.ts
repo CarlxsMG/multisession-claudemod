@@ -39,8 +39,16 @@ export const limitColor = (percent: number): string => (percent >= 80 ? 'error' 
 // the account's usage and runs no model. Without the user's settings it loads
 // no plugins, this one included, and it keeps no session.
 const USAGE_PROBE = [
-  '-p', '--setting-sources', 'local', '--strict-mcp-config', '--no-session-persistence',
-  '--input-format', 'stream-json', '--output-format', 'stream-json', '--verbose',
+  '-p',
+  '--setting-sources',
+  'local',
+  '--strict-mcp-config',
+  '--no-session-persistence',
+  '--input-format',
+  'stream-json',
+  '--output-format',
+  'stream-json',
+  '--verbose',
 ]
 const USAGE_REQUEST = `${JSON.stringify({ type: 'control_request', request_id: 'crew-usage', request: { subtype: 'get_usage' } })}\n`
 const PROBE_MS = 3 * 60_000
@@ -82,9 +90,7 @@ export function parseModelLimits(stdout: string, odd: (what: string) => void = (
       const scoped = Array.isArray(rates?.model_scoped) ? (rates.model_scoped as unknown[]) : []
       const read = scoped.flatMap(x => {
         const w = x as { display_name?: unknown; utilization?: unknown }
-        return typeof w.display_name === 'string' && typeof w.utilization === 'number'
-          ? [{ kind: w.display_name, percent: Math.round(w.utilization) }]
-          : []
+        return typeof w.display_name === 'string' && typeof w.utilization === 'number' ? [{ kind: w.display_name, percent: Math.round(w.utilization) }] : []
       })
       if (read.length < scoped.length) odd('get_usage answered a model window without display_name or utilization')
       return read
@@ -105,8 +111,7 @@ export async function probeUsage($: Engine) {
   const now = await $.clock.now()
   if (isProbeOff || !probe.isAllowed || now - probe.at < PROBE_MS) return
   probe.at = now
-  const run = (exe: string) =>
-    quiet($, $.process.run([exe, ...USAGE_PROBE], { stdin: USAGE_REQUEST, timeoutMs: PROBE_TIMEOUT_MS }), `usage probe ${exe}`)
+  const run = (exe: string) => quiet($, $.process.run([exe, ...USAGE_PROBE], { stdin: USAGE_REQUEST, timeoutMs: PROBE_TIMEOUT_MS }), `usage probe ${exe}`)
   // `claude` on the PATH; where it is not there (a session the desktop app or
   // an editor started), the executable this session runs, when it is claude's.
   let result = await run('claude')

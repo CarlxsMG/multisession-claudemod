@@ -23,11 +23,22 @@ test("a session started again in the same load keeps nothing of the earlier one'
   let asked = 0
   on('model.complete', () => {
     asked++
-    return { value: { isAnswered: true as const, text: 'Sorry, no lines today.', usage: { input_tokens: 1, output_tokens: 1, cache_read_input_tokens: 0, cache_creation_input_tokens: 0 } } }
+    return {
+      value: {
+        isAnswered: true as const,
+        text: 'Sorry, no lines today.',
+        usage: { input_tokens: 1, output_tokens: 1, cache_read_input_tokens: 0, cache_creation_input_tokens: 0 },
+      },
+    }
   })
   let rows = 0
   const endsTimedOut = async () => {
-    const ui = await mountSaid($, `end-${++rows}`, { text: 'Agent "Tarea" finished', origin: { kind: 'task-notification' }, isExpanded: false, task: { id: 'agent-1', status: 'timeout' } })
+    const ui = await mountSaid($, `end-${++rows}`, {
+      text: 'Agent "Tarea" finished',
+      origin: { kind: 'task-notification' },
+      isExpanded: false,
+      task: { id: 'agent-1', status: 'timeout' },
+    })
     await ui.unmount()
   }
 
@@ -58,7 +69,14 @@ test('an agent the orchestrator starts for delegate after a reload is still take
   expect(String((await $.tool.call({ tool: DELEGATE, task: 'Run the tests', title: 'Tests', repo: '/work/api' })).result)).toMatch(/Start Pip yourself now/)
 
   await start()
-  await spawnAgent($, { prompt: 'Run the tests', description: 'Tests', subagentType: 'general-purpose', name: 'pip', tool_use_id: 'toolu_1', background: false })
+  await spawnAgent($, {
+    prompt: 'Run the tests',
+    description: 'Tests',
+    subagentType: 'general-purpose',
+    name: 'pip',
+    tool_use_id: 'toolu_1',
+    background: false,
+  })
   expect((seen.spawns as AgentSpawnInput[]).map(s => [s.cwd, s.background])).toEqual([['/work/api', true]])
   expect(seen.prompts[0]).toMatch(/^\[crew\] You are Pip, a worker in Nova's crew\./)
   expect(seen.prompts[0]).toMatch(/Your repository is \/work\/api\./)
@@ -104,7 +122,12 @@ test("a worker's end drawn before a reload keeps its task and time when drawn ag
   let spawned = 0
   const clock = engine(on, { nextId: () => `agent-${++spawned}` })
   await $.session.start(TERMINAL)
-  const ended = { text: 'Agent "Primera tarea" finished', origin: { kind: 'task-notification' }, isExpanded: false, task: { id: 'agent-1', status: 'completed' } } as const
+  const ended = {
+    text: 'Agent "Primera tarea" finished',
+    origin: { kind: 'task-notification' },
+    isExpanded: false,
+    task: { id: 'agent-1', status: 'completed' },
+  } as const
   await $.tool.call({ tool: DELEGATE, task: 'Haz la primera tarea', title: 'Primera tarea', repo: '/work/api' })
   await clock.advance(4000)
   await $.turn.complete({ answer: 'ok', durationMs: 1, isAborted: false, turnId: 't1', agentId: 'agent-1', reason: 'answer' })

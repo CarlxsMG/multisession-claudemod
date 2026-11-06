@@ -86,19 +86,14 @@ export function nextPhase(run: Pick<Run, 'phase' | 'phaseAt'>, kind: Phase | und
 /** The phase to show: a worker the engine has waiting waits, whatever it ran. */
 export const shownPhase = (run: Pick<Run, 'phase'>, status: string): Phase => (status === 'waiting' ? 'waiting' : run.phase)
 
-const TOOL_TARGETS = [
-  'file_path', 'notebook_path', 'path', 'command', 'pattern',
-  'url', 'query', 'description', 'skill', 'to',
-] as const
+const TOOL_TARGETS = ['file_path', 'notebook_path', 'path', 'command', 'pattern', 'url', 'query', 'description', 'skill', 'to'] as const
 
 /**
  * A call as the pane names it: the tool, and what it acts on, a path by its
  * file name.
  */
 export function describe(call: ToolCall): string {
-  const tool = call.tool.startsWith('mcp__')
-    ? call.tool.split('__').slice(2).join('__') || call.tool
-    : call.tool
+  const tool = call.tool.startsWith('mcp__') ? call.tool.split('__').slice(2).join('__') || call.tool : call.tool
   for (const key of TOOL_TARGETS) {
     const value = call[key]
     if (typeof value === 'string' && value.trim() !== '') {

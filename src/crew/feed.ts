@@ -6,17 +6,7 @@ import type { LastJob, Member, Msg, MsgTone, NoteFirst, OrchMood } from '../../t
 import { MAIN_ADDRESS } from '../config'
 import type { Engine } from '../engine'
 import { runtime } from '../runtime'
-import {
-  readMembers,
-  readNoteFirst,
-  readOrch,
-  updateCalls,
-  updateJobs,
-  updateMembers,
-  updateMessages,
-  updateNoteFirst,
-  updateOrch,
-} from '../state/atoms'
+import { readMembers, readNoteFirst, readOrch, updateCalls, updateJobs, updateMembers, updateMessages, updateNoteFirst, updateOrch } from '../state/atoms'
 import { appendKept } from '../util/bounded'
 import { oneLine } from '../util/text'
 import { findWorker } from './workers'
@@ -55,7 +45,13 @@ export const hasHeldFirsts = (): boolean => firsts.held.size > 0
  */
 export async function keepFirstDrawn($: Engine) {
   const taken = [...firsts.held.values()]
-  await updateNoteFirst($, list => appendKept(list, taken.filter(f => !list.some(x => x.id === f.id)), NOTE_FIRST_KEEP))
+  await updateNoteFirst($, list =>
+    appendKept(
+      list,
+      taken.filter(f => !list.some(x => x.id === f.id)),
+      NOTE_FIRST_KEEP,
+    ),
+  )
   for (const f of taken) if (firsts.held.get(f.id) === f) firsts.held.delete(f.id)
 }
 
@@ -115,7 +111,11 @@ export const nameOf = (id: string, worker: { name: string } | undefined, members
 
 /** A message's summary, else its first line. */
 export const gistOf = (summary: unknown, message: unknown): string =>
-  (typeof summary === 'string' && summary.trim() !== '' ? summary : String(message ?? '').split('\n').find(x => x.trim() !== '') ?? '')
+  typeof summary === 'string' && summary.trim() !== ''
+    ? summary
+    : (String(message ?? '')
+        .split('\n')
+        .find(x => x.trim() !== '') ?? '')
 
 /**
  * A SendMessage or TaskStop of the main conversation, marked with the member

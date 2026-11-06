@@ -37,10 +37,8 @@ test("where auto mode reviews only the model's own calls, the orchestrator start
   const seen = { prompts: [] as string[], sends: [] as string[], spawns: [] as AgentSpawnInput[], refuse: NO_VERDICT }
   engine(on, { nextId: () => `agent-${++spawned}`, seen })
   await $.session.start({ cwd: '/work/main', surface: 'desktop', isInteractive: false })
-  const delegate = async (input: Record<string, unknown>) =>
-    String((await $.tool.call({ tool: 'mcp__crew__delegate', ...input })).result)
-  const done = (agentId: string) =>
-    $.turn.complete({ answer: 'Hecho', durationMs: 1, isAborted: false, turnId: `t-${agentId}`, agentId, reason: 'answer' })
+  const delegate = async (input: Record<string, unknown>) => String((await $.tool.call({ tool: 'mcp__crew__delegate', ...input })).result)
+  const done = (agentId: string) => $.turn.complete({ answer: 'Hecho', durationMs: 1, isAborted: false, turnId: `t-${agentId}`, agentId, reason: 'answer' })
 
   expect(await delegate({ task: 'Run the tests', title: 'Tests', repo: '/work/api' })).toBe(
     'crew: nothing started: auto mode reviews only calls you write, not the one delegate makes. Start Pip yourself now: Agent tool with name "pip", description "Tests", subagent_type "general-purpose", and as prompt the task exactly as you gave delegate. The crew takes that agent as Pip, working in /work/api.',
@@ -53,9 +51,27 @@ test("where auto mode reviews only the model's own calls, the orchestrator start
 
   // The orchestrator's own Agent calls, which auto mode reviews; one that
   // names no agent is known by its task.
-  await spawnAgent($, { prompt: 'Run the tests', description: 'Tests', subagentType: 'general-purpose', name: 'pip', tool_use_id: 'toolu_1', background: false, parentModel: 'claude-opus-5-5' })
-  await spawnAgent($, { prompt: 'Fix the login', description: 'Login', subagentType: 'general-purpose', model: 'sonnet', tool_use_id: 'toolu_2', background: false })
-  expect(seen.spawns.map(s => [s.cwd, s.background])).toEqual([['/work/api', true], ['/work/web', true]])
+  await spawnAgent($, {
+    prompt: 'Run the tests',
+    description: 'Tests',
+    subagentType: 'general-purpose',
+    name: 'pip',
+    tool_use_id: 'toolu_1',
+    background: false,
+    parentModel: 'claude-opus-5-5',
+  })
+  await spawnAgent($, {
+    prompt: 'Fix the login',
+    description: 'Login',
+    subagentType: 'general-purpose',
+    model: 'sonnet',
+    tool_use_id: 'toolu_2',
+    background: false,
+  })
+  expect(seen.spawns.map(s => [s.cwd, s.background])).toEqual([
+    ['/work/api', true],
+    ['/work/web', true],
+  ])
   expect(seen.prompts[0]).toMatch(/^\[crew\] You are Pip, a worker in Nova's crew\./)
   expect(seen.prompts[0]).toMatch(/Your repository is \/work\/api\./)
   expect(seen.prompts[1]).toMatch(/^\[crew\] You are Bolt, a worker in Nova's crew\./)
@@ -77,7 +93,15 @@ test("a worker on the session's model is asked for it by the alias the Agent too
     return /name "(\w+)"/.exec(result)![1]!
   }
   const start = (name: string | undefined, parentModel: string, id: string) =>
-    spawnAgent($, { prompt: 'Run the tests', description: 'Tests', subagentType: 'Explore', ...(name ? { name } : {}), tool_use_id: id, background: false, parentModel })
+    spawnAgent($, {
+      prompt: 'Run the tests',
+      description: 'Tests',
+      subagentType: 'Explore',
+      ...(name ? { name } : {}),
+      tool_use_id: id,
+      background: false,
+      parentModel,
+    })
 
   await start(await handOff('/work/api'), 'claude-opus-5-5', 'toolu_1')
   await start(await handOff('/work/web'), 'us.anthropic.claude-sonnet-4-5-20250929-v1:0', 'toolu_2')
@@ -98,7 +122,15 @@ test("a worker runs on the session's model, haiku in a session on haiku, and a h
     const result = String((await $.tool.call({ tool: 'mcp__crew__delegate', task: 'Run the tests', title: 'Tests', repo, ...(model ? { model } : {}) })).result)
     expect(result).not.toMatch(/model "/)
     const name = /name "(\w+)"/.exec(result)![1]!
-    await spawnAgent($, { prompt: 'Run the tests', description: 'Tests', subagentType: 'general-purpose', name, tool_use_id: `toolu_${name}`, background: false, parentModel })
+    await spawnAgent($, {
+      prompt: 'Run the tests',
+      description: 'Tests',
+      subagentType: 'general-purpose',
+      name,
+      tool_use_id: `toolu_${name}`,
+      background: false,
+      parentModel,
+    })
   }
 
   await start('/work/api', 'claude-haiku-4-5')
@@ -148,10 +180,8 @@ test('on Windows a repository is found however it is spelled, and its free worke
   const host = { cwd: 'C:\\work\\main', env: { USERPROFILE: 'C:\\Users\\ana' } }
   engine(on, { nextId: () => `agent-${++spawned}`, seen, rateLimits: [], stored: {}, host })
   await $.session.start({ cwd: host.cwd, surface: 'terminal', isInteractive: true })
-  const delegate = async (input: Record<string, unknown>) =>
-    String((await $.tool.call({ tool: 'mcp__crew__delegate', ...input })).result)
-  const done = (agentId: string) =>
-    $.turn.complete({ answer: 'Hecho', durationMs: 1, isAborted: false, turnId: `t-${agentId}`, agentId, reason: 'answer' })
+  const delegate = async (input: Record<string, unknown>) => String((await $.tool.call({ tool: 'mcp__crew__delegate', ...input })).result)
+  const done = (agentId: string) => $.turn.complete({ answer: 'Hecho', durationMs: 1, isAborted: false, turnId: `t-${agentId}`, agentId, reason: 'answer' })
 
   expect(await delegate({ task: 'Map the API', repo: 'C:\\work\\api' })).toMatch(/^Started Pip .* in C:\\work\\api\./)
   await done('agent-1')
@@ -172,8 +202,7 @@ test('a failed worker is never taken unnamed, and is when named', async ($, on) 
   let spawned = 0
   engine(on, { nextId: () => `agent-${++spawned}` })
   await $.session.start({ cwd: '/work/main', surface: 'terminal', isInteractive: true })
-  const delegate = async (input: Record<string, unknown>) =>
-    String((await $.tool.call({ tool: 'mcp__crew__delegate', repo: '/work/api', ...input })).result)
+  const delegate = async (input: Record<string, unknown>) => String((await $.tool.call({ tool: 'mcp__crew__delegate', repo: '/work/api', ...input })).result)
 
   expect(await delegate({ task: 'Migrate the schema' })).toMatch(/^Started Pip/)
   await $.turn.complete({ answer: 'API error', durationMs: 1, isAborted: false, turnId: 't1', agentId: 'agent-1', reason: 'error' })
@@ -200,10 +229,8 @@ test('a worker named for a task hears of who is busy in its own repository', asy
   const seen = { prompts: [] as string[], sends: [] as string[] }
   engine(on, { nextId: () => `agent-${++spawned}`, seen })
   await $.session.start({ cwd: '/work/main', surface: 'terminal', isInteractive: true })
-  const delegate = async (input: Record<string, unknown>) =>
-    String((await $.tool.call({ tool: 'mcp__crew__delegate', ...input })).result)
-  const done = (agentId: string) =>
-    $.turn.complete({ answer: 'Hecho', durationMs: 1, isAborted: false, turnId: `t-${agentId}`, agentId, reason: 'answer' })
+  const delegate = async (input: Record<string, unknown>) => String((await $.tool.call({ tool: 'mcp__crew__delegate', ...input })).result)
+  const done = (agentId: string) => $.turn.complete({ answer: 'Hecho', durationMs: 1, isAborted: false, turnId: `t-${agentId}`, agentId, reason: 'answer' })
 
   expect(await delegate({ task: 'Map the API', repo: '/work/api' })).toMatch(/^Started Pip/)
   await done('agent-1')
@@ -233,8 +260,7 @@ test('a worker can be of another agent type, and is reused only for that type', 
   let spawned = 0
   engine(on, { nextId: () => `agent-${++spawned}` })
   await $.session.start({ cwd: '/work/main', surface: 'terminal', isInteractive: true })
-  const delegate = async (input: Record<string, unknown>) =>
-    String((await $.tool.call({ tool: 'mcp__crew__delegate', ...input })).result)
+  const delegate = async (input: Record<string, unknown>) => String((await $.tool.call({ tool: 'mcp__crew__delegate', ...input })).result)
 
   expect(await delegate({ task: 'Find the auth code', repo: '/work/api', subagent_type: 'Explore' })).toMatch(/^Started Pip/)
   await $.turn.complete({ answer: 'Found it', durationMs: 1000, isAborted: false, turnId: 't1', agentId: 'agent-1', reason: 'answer' })
@@ -249,12 +275,11 @@ test('a worker can be of another agent type, and is reused only for that type', 
 
 // The engine may spell a resolved type its own way; a test cannot raise
 // that above the plugin, so this one keeps the asked spelling in view.
-test('a worker\'s type is kept as delegate was asked for it', async ($, on) => {
+test("a worker's type is kept as delegate was asked for it", async ($, on) => {
   let spawned = 0
   engine(on, { nextId: () => `agent-${++spawned}` })
   await $.session.start({ cwd: '/work/main', surface: 'terminal', isInteractive: true })
-  const delegate = async (input: Record<string, unknown>) =>
-    String((await $.tool.call({ tool: 'mcp__crew__delegate', repo: '/work/api', ...input })).result)
+  const delegate = async (input: Record<string, unknown>) => String((await $.tool.call({ tool: 'mcp__crew__delegate', repo: '/work/api', ...input })).result)
 
   expect(await delegate({ task: 'Find the auth code', subagent_type: 'explore' })).toMatch(/^Started Pip/)
   await $.turn.complete({ answer: 'Found it', durationMs: 1, isAborted: false, turnId: 't1', agentId: 'agent-1', reason: 'answer' })
@@ -350,12 +375,14 @@ test('two forks a worker starts in one response take names of their own, each a 
   engine(on, { nextId: () => `agent-${++spawned}` })
   await $.session.start({ cwd: '/work/main', surface: 'terminal', isInteractive: true })
   await $.tool.call({ tool: DELEGATE, task: 'Investigate the checkout, then split it', repo: '/work/shop' })
-  const fork = (prompt: string) =>
-    spawnAgent($, { prompt, description: prompt, subagentType: 'fork', fork: true, parentAgentId: 'agent-1' })
+  const fork = (prompt: string) => spawnAgent($, { prompt, description: prompt, subagentType: 'fork', fork: true, parentAgentId: 'agent-1' })
   await Promise.all([fork('Do the frontend'), fork('Do the backend')])
 
   const text = await roster($)
-  const forks = text.split('\n').filter(line => / fork of Pip, /.test(line)).map(line => /^- (\S+):/.exec(line)?.[1])
+  const forks = text
+    .split('\n')
+    .filter(line => / fork of Pip, /.test(line))
+    .map(line => /^- (\S+):/.exec(line)?.[1])
   expect(forks).toHaveLength(2)
   expect(new Set(forks).size).toBe(2)
   expect(forks).not.toContain('Pip')
@@ -388,7 +415,9 @@ test('a name too short or already taken is replaced too, and a taken one leaves 
   }
 
   expect(await agent('x', 'toolu_1')).toEqual([expect.stringMatching(/^\[crew\] The crew calls this agent Bolt, not "x": .* SendMessage reaches it as "x"\.$/)])
-  expect(await agent('PIP', 'toolu_2')).toEqual([expect.stringMatching(/^\[crew\] The crew calls this agent Mika, not "PIP": .* SendMessage reaches it as "agent-3"\.$/)])
+  expect(await agent('PIP', 'toolu_2')).toEqual([
+    expect.stringMatching(/^\[crew\] The crew calls this agent Mika, not "PIP": .* SendMessage reaches it as "agent-3"\.$/),
+  ])
   // One that fits and is free is kept, and nothing is said.
   expect(await agent('qa', 'toolu_3')).toEqual([])
 
