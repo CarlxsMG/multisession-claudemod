@@ -164,6 +164,22 @@ test("a card's name and line are monospaced, so a name of four letters fits the 
   await ui.unmount()
 })
 
+test("a card's name is its button's label, which the desktop app draws in place of the children", async ($, on) => {
+  let spawned = 0
+  engine(on, { nextId: () => `agent-${++spawned}` })
+  await $.session.start({ cwd: '/work/main', surface: 'desktop', isInteractive: true })
+  for (let i = 1; i <= 11; i++) await $.tool.call({ tool: 'mcp__crew__delegate', task: `Task ${i}`, repo: `/work/r${i}` })
+
+  const ui = await $.ui.mount({ ...PANE, surface: 'desktop', props: { ...PANE.props, bodyColumns: 46 } })
+  const name = await ui.find({ key: 'view-agent-1' })
+  expect(name?.text).toBe('Pip')
+  expect(name?.props.label).toBe('Pip')
+  const more = await ui.find({ key: 'crew-all' })
+  expect(more?.text).toBe('+3')
+  expect(more?.props.label).toBe('+3')
+  await ui.unmount()
+})
+
 test('the crew takes one row, and the rest wait in the team view', async ($, on) => {
   let spawned = 0
   engine(on, { nextId: () => `agent-${++spawned}` })
@@ -179,7 +195,7 @@ test('the crew takes one row, and the rest wait in the team view', async ($, on)
   expect(await figures()).toHaveLength(8)
   const more = await ui.find({ key: 'crew-all' })
   expect(more?.text).toBe('+3')
-  expect(more?.props.label).toBe('Show all (3 more)')
+  expect(more?.props.label).toBe('+3')
 
   await ui.press({ key: 'crew-all' })
   expect((await ui.findAll({ type: 'Button' }))[0]?.key).toBe('crew-back')
