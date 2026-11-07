@@ -45,6 +45,7 @@ the debug log. Its `unrecognized` logs there an engine text the crew reads in no
 | `src/guard/runaway.ts` | The guard on Bash and PowerShell calls: it refuses a command that would not end (`tail -f`, `watch`, a watch mode, an endless loop), the main session's and every worker's. |
 | `src/prompts/` | Nearly every text a model reads ([docs/model-behavior.md](docs/model-behavior.md) lists them all): the orchestrator's brief and `[crew]` note (`orchestrator.ts`), the workers' preamble and the texts the crew sends them (`worker.ts`), the tool specs (`tools.ts`), the tool results and their parsers (`results.ts`), the roster's text (`roster.ts`), and what the `/crew` command answers (`commands.ts`). |
 | `src/progress/` | Progress, which no model reads: `run-store.ts` is the only module that records runs with the engine, `calls.ts` holds tool calls for the pane's next frame, `todos.ts` reads a plan off a todo list, `status.ts` pins the status line, `placed.ts` places the rows and keeps the check-in interval, and `tick.ts` is the progress tick; `runs.ts`, `round.ts`, `plan.ts`, `phase.ts`, `check-in.ts` are pure; `text/` builds the status line, the team view, the cards and the placed rows. |
+| `src/background/` | The shells and Monitors agents leave running in the background: the pure rules of the registry and of when the crew stops one (`tasks.ts`), and recording, pruning and stopping them with the engine (`sweep.ts`). |
 | `src/persona/` | Personalities (`vibes.ts`, the model prompt of each), the figure's lines (`lines.ts`, including the Haiku prompt), worker names (`names.ts`). |
 | `src/settings/` | What the user changes: the look (`look.ts`), delegation and the `[crew]` note (`notes.ts`), Haiku's mood lines (`mood-lines.ts`), the main session's model (`model.ts`). |
 | `src/figure/` | The pictures: the catalog of parts and colours, the orchestrator's critter, the workers' diamonds, the animation of each state, rasterizing to cells or SVG, looks and share codes, accent colours, the 256-colour mapping. |
@@ -103,6 +104,7 @@ under, so it never changes even where the code name differs.
 | `sendGists` | `sendGists` | `sendGists-1` | Each worker's last SendMessage: the head of its text and its summary, up to 100 |
 | `taskLists` | `taskLists` | `taskLists-1` | Each worker's TaskCreate items in its run, up to 80 workers of 100 items |
 | `noteFirst` | `noteFirst` | `noteFirst-1` | What each end-of-task row was first drawn with, up to 300 |
+| `background` | `background` | `background-1` | Shells and Monitors left running in the background, whose each is and when its owner's turn ended, up to 100 |
 
 The last five hold what a call under way leaves for the hooks that follow it, which a reload of
 the plugin's code may come between: a spawn auto mode handed to the orchestrator, an Agent call
@@ -160,7 +162,7 @@ holds no look, and is turned down as a bad code.
 | --- | --- | --- |
 | Pane tick (`tick`) | `TICK_MS`, 400 ms | Advances the figures' frame and blits each changed raster in place. Every 12 frames (4.8 s) redraws the pane for its ages, when it is mounted or shown as a page. Redraws when a nap or an end highlight is due. Writes the workers' tool calls held since the last frame, and what the end-of-task rows drawn since were first drawn with. Sends due relays. Every 8 frames (3.2 s) syncs the crew with the engine's agent list and lifts takeovers; between those, lifts takeovers a turn end asked for. Every 25 frames (10 s) looks for a batch of mood lines to ask Haiku for. |
 | Typing tick (`typeTick`) | 90 ms, 180 ms on Terminal.app | Types out the newest bubbles in the feed. Runs only while one types: the drawing that shows it starts the timer, and the tick that draws it whole, the pane closing or a session's start stops it. |
-| Progress tick (`progressTick`) | 1 s | Closes runs whose end was missed, writes the status line, brings the round's newest check-in up to date (`followCheckIn`, even while the main turn runs), places the rows that waited for the main turn, and places check-ins and the round's summary. |
+| Progress tick (`progressTick`) | 1 s | Closes runs whose end was missed, writes the status line, brings the round's newest check-in up to date (`followCheckIn`, even while the main turn runs), places the rows that waited for the main turn, places check-ins and the round's summary, and stops the background tasks of agents that are done (see Background tasks). |
 | Usage probe (`probeUsage`) | At most every 3 min | Runs a headless `claude -p` for Fable's weekly window; started at session start, when the engine measures new windows, and when an app attaches; never with the `usageProbe` option `off`. |
 
 ## Main flows
@@ -266,6 +268,26 @@ agents.
 - Nothing is placed while the orchestrator's turn is streaming: rows wait in `due` and go when
   the turn ends.
 
+### Background tasks
+
+A Bash or PowerShell call the engine answers with a `backgroundTaskId`, and a Monitor call with a
+`taskId`, is recorded in `background` with the agent whose call it was (none for the main
+conversation's) as the call is answered (`watchCall`). A shell the engine ends with its caller's
+final response (`backgroundEndsWithFinalResponse`) is not recorded. An entry goes when a TaskStop
+for it succeeds, the model's or the crew's, and when a Stop or SubagentStop's
+`background_tasks`, the session's work in flight, lacks it (unless it is under 5 s old).
+
+When an agent's turn ends (`turn.complete`) its tasks are marked; the progress tick stops a
+marked task at once, or, when the engine says the agent waits for it (`backgroundWakesOwner`),
+once it has run 10 minutes past that end. A turn start unmarks them. Before such a stop the crew
+asks `$.tool.check`: a TaskStop the rules would ask the person for is not called, so no dialog
+opens on its own; the entry stays, marked failed, and a toast says to press Stop. A failed or
+refused stop is not tried again on its own. The main conversation's tasks are never stopped on
+their own. At `session.end` every agent's task is stopped, quietly. The team view lists them all
+with a Stop each, which calls TaskStop as the person (the dialog may ask them), and the main view
+shows how many there are beside the crew's count, a press away from that list. The crew's own
+TaskStop calls pass `watchCall` as nobody's activity (`next.origin`).
+
 ### The brief and `[crew]` notes
 
 At session start the brief is built and frozen (`freezeBrief`): it goes into the system prompt as
@@ -351,6 +373,8 @@ is noticed in the debug log: `unrecognized($, kind, detail)` (`src/engine.ts`) w
   A worker's end with another status shows the word as it came and is logged
   (`task notification status`); a row that carries a task under another origin kind keeps the
   engine's drawing and is logged (`task notification origin`).
+- TaskStop's error for a task already over (`isGone` in `src/background/tasks.ts`), which forgets
+  the entry; any other error keeps it, says so in a toast and is logged (`TaskStop error`).
 - What tells a worker's rows apart where the atoms know none (`src/ui/transcript/recover.ts`):
   a subagent's notification opening `Agent "`, TaskStop's `task_type` `local_agent`,
   SendMessage's `resumedAgentId`, and a subagent's message from the name it was started with.

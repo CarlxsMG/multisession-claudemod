@@ -1,4 +1,5 @@
-// The pane's team view: every worker, one to a row.
+// The pane's team view: every worker, one to a row, and what is left
+// running in the background.
 import type { Worker } from '../../../types'
 import { clearFinished } from '../../crew/sync'
 import { ACTIVE, FINISHED } from '../../crew/workers'
@@ -12,12 +13,14 @@ import { readRuns, updateView } from '../../state/atoms'
 import { basename } from '../../util/path'
 import { oneLine } from '../../util/text'
 import { statusLabel } from '../../words'
+import { drawBackground } from './background'
 import type { CrewContext } from './widgets'
 
 /**
  * The whole team, one to a row: a worker at work says its phase, and each
  * one its run's time and calls, or its last run's; one with a plan its step,
  * the share of the steps done and, once one is, what the rest may take.
+ * Under them, the shells and Monitors left running, each with a Stop.
  */
 export async function drawTeam($: Engine, ctx: CrewContext) {
   const { ui, kit, now, width } = ctx
@@ -34,6 +37,7 @@ export async function drawTeam($: Engine, ctx: CrewContext) {
     const run = runOf.get(w.id)
     return (run !== undefined && isOpen(run) ? run.plan?.doing : undefined) || w.activity
   }
+  const background = await drawBackground($, ctx)
   return (
     <Box flexDirection="column" gap={1}>
       <Box flexDirection="row" flexWrap="wrap" columnGap={2}>
@@ -68,6 +72,7 @@ export async function drawTeam($: Engine, ctx: CrewContext) {
           </Box>
         </Box>
       ))}
+      {background}
     </Box>
   )
 }
