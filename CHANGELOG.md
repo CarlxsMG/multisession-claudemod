@@ -10,6 +10,8 @@ All notable changes to crew are written here. The format follows
 
 - Claude Code's own list of running agents shows each crew agent's name ahead of its task,
   `(Mika) Fix the tests`, so the workers there can be told apart as in the pane.
+- A worker's background shells and Monitors show its name ahead of their description in that
+  list too, `(Mika) Start the dev server`; the main conversation's and foreground shells keep theirs.
 - The crew keeps track of the shells and Monitors agents leave running in the background, which
   slow Claude Code down, and stops a worker's once its turn ends (one the worker waits for after
   10 minutes) and at the end of the session. The team view lists them with a Stop each, and the
