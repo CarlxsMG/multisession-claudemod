@@ -428,6 +428,34 @@ test('a name too short or already taken is replaced too, and a taken one leaves 
   expect(text.match(/^- Pip: /gm)).toHaveLength(1)
 })
 
+test("Claude Code's list shows each agent by its crew name and title, and the crew keeps the bare title", async ($, on) => {
+  let spawned = 0
+  const seen = { prompts: [] as string[], sends: [] as string[], spawns: [] as AgentSpawnInput[] }
+  engine(on, { nextId: () => `agent-${++spawned}`, seen })
+  await $.session.start({ cwd: '/work/main', surface: 'terminal', isInteractive: true })
+  // Delegate's own worker.
+  await $.tool.call({ tool: DELEGATE, task: 'Run the tests', title: 'Tests', repo: '/work/api' })
+  // The Agent tool's, with a name, without one, with the name already ahead, and a fork.
+  await spawnAgent($, { prompt: 'Map auth', description: 'Scout auth', subagentType: 'Explore', name: 'bolt', tool_use_id: 'toolu_1' })
+  await spawnAgent($, { prompt: 'Read the docs', description: 'Docs', subagentType: 'Explore', tool_use_id: 'toolu_2' })
+  await spawnAgent($, { prompt: 'Lint it', description: '(Tito) Lint', subagentType: 'Explore', name: 'tito', tool_use_id: 'toolu_3' })
+  await spawnAgent($, {
+    prompt: 'Do the frontend',
+    description: 'Frontend',
+    subagentType: 'fork',
+    fork: true,
+    parentAgentId: 'agent-1',
+    tool_use_id: 'toolu_4',
+  })
+
+  expect(seen.spawns.map(s => s.description)).toEqual(['(Pip) Tests', '(Bolt) Scout auth', '(Mika) Docs', '(Tito) Lint', '(Luna) Frontend'])
+  const text = await roster($)
+  expect(rowOf(text, 'Pip')).toMatch(/last task "Tests"/)
+  expect(rowOf(text, 'Mika')).toMatch(/last task "Docs"/)
+  expect(rowOf(text, 'Tito')).toMatch(/last task "Lint"/)
+  expect(rowOf(text, 'Luna')).toMatch(/last task "Frontend"/)
+})
+
 test('past the last name of the pool a worker takes a letter and a number, which no name taken before has', async ($, on) => {
   let spawned = 0
   const seen = { prompts: [] as string[], sends: [] as string[] }
