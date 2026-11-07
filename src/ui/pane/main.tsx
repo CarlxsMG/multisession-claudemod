@@ -166,6 +166,12 @@ function nextNapDue(inRow: readonly Worker[], kit: WorkerKit, now: number): numb
   return dues.length > 0 ? Math.min(...dues) : 0
 }
 
+// A card's width on the desktop app: its figure and two spare cells.
+const DESKTOP_CARD_W = DIAMOND_W + 2
+// What the count's frame adds to the count on the desktop app: its border
+// and the native button's chrome.
+const DESKTOP_FRAME_ROOM = 6
+
 // One row of cards as wide as their figures, a column apart, as many as
 // the width takes (nine in 46 columns), for every worker but those that
 // napped away; when they do not all fit, the last place says how many
@@ -173,8 +179,15 @@ function nextNapDue(inRow: readonly Worker[], kit: WorkerKit, now: number): numb
 // that count needs, and opens the whole team; it has no label, which the
 // desktop app would draw in place of the count. With it, the rows it takes
 // (`crewRows`) and the redraw it owes the clock (`napDue`).
+//
+// The desktop app's monospaced face does not match the cells a Box counts
+// exactly, and it draws a Button with chrome: there a card has two spare
+// cells beside its figure, the bold of its four letters is dropped, and the
+// count's frame has room for the chrome, so four letters always show whole.
 function drawCardRow($: Engine, ctx: CrewContext) {
-  const { ui, kit, now, width } = ctx
+  const { ui, kit, now, width, surface } = ctx
+  const isTerminal = surface === 'terminal'
+  const cardW = isTerminal ? DIAMOND_W : DESKTOP_CARD_W
   const { Box, Text, Button } = ui
   const { ordered, statusColor, lastRun, justEnded, figure, cardName } = kit
   const inRow = ordered.filter(w => justEnded(w) !== undefined || !napsAway(w, now))
@@ -186,10 +199,10 @@ function drawCardRow($: Engine, ctx: CrewContext) {
   // are in the monospaced face, as the name is, so four letters fill the
   // card's four cells on a surface whose text is proportional.
   const openRuns = new Map([...lastRun.values()].filter(isOpen).map(r => [r.id, r]))
-  const perRow = Math.max(1, Math.floor((width + 1) / (DIAMOND_W + 1)))
-  const moreWidth = (k: number) => Math.max(DIAMOND_W, `+${inRow.length - k}`.length + 2)
+  const perRow = Math.max(1, Math.floor((width + 1) / (cardW + 1)))
+  const moreWidth = (k: number) => Math.max(cardW, `+${inRow.length - k}`.length + (isTerminal ? 2 : DESKTOP_FRAME_ROOM))
   let fits = perRow - 1
-  while (fits > 0 && fits * (DIAMOND_W + 1) + moreWidth(fits) > width) fits--
+  while (fits > 0 && fits * (cardW + 1) + moreWidth(fits) > width) fits--
   const shown = inRow.length > perRow ? inRow.slice(0, fits) : inRow
   const hidden = inRow.length - shown.length
   const crew = inRow.length > 0 && (
@@ -198,11 +211,11 @@ function drawCardRow($: Engine, ctx: CrewContext) {
         const status = ACTIVE.has(worker.status) && worker.activity ? worker.activity : statusLabel(worker.status)
         const ended = justEnded(worker)
         return (
-          <Box flexDirection="column" width={DIAMOND_W}>
+          <Box flexDirection="column" width={cardW}>
             {figure(worker, status)}
             {cardName(worker)}
             {ended !== undefined ? (
-              <Text wrap="truncate-end" mono bold inverse color={END[ended].color}>
+              <Text wrap="truncate-end" mono bold={isTerminal} inverse color={END[ended].color}>
                 {cardLabel(ended)}
               </Text>
             ) : (
@@ -227,7 +240,7 @@ function drawCardRow($: Engine, ctx: CrewContext) {
           alignItems="center"
         >
           <Button key="crew-all" plain onPress={() => void updateView($, () => 'crew')}>
-            <Text bold>{`+${hidden}`}</Text>
+            <Text bold={isTerminal} mono>{`+${hidden}`}</Text>
           </Button>
         </Box>
       )}

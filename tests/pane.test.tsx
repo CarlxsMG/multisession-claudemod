@@ -149,16 +149,17 @@ test('a worker card draws the small figure', async ($, on) => {
   await ui.unmount()
 })
 
-test("a card's name and line are monospaced, so a name of four letters fits the card on the desktop", async ($, on) => {
+test("on the desktop a card's name and line are monospaced, regular weight, with two spare cells, so four letters show whole", async ($, on) => {
   engine(on)
   await $.session.start({ cwd: '/work/main', surface: 'desktop', isInteractive: true })
   await $.tool.call({ tool: 'mcp__crew__delegate', task: 'Run the tests', repo: '/work/api' })
 
   const ui = await $.ui.mount({ ...PANE, surface: 'desktop', props: { ...PANE.props, bodyColumns: 46 } })
-  const cards = (await ui.findAll({ type: 'Box', text: /^Pipinit$/ })).filter(x => x.props.width === DIAMOND_W)
+  const cards = (await ui.findAll({ type: 'Box', text: /^Pipinit$/ })).filter(x => x.props.width === DIAMOND_W + 2)
   expect(cards).toHaveLength(1)
   const name = await ui.find({ type: 'Text', text: /^Pip$/ })
   expect(name?.props.mono).toBe(true)
+  expect(name?.props.bold).toBe(false)
   const line = await ui.find({ type: 'Text', text: /^init$/ })
   expect(line?.props.mono).toBe(true)
   await ui.unmount()
@@ -174,10 +175,13 @@ test("on the desktop a card's name is plain text, with no button chrome to cut i
   expect(await ui.find({ key: 'view-agent-1' })).toBeUndefined()
   expect((await ui.findAll({ type: 'Button' })).some(b => b.text === 'Pip')).toBe(false)
   const name = await ui.find({ type: 'Text', text: /^Pip$/ })
-  expect(name?.props).toMatchObject({ mono: true, bold: true })
+  expect(name?.props).toMatchObject({ mono: true, bold: false })
+  // Six places of seven cells and a frame of eight in 46 columns: five
+  // cards, and the count of the other six with room for the button's chrome.
   const more = await ui.find({ key: 'crew-all' })
-  expect(more?.text).toBe('+3')
-  expect(more?.props.label).toBe('+3')
+  expect(more?.text).toBe('+6')
+  expect(more?.props.label).toBe('+6')
+  expect((await ui.find({ key: 'crew-all-frame' }))?.props.width).toBe(8)
 
   await ui.press({ key: 'crew-all' })
   expect((await ui.find({ key: 'view-agent-1' }))?.text).toBe('Pip')
