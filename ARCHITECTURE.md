@@ -45,7 +45,7 @@ the debug log. Its `unrecognized` logs there an engine text the crew reads in no
 | `src/guard/runaway.ts` | The guard on Bash and PowerShell calls: it refuses a command that would not end (`tail -f`, `watch`, a watch mode, an endless loop), the main session's and every worker's. |
 | `src/prompts/` | Nearly every text a model reads ([docs/model-behavior.md](docs/model-behavior.md) lists them all): the orchestrator's brief and `[crew]` note (`orchestrator.ts`), the workers' preamble and the texts the crew sends them (`worker.ts`), the tool specs (`tools.ts`), the tool results and their parsers (`results.ts`), the roster's text (`roster.ts`), and what the `/crew` command answers (`commands.ts`). |
 | `src/progress/` | Progress, which no model reads: `run-store.ts` is the only module that records runs with the engine, `calls.ts` holds tool calls for the pane's next frame, `todos.ts` reads a plan off a todo list, `status.ts` pins the status line, `placed.ts` places the rows and keeps the check-in interval, and `tick.ts` is the progress tick; `runs.ts`, `round.ts`, `plan.ts`, `phase.ts`, `check-in.ts` are pure; `text/` builds the status line, the team view, the cards and the placed rows. |
-| `src/background/` | The shells and Monitors agents leave running in the background: the pure rules of the registry and of when the crew stops one (`tasks.ts`), which processes a stopped shell left behind on Windows (`orphans.ts`), and recording, pruning and stopping them with the engine (`sweep.ts`). |
+| `src/background/` | The shells and Monitors agents leave running in the background: the pure rules of the registry and of when the crew stops one (`tasks.ts`), which process is a task's and which a stopped shell left behind on Windows (`orphans.ts`), and recording, pruning and stopping them with the engine (`sweep.ts`). |
 | `src/persona/` | Personalities (`vibes.ts`, the model prompt of each), the figure's lines (`lines.ts`, including the Haiku prompt), worker names (`names.ts`). |
 | `src/settings/` | What the user changes: the look (`look.ts`), delegation and the `[crew]` note (`notes.ts`), Haiku's mood lines (`mood-lines.ts`), the main session's model (`model.ts`). |
 | `src/figure/` | The pictures: the catalog of parts and colours, the orchestrator's critter, the workers' diamonds, the animation of each state, rasterizing to cells or SVG, looks and share codes, accent colours, the 256-colour mapping. |
@@ -104,7 +104,7 @@ under, so it never changes even where the code name differs.
 | `sendGists` | `sendGists` | `sendGists-1` | Each worker's last SendMessage: the head of its text and its summary, up to 100 |
 | `taskLists` | `taskLists` | `taskLists-1` | Each worker's TaskCreate items in its run, up to 80 workers of 100 items |
 | `noteFirst` | `noteFirst` | `noteFirst-1` | What each end-of-task row was first drawn with, up to 300 |
-| `background` | `background` | `background-1` | Shells and Monitors left running in the background, whose each is and when its owner's turn ended, up to 100 |
+| `background` | `background` | `background-1` | Shells and Monitors left running in the background, whose each is, its process and when its owner's turn ended, up to 100 |
 
 The last five hold what a call under way leaves for the hooks that follow it, which a reload of
 the plugin's code may come between: a spawn auto mode handed to the orchestrator, an Agent call
@@ -287,6 +287,14 @@ their own. At `session.end` every agent's task is stopped, quietly. The team vie
 with a Stop each, which calls TaskStop as the person (the dialog may ask them), and the main view
 shows how many there are beside the crew's count, a press away from that list. The crew's own
 TaskStop calls pass `watchCall` as nobody's activity (`next.origin`).
+
+A second and a half after a task is recorded, while it is still listed, the crew reads the
+process table (PowerShell's on Windows, `ps -A -o pid=,ppid=,lstart=,args=` in the C locale
+elsewhere) and puts on its entry the id of its root process (`rootOf`): of the processes started
+no earlier than the task and running its command (`matchesCommand`, below), none of Claude Code's
+nor one another entry has, the one whose parent is none of them. The team view shows it
+(`pid 51452`). The engine gives no id of its own; a table that cannot be read, or holds no such
+process, leaves the entry without one.
 
 On Windows (`OS` is `Windows_NT`) TaskStop ends the task's shell but not what it started, which
 runs on with no parent. So around every stop but the session's end the crew reads the process

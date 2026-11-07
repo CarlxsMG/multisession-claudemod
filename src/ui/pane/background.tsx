@@ -1,6 +1,6 @@
 // The team view's list of the shells and Monitors left running in the
-// background: whose each is, how long it has run, what it runs, and a Stop
-// for each.
+// background: whose each is, how long it has run, its process, what it
+// runs, and a Stop for each.
 import type { BackgroundTask } from '../../../types'
 import { stopTask } from '../../background/sweep'
 import type { Engine } from '../../engine'
@@ -9,10 +9,11 @@ import { readBackground, readMembers } from '../../state/atoms'
 import { shortTime } from '../../util/time'
 import type { CrewContext } from './widgets'
 
-/** One task's line after its Stop: whose it is, its age and its command. */
+/** One task's line after its Stop: whose it is, its age, its process once known and its command. */
 export function taskLine(task: BackgroundTask, owner: string, now: number): string {
   const kind = task.kind === 'monitor' ? ` · ${t().background.monitor}` : ''
-  return `${owner} · ${shortTime(Math.max(0, now - task.startedAt))}${kind} · ${task.command || task.id}`
+  const pid = task.pid !== undefined ? ` · ${t().background.pid(task.pid)}` : ''
+  return `${owner} · ${shortTime(Math.max(0, now - task.startedAt))}${kind}${pid} · ${task.command || task.id}`
 }
 
 /**

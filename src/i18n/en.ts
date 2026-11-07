@@ -60,6 +60,8 @@ export const en = {
     main: 'main',
     /** What a Monitor's line says it is; a shell's says nothing. */
     monitor: 'monitor',
+    /** A task's process, once the process table showed it. */
+    pid: (pid: number) => `pid ${pid}`,
     /** The main view's press that opens the team view, beside the crew's count. */
     running: (n: number) => `${n} in background`,
   },

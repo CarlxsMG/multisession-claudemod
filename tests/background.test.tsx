@@ -103,7 +103,7 @@ test("the model's own TaskStop and the engine's list of work in flight forget th
 const table = (rows: [number, number, number, string][]) =>
   JSON.stringify(rows.map(([pid, ppid, at, line]) => ({ ProcessId: pid, ParentProcessId: ppid, CreationDate: `/Date(${at})/`, CommandLine: line })))
 
-test("on Windows what a stopped worker's shell left running is ended after it; elsewhere nothing is looked for", async ($, on) => {
+test("on Windows a worker's shell shows its process, and what it left running is ended after it is stopped", async ($, on) => {
   const runs: string[][] = []
   let stopped = false
   const probe = (argv: readonly string[]): string => {
@@ -127,10 +127,14 @@ test("on Windows what a stopped worker's shell left running is ended after it; e
   const { clock, delegate, end, stops, toasts } = await backgroundCrew($, on, 'allow', { host: { env: { OS: 'Windows_NT' } }, probe })
   await delegate('Wait a while', '/work/web', 'Wait')
   await bash($, 'timeout 900 sleep 900', 'agent-1')
+  // A moment later the table names the task's process: its shell.
+  await clock.advance(2000)
+  expect((await teamTexts($)).some(x => /^Pip · \d+s · pid 200 · timeout 900 sleep 900$/.test(x))).toBe(true)
   await end('agent-1')
   await clock.advance(5000)
   expect(stops).toEqual(['b1'])
-  expect(runs).toEqual([['snapshot'], ['snapshot'], ['taskkill', '/PID', '300', '/T', '/F']])
+  // One table found the process, one went before the stop and one after it.
+  expect(runs).toEqual([['snapshot'], ['snapshot'], ['snapshot'], ['taskkill', '/PID', '300', '/T', '/F']])
   expect(toasts.some(x => x.includes('could not end'))).toBe(false)
 })
 

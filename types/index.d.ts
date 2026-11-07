@@ -276,7 +276,8 @@ export type NoteFirst = { id: string; title: string; ms?: number; step: string }
  * what it runs, and when it started. `wakesOwner` says its agent waits for
  * its end; `ownerDoneAt`, set while its agent's turn has ended, when it did;
  * `stopFailedAt`, when a stop the crew tried on its own failed or was
- * refused, after which only the person stops it.
+ * refused, after which only the person stops it; `pid`, its root process,
+ * once the process table showed it.
  */
 export type BackgroundTask = {
   id: string
@@ -287,6 +288,7 @@ export type BackgroundTask = {
   wakesOwner?: boolean
   ownerDoneAt?: number
   stopFailedAt?: number
+  pid?: number
 }
 
 declare module 'claude-code' {
