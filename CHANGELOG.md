@@ -25,6 +25,9 @@ All notable changes to crew are written here. The format follows
 
 ### Fixed
 
+- On Windows a background task the crew stops no longer leaves what its shell started running,
+  such as `timeout.exe` or a dev server's node: the processes it left with no parent, started
+  after it and running its command, are ended too.
 - In the desktop app a card in the pane shows a worker's whole name, as the terminal does,
   instead of `V...` on every card or its first letter and an ellipsis, and the card for the
   workers that do not fit shows its count. There a worker's transcript opens from its name in

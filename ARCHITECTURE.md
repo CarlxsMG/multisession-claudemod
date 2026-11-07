@@ -45,7 +45,7 @@ the debug log. Its `unrecognized` logs there an engine text the crew reads in no
 | `src/guard/runaway.ts` | The guard on Bash and PowerShell calls: it refuses a command that would not end (`tail -f`, `watch`, a watch mode, an endless loop), the main session's and every worker's. |
 | `src/prompts/` | Nearly every text a model reads ([docs/model-behavior.md](docs/model-behavior.md) lists them all): the orchestrator's brief and `[crew]` note (`orchestrator.ts`), the workers' preamble and the texts the crew sends them (`worker.ts`), the tool specs (`tools.ts`), the tool results and their parsers (`results.ts`), the roster's text (`roster.ts`), and what the `/crew` command answers (`commands.ts`). |
 | `src/progress/` | Progress, which no model reads: `run-store.ts` is the only module that records runs with the engine, `calls.ts` holds tool calls for the pane's next frame, `todos.ts` reads a plan off a todo list, `status.ts` pins the status line, `placed.ts` places the rows and keeps the check-in interval, and `tick.ts` is the progress tick; `runs.ts`, `round.ts`, `plan.ts`, `phase.ts`, `check-in.ts` are pure; `text/` builds the status line, the team view, the cards and the placed rows. |
-| `src/background/` | The shells and Monitors agents leave running in the background: the pure rules of the registry and of when the crew stops one (`tasks.ts`), and recording, pruning and stopping them with the engine (`sweep.ts`). |
+| `src/background/` | The shells and Monitors agents leave running in the background: the pure rules of the registry and of when the crew stops one (`tasks.ts`), which processes a stopped shell left behind on Windows (`orphans.ts`), and recording, pruning and stopping them with the engine (`sweep.ts`). |
 | `src/persona/` | Personalities (`vibes.ts`, the model prompt of each), the figure's lines (`lines.ts`, including the Haiku prompt), worker names (`names.ts`). |
 | `src/settings/` | What the user changes: the look (`look.ts`), delegation and the `[crew]` note (`notes.ts`), Haiku's mood lines (`mood-lines.ts`), the main session's model (`model.ts`). |
 | `src/figure/` | The pictures: the catalog of parts and colours, the orchestrator's critter, the workers' diamonds, the animation of each state, rasterizing to cells or SVG, looks and share codes, accent colours, the 256-colour mapping. |
@@ -287,6 +287,17 @@ their own. At `session.end` every agent's task is stopped, quietly. The team vie
 with a Stop each, which calls TaskStop as the person (the dialog may ask them), and the main view
 shows how many there are beside the crew's count, a press away from that list. The crew's own
 TaskStop calls pass `watchCall` as nobody's activity (`next.origin`).
+
+On Windows (`OS` is `Windows_NT`) TaskStop ends the task's shell but not what it started, which
+runs on with no parent. So around every stop but the session's end the crew reads the process
+table (`Get-CimInstance Win32_Process` through PowerShell, 8 s at most) before the call and again
+a second after it, without holding up the tick, and ends with `taskkill /T /F` each process of the
+second table that has no parent (its id is gone or names a younger process), started no earlier
+than the task (5 s of slack; a shell backgrounded at its timeout started that long before its
+call was answered), and either runs the task's command (`matchesCommand`: its simple commands'
+words in order, paths to their names, `npm` for `npm-cli.js`) or sat under a process that did in
+the first table. A command line naming `claude` is never ended. What ends is logged to the debug
+log; what does not, said in a toast. A table that cannot be read ends nothing.
 
 ### The brief and `[crew]` notes
 

@@ -1,7 +1,8 @@
 // The background tasks the session's agents leave running, with the engine:
 // recorded as their calls are answered, forgotten when the engine no longer
 // runs them, and stopped once their worker is done, at the end of the
-// session, or when the person presses Stop in the pane.
+// session, or when the person presses Stop in the pane. On Windows, what a
+// stopped shell started and left running is ended after it.
 import type { HookFor, ToolCallResult } from 'claude-code'
 
 import type { BackgroundTask } from '../../types'
@@ -10,10 +11,24 @@ import type { Engine } from '../engine'
 import { t } from '../i18n'
 import { readBackground, updateBackground } from '../state/atoms'
 import { oneLine } from '../util/text'
+import { orphansToKill, parseSnapshot } from './orphans'
+import type { Proc } from './orphans'
 import { addTask, dropTask, isDueForStop, isGone, keepLive, markStopFailed, ownerEnded, ownerResumed, stoppedId, taskOfCall } from './tasks'
 
 // How much of a command a toast names.
 const TOAST_COMMAND = 40
+// The process table, as the orphans of a stopped shell are looked for in it.
+const SNAPSHOT = [
+  'powershell',
+  '-NoProfile',
+  '-Command',
+  'Get-CimInstance Win32_Process | Select ProcessId,ParentProcessId,CreationDate,CommandLine | ConvertTo-Json -Compress',
+]
+const SNAPSHOT_TIMEOUT_MS = 8000
+const KILL_TIMEOUT_MS = 5000
+// How long after TaskStop the processes a shell leaves are looked for: the
+// engine ends the shell a moment after it answers.
+const REAP_AFTER_MS = 1000
 
 /**
  * Records what a call of `BACKGROUND_TOOLS` did, once the engine answered
@@ -72,6 +87,38 @@ export async function onSubagentStop($: Engine, e: Parameters<OnSubagentStopHook
   return next(e)
 }
 
+// Windows alone: elsewhere ending a shell ends what it started.
+async function isWindows($: Engine): Promise<boolean> {
+  return (await $.env.get('OS')) === 'Windows_NT'
+}
+
+// The process table now, or undefined when it cannot be read.
+async function snapshot($: Engine): Promise<Proc[] | undefined> {
+  const ran = await quiet($, $.process.run(SNAPSHOT, { timeoutMs: SNAPSHOT_TIMEOUT_MS }), 'process snapshot')
+  if (ran === undefined || ran.exitCode !== 0) return undefined
+  const procs = parseSnapshot(ran.stdout)
+  return procs.length > 0 ? procs : undefined
+}
+
+// Ends, with their trees, the processes `task`'s stopped shell left running
+// (`orphansToKill`), against the table as it was before the stop. What ends
+// is logged; what does not, said in a toast.
+async function reapOrphans($: Engine, task: BackgroundTask, before: readonly Proc[]) {
+  await $.clock.sleep(REAP_AFTER_MS)
+  const after = await snapshot($)
+  if (after === undefined) return
+  const pids = orphansToKill(before, after, task.command, task.startedAt)
+  if (pids.length === 0) return
+  const missed: number[] = []
+  for (const pid of pids) {
+    const ran = await quiet($, $.process.run(['taskkill', '/PID', String(pid), '/T', '/F'], { timeoutMs: KILL_TIMEOUT_MS }), 'taskkill')
+    if (ran === undefined || ran.exitCode !== 0) missed.push(pid)
+  }
+  const ended = pids.filter(pid => !missed.includes(pid))
+  if (ended.length > 0) $.ui.log(`crew: ended what background task ${task.id} left running: ${ended.join(', ')}`, { to: 'debug' })
+  if (missed.length > 0) $.ui.toast(t().background.orphansLeft(oneLine(task.command, TOAST_COMMAND) || task.id, missed.join(', ')))
+}
+
 /**
  * How a stop is asked for: by the crew on its own (`auto`), which asks the
  * person nothing and keeps a task it may not stop for the person; by the
@@ -83,7 +130,9 @@ export type StopHow = 'auto' | 'press' | 'end'
 /**
  * Stops `task` with a TaskStop call: forgets it once stopped or found over.
  * A stop that fails or is refused keeps it, says so in a toast, and, when
- * the crew tried on its own, is not tried again on its own.
+ * the crew tried on its own, is not tried again on its own. On Windows,
+ * but at the session's end, what the stopped shell left running is ended
+ * after it, without holding up the caller.
  */
 export async function stopTask($: Engine, task: BackgroundTask, how: StopHow) {
   const failed = async (reason: string) => {
@@ -101,6 +150,7 @@ export async function stopTask($: Engine, task: BackgroundTask, how: StopHow) {
       const verdict = await $.tool.check({ tool: 'TaskStop', input: { task_id: task.id } })
       if (verdict.decision !== 'allow') return await failed(verdict.reason ?? t().background.refused)
     }
+    const before = how !== 'end' && (await isWindows($)) ? await snapshot($) : undefined
     const done = await $.tool.call({ tool: 'TaskStop', task_id: task.id })
     if (done.deny !== undefined) return await failed(done.deny)
     if (done.isError === true && !isGone(done.text ?? '')) {
@@ -108,6 +158,7 @@ export async function stopTask($: Engine, task: BackgroundTask, how: StopHow) {
       return await failed(oneLine(done.text ?? '', 80))
     }
     await updateBackground($, list => dropTask(list, task.id))
+    if (before !== undefined) void quiet($, reapOrphans($, task, before), 'orphan reap')
   } catch (err) {
     await failed(err instanceof Error ? err.message : String(err))
   }

@@ -40,7 +40,9 @@ export function taskOfCall(tool: string, input: unknown, result: unknown, agentI
     const id = text(out.backgroundTaskId)
     if (id === '' || out.backgroundEndsWithFinalResponse === true) return undefined
     const wakes = out.backgroundWakesOwner === true ? { wakesOwner: true } : {}
-    return { id, ...owner, command: text(call.command).slice(0, COMMAND_CUT), kind: 'shell', startedAt: now, ...wakes }
+    // A command the engine backgrounded at its timeout started that long before.
+    const ranFor = typeof out.timedOutAfterMs === 'number' ? out.timedOutAfterMs : 0
+    return { id, ...owner, command: text(call.command).slice(0, COMMAND_CUT), kind: 'shell', startedAt: now - ranFor, ...wakes }
   }
   if (tool === 'Monitor') {
     const id = text(out.taskId)
