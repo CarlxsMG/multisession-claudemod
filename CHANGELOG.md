@@ -6,6 +6,11 @@ All notable changes to crew are written here. The format follows
 
 ## [Unreleased]
 
+### Added
+
+- Claude Code's own list of running agents shows each crew agent's name ahead of its task,
+  `(Mika) Fix the tests`, so the workers there can be told apart as in the pane.
+
 ### Fixed
 
 - In the desktop app a card in the pane shows a worker's whole name, as the terminal does,

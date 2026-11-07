@@ -8,6 +8,7 @@ import { readDropped, readListed, readRuns, readWorkers, updateDropped, updateLi
 import { appendKept } from '../util/bounded'
 import { enlist } from './feed'
 import { release } from './takeover'
+import { bareTitle } from './title'
 import { ACTIVE, FINISHED, claimName, makeWorker, prune, shelve, statusOf, takenNames, takenNow } from './workers'
 
 /** Takes the workers that finished off the list, onto the shelf. */
@@ -127,7 +128,7 @@ export async function syncAgents($: Engine) {
               id: info.id,
               name,
               address,
-              task: info.description,
+              task: bareTitle(info.description),
               type: info.type,
               cwd,
               status,

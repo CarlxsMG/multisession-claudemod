@@ -27,6 +27,7 @@ import { samePath } from '../util/path'
 import { cap, oneLine } from '../util/text'
 import { takeIntent } from './delegate'
 import { ORCH_ID, enlist, say, setJob } from './feed'
+import { bareTitle, namedTitle } from './title'
 import { claimName, findWorker, makeWorker, matesOf, patchWorker, prune, shelve, takenNow, unclaimNames, unshelve } from './workers'
 
 // What an Agent call's model reads after its result when the crew named
@@ -147,7 +148,7 @@ async function record($: Engine, e: SpawnEvent, who: Identified, id: string, sta
     setKept(agentCalls.renamed, e.tool_use_id, renamedAgent(e.name, name, address), RENAMED_KEEP)
   }
   const now = await $.clock.now()
-  const task = e.description || oneLine(e.prompt, 60)
+  const task = bareTitle(e.description, name) || oneLine(e.prompt, 60)
   const out: Worker[] = []
   const saved = await updateWorkers($, current => {
     out.length = 0
@@ -193,7 +194,9 @@ export async function onSpawn($: Engine, e: SpawnEvent, next: Parameters<OnSpawn
   }
   const who = await identify($, e)
   const { prompt, worktree } = await briefFor($, e, who)
-  const started = await next({ ...e, prompt, ...runOptions(e, who) })
+  // Claude Code's own list of agents shows the description: the crew's name
+  // ahead of it tells its workers apart there.
+  const started = await next({ ...e, prompt, description: namedTitle(who.name, e.description), ...runOptions(e, who) })
   if (started.agentId === undefined) {
     if (who.claim !== undefined) unclaimNames(who.name, ...(who.claim.isWantedFree && e.name !== undefined ? [e.name] : []))
     return started
