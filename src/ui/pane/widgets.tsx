@@ -64,21 +64,47 @@ export type PaneContext = {
 }
 
 /**
- * A framed ON/OFF switch, one press target. Its word is padded so the frame
- * keeps its width when it flips, which holds in the monospaced face only.
+ * The `label` of a Button whose children are what it shows (an arrow, a
+ * marked tab), as props to spread: on the terminal, which draws
+ * the children and names the control by the label, and nowhere else, as the
+ * desktop app draws a label in place of the children.
  */
-export function toggle(ui: PaneUi, key: string, label: string, value: boolean, onPress: () => void) {
+export function labelOn(surface: PaneEvent['surface'], label: string): { label?: string } {
+  return surface === 'terminal' ? { label } : {}
+}
+
+/**
+ * A framed ON/OFF switch. Its word is padded so the frame keeps its width
+ * when it flips, which holds in the monospaced face only. On the terminal the
+ * whole frame is one press target; the desktop app draws a Button's children
+ * as plain text, so there the coloured word sits beside the Button, inside
+ * the same frame, and the name alone presses.
+ */
+export function toggle(ui: PaneUi, surface: PaneEvent['surface'], key: string, label: string, value: boolean, onPress: () => void) {
   const { Box, Text, Button } = ui
   const said = value ? t().pane.on : t().pane.off
+  const word = (
+    <Text bold mono color={value ? 'success' : 'inactive'}>
+      {said.padEnd(3)}
+    </Text>
+  )
   return (
-    <Box key={`${key}-frame`} borderStyle="round" borderColor={value ? 'success' : 'inactive'} hover={{ borderColor: 'claude' }}>
-      <Button key={key} plain label={`${label}: ${said}`} onPress={onPress}>
-        <Text> {label} </Text>
-        <Text bold mono color={value ? 'success' : 'inactive'}>
-          {said.padEnd(3)}
-        </Text>
-        <Text> </Text>
-      </Button>
+    <Box key={`${key}-frame`} flexDirection="row" borderStyle="round" borderColor={value ? 'success' : 'inactive'} hover={{ borderColor: 'claude' }}>
+      {surface === 'terminal' ? (
+        <Button key={key} plain label={`${label}: ${said}`} onPress={onPress}>
+          <Text> {label} </Text>
+          {word}
+          <Text> </Text>
+        </Button>
+      ) : (
+        [
+          <Button key={key} plain onPress={onPress}>
+            <Text> {label} </Text>
+          </Button>,
+          word,
+          <Text> </Text>,
+        ]
+      )}
     </Box>
   )
 }

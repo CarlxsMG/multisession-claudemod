@@ -21,7 +21,7 @@ import { LIMITS_SHOWN, limitColor, limitLabel } from '../../usage/limits'
 import { wrapText } from '../../util/text'
 import { END, cardLabel, statusLabel } from '../../words'
 import { drawFeed } from './feed'
-import { MAIL_SHOWN_MS, ORCH_SEED, toggle } from './widgets'
+import { MAIL_SHOWN_MS, ORCH_SEED, labelOn, toggle } from './widgets'
 import type { CrewContext, WorkerKit } from './widgets'
 
 // How long the orchestrator cheers when its turn ends, and how long it
@@ -54,7 +54,7 @@ const lineColors =
 // up and so monospaced: the desktop app's text is otherwise proportional.
 // With it, the rows it takes (`headRows`).
 async function drawHeader($: Engine, ctx: CrewContext, msgs: readonly Msg[]) {
-  const { ui, sprite, kit, look, now, width } = ctx
+  const { ui, sprite, kit, look, now, width, surface } = ctx
   const { Box, Text, Button } = ui
   const { list, active } = kit
   const orch = await readOrch($)
@@ -118,7 +118,7 @@ async function drawHeader($: Engine, ctx: CrewContext, msgs: readonly Msg[]) {
                   </Text>
                 )}
                 {inBackground > 0 && (
-                  <Button key="bg-open" plain label={t().background.running(inBackground)} onPress={() => void updateView($, () => 'crew')}>
+                  <Button key="bg-open" plain {...labelOn(surface, t().background.running(inBackground))} onPress={() => void updateView($, () => 'crew')}>
                     <Text color="warning" wrap="truncate-end">
                       {`${list.length > 0 ? ' · ' : ''}${t().background.running(inBackground)}`}
                     </Text>
@@ -138,9 +138,9 @@ async function drawHeader($: Engine, ctx: CrewContext, msgs: readonly Msg[]) {
                 ))}
               </Box>
             )}
-            {toggle(ui, 'mode', t().pane.delegate, isOn, () => void setMode($, !isOn))}
+            {toggle(ui, surface, 'mode', t().pane.delegate, isOn, () => void setMode($, !isOn))}
             <Box key="edit-frame" borderStyle="round" borderColor="inactive" hover={{ borderColor: 'claude' }}>
-              <Button key="edit" plain label={t().pane.customize} onPress={() => void updateView($, () => 'edit')}>
+              <Button key="edit" plain {...labelOn(surface, t().pane.customize)} onPress={() => void updateView($, () => 'edit')}>
                 <Text bold> {t().pane.edit} </Text>
               </Button>
             </Box>
