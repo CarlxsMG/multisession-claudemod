@@ -13,6 +13,7 @@ export const PANE = 'crew'
 export const DELEGATE = 'mcp__crew__delegate'
 export const ROSTER = 'mcp__crew__roster'
 export const PROGRESS = 'mcp__crew__progress'
+export const COMPACT = 'mcp__crew__compact'
 /** The main conversation's address, which an agent's SendMessage names it by. */
 export const MAIN_ADDRESS = 'main'
 /** The agent type of a worker nobody asked another type for: the engine's default, which the roster leaves unsaid. */
@@ -28,3 +29,5 @@ export const ROSTER_REPORTS = 3
 /** How much of a last report the roster shows: in a row of the list, and for one worker asked for alone. */
 export const ROSTER_REPORT_CUT = 120
 export const ROSTER_FULL_REPORT_CUT = 1200
+/** The least time between two compactions the crew starts, which the compact tool's spec states. */
+export const COMPACT_GAP_MIN = 10

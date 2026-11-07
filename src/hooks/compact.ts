@@ -21,6 +21,8 @@ export async function onCompact($: Engine, e: Parameters<OnCompactHook>[1], next
   const workers = await readWorkers($)
   if (e.agentId === undefined) {
     if (!(await readIsOn($)) && workers.length === 0) return next(e)
+    // A compaction the crew started carries them already.
+    if (e.instructions?.includes(COMPACT_MAIN) === true) return next(e)
     return next({ ...e, instructions: withCrewInstructions(e.instructions, COMPACT_MAIN) })
   }
   if (!workers.some(w => w.id === e.agentId)) return next(e)

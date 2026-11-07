@@ -1,9 +1,10 @@
 // The progress tick, once a second: it ends the runs whose end was missed,
 // keeps the status line and the newest check-in up to date, stops the
-// background tasks of workers that are done, and places the rows that are
-// due.
+// background tasks of workers that are done, places the rows that are due,
+// and runs a compaction asked for once it is safe.
 import type { Orch, Run, Worker } from '../../types'
 import { sweepBackground } from '../background/sweep'
+import { compactWhenSafe } from '../crew/compaction'
 import { ACTIVE } from '../crew/workers'
 import { quiet } from '../engine'
 import type { Engine } from '../engine'
@@ -75,6 +76,7 @@ async function progressTick($: Engine) {
     // The lines that wait, before any summary of their round.
     await placeWaiting($, now)
     await placeRoundRow($, list, all, now)
+    await quiet($, compactWhenSafe($, list, now), 'compaction')
   } finally {
     ticking.isTicking = false
   }

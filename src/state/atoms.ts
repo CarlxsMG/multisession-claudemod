@@ -89,6 +89,9 @@ const noteFirst = atom({ plugin: 'crew', key: 'noteFirst' } as const, [], { shap
 // The shells and Monitors the session's agents left running in the
 // background, which the crew stops once their worker is done.
 const background = atom({ plugin: 'crew', key: 'background' } as const, [], { shape: 'background-1' })
+// The compaction the orchestrator or the threshold asked for, until a safe
+// moment runs it, and when the crew last ran one.
+const compaction = atom({ plugin: 'crew', key: 'compactAsk' } as const, { ask: null, lastAt: 0 }, { shape: 'compactAsk-1' })
 
 // What an atom holds, as a change to it takes and gives it.
 type Change<A> = A extends Atom<infer T> ? (value: T) => T : never
@@ -372,4 +375,12 @@ export function readBackground($: StateDollar) {
 
 export function updateBackground($: StateDollar, change: Change<typeof background>) {
   return update($, background, change)
+}
+
+export function readCompaction($: StateDollar) {
+  return read($, compaction)
+}
+
+export function updateCompaction($: StateDollar, change: Change<typeof compaction>) {
+  return update($, compaction, change)
 }

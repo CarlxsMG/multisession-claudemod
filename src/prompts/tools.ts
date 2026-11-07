@@ -1,6 +1,6 @@
 // The crew's tools as the models see them: names, descriptions and input
 // schemas. tests/golden/model-text.ts holds each spec as it is.
-import { ROSTER_FULL_REPORT_CUT, ROSTER_REPORT_CUT, ROSTER_REPORTS, ROSTER_ROWS } from '../config'
+import { COMPACT_GAP_MIN, ROSTER_FULL_REPORT_CUT, ROSTER_REPORT_CUT, ROSTER_REPORTS, ROSTER_ROWS } from '../config'
 
 const DELEGATE_ABOUT = `Hand a task to a crew worker: a named background subagent, general-purpose unless \`subagent_type\` says otherwise, that reports back when done. Goes to the worker you name; else to the most recent free worker this tool started in that repository, of that type and model (the session's unless you ask for one), which keeps its context; else to a new one. Returns at once: the worker's address, and who else is busy where it works.`
 
@@ -79,6 +79,27 @@ export const PROGRESS_SPEC = {
     type: 'object',
     properties: { step: { type: 'integer' }, total: { type: 'integer' }, doing: { type: 'string' } },
     required: ['step', 'total', 'doing'],
+  },
+  isDeferred: false,
+} as const
+
+/**
+ * The orchestrator's tool to compact its own conversation at a safe moment.
+ * A worker has it in its list too, so it says whose it is.
+ */
+export const COMPACT_SPEC = {
+  name: 'compact',
+  description: `Queue a compaction of the orchestrator's own conversation for a safe moment: between turns, once no worker is busy, at most one every ${COMPACT_GAP_MIN} minutes. The summary keeps the crew's workers, tasks in flight, the user's decisions, branches and pull requests, and drops file dumps and superseded reports. Returns at once; a later call replaces a queued one. Orchestrator only.`,
+  inputSchema: {
+    type: 'object',
+    properties: {
+      focus: { type: 'string', description: 'What the summary should stress for what comes next: the next phase, the plan, a decision.' },
+      after: {
+        type: 'string',
+        enum: ['idle', 'reports'],
+        description: 'What it waits for: idle (the default), no worker busy; reports, also a turn of yours after the last report came back.',
+      },
+    },
   },
   isDeferred: false,
 } as const

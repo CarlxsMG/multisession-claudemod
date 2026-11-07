@@ -3,6 +3,7 @@ import type { HookFor } from 'claude-code'
 
 import type { RunEndKind } from '../../types'
 import { backgroundTurnEnded, backgroundTurnStarted } from '../background/sweep'
+import { noteMainTurnEnd } from '../crew/compaction'
 import { ORCH_ID, say, setOrch } from '../crew/feed'
 import { releaseSoon } from '../crew/takeover'
 import { patchWorker } from '../crew/workers'
@@ -36,6 +37,7 @@ export async function onTurnStart($: Engine, e: Parameters<OnTurnStartHook>[1], 
 type OnTurnCompleteHook = HookFor<'turn.complete'>
 /**
  * Ends the orchestrator's turn happy, or idle when it failed or was stopped,
+ * noted for a compaction that waits for one,
  * and a worker's run with its status, its report in the feed. Any agent's
  * background tasks are left for the progress tick to stop.
  */
@@ -44,6 +46,7 @@ export async function onTurnComplete($: Engine, e: Parameters<OnTurnCompleteHook
     // No cheer for a turn that came to nothing: the figure just rests.
     const isFailed = e.isAborted || e.reason === 'error' || e.reason === 'refusal'
     await setOrch($, isFailed ? 'idle' : 'happy', '')
+    noteMainTurnEnd(await $.clock.now())
     return next(e)
   }
   await quiet($, backgroundTurnEnded($, e.agentId), 'background turn end')

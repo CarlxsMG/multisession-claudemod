@@ -1,7 +1,7 @@
 // What a summarizer reads when a conversation the crew works in is compacted,
 // and the crew's state the orchestrator reads back after it.
 // tests/golden/model-text.ts holds each text as it is.
-import { ROSTER } from '../config'
+import { COMPACT, COMPACT_GAP_MIN, ROSTER } from '../config'
 
 /**
  * What the summary of the main conversation keeps and leaves out, so the
@@ -31,3 +31,23 @@ export const withCrewInstructions = (own: string | undefined, crew: string): str
  */
 export const crewStateNote = (roster: string): string =>
   `[crew] The crew as of the last compaction or resume, for the main assistant (a worker ignores this). It goes stale: call ${ROSTER} for live state; reports that came back since arrive on their own.\n${roster}`
+
+/**
+ * The orchestrator's line on when to compact: a system-prompt section of its
+ * own, so the delegate tool's description, which holds the brief, keeps its
+ * room.
+ */
+export const COMPACT_BRIEF = `Compaction: before a new phase of work, or once a batch of reports is summarized to the user, call ${COMPACT} with what matters next as \`focus\`. It runs between turns once no worker is busy, and its summary keeps the crew.`
+
+/** What the summary stresses besides the crew's, as the orchestrator gave it. */
+export const compactFocus = (focus: string): string => `Stress for what comes next: ${focus}`
+
+/**
+ * The compact tool's answer: the compaction waits for a safe moment, and for
+ * the gap since the last one (`waitMin`, 0 for none).
+ */
+export const compactQueued = (after: 'idle' | 'reports', waitMin: number): string =>
+  `Compaction queued: it runs between turns once no worker is busy${after === 'reports' ? ' and you have had a turn since the last report' : ''}${waitMin > 0 ? `, in ${waitMin} min at the soonest (one every ${COMPACT_GAP_MIN} min)` : ''}. End your turn when you are done; a later call replaces this one.`
+
+/** The compact tool's answer to a worker. */
+export const COMPACT_NOT_FOR_WORKERS = `${COMPACT} compacts the orchestrator's conversation; a worker's is compacted by the engine.`

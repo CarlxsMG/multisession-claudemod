@@ -12,7 +12,7 @@ import { defaultLook, normalizeLook } from '../figure/look'
 import { t } from '../i18n'
 import { settleLocale } from '../i18n/locale'
 import { startProgress } from '../progress/tick'
-import { PROGRESS_SPEC, ROSTER_SPEC, delegateSpec } from '../prompts/tools'
+import { COMPACT_SPEC, PROGRESS_SPEC, ROSTER_SPEC, delegateSpec } from '../prompts/tools'
 import { resetRuntime } from '../runtime'
 import { readModel } from '../settings/model'
 import { checkConversation, freezeBrief } from '../settings/notes'
@@ -62,6 +62,7 @@ export async function onSessionStart($: Engine, e: Parameters<OnSessionStartHook
   await checkConversation($, true)
   await $.tool.register(ROSTER_SPEC)
   await $.tool.register(PROGRESS_SPEC)
+  await $.tool.register(COMPACT_SPEC)
   await enlist($, [...(await readDropped($)), ...(await readWorkers($))])
   $.clock.every(TICK_MS, () => tick($))
   await startProgress($)

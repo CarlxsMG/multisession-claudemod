@@ -2,7 +2,7 @@
 // that answers whatever the plugin asks of the host.
 import { mock, test as kitTest } from 'claude-code/testing'
 import type { TestRest } from 'claude-code/testing'
-import type { AgentInfo, AgentSpawnInput, On } from 'claude-code'
+import type { AgentInfo, AgentSpawnInput, On, SessionContextUsage } from 'claude-code'
 import { PLUGIN } from '../../src/config'
 
 // The kit gives a test 5 s, about what loading the plugin alone takes while
@@ -35,13 +35,15 @@ export type Seen = {
 }
 
 // What a test's engine answers: the ids of new agents, the engine's list of
-// agents, what it records (`seen`), the account's rate limits, the usage
-// probe's stdout, the store, the session id and the host.
+// agents, what it records (`seen`), the account's rate limits, the context
+// window's fill, the usage probe's stdout, the store, the session id and the
+// host.
 export type EngineOptions = {
   nextId?: () => string
   agents?: () => AgentInfo[]
   seen?: Seen
   rateLimits?: { kind: string; percentUsed: number }[]
+  context?: () => SessionContextUsage
   probe?: (argv: readonly string[], stdin: string) => string
   stored?: Record<string, unknown>
   session?: () => string
@@ -54,6 +56,7 @@ export function engine(on: On, options: EngineOptions = {}) {
     agents = (): AgentInfo[] => [],
     seen,
     rateLimits = [],
+    context = (): SessionContextUsage => ({ window: 200_000 }),
     probe = (): string => '',
     stored = {},
     session = () => 'sess-1',
@@ -77,7 +80,7 @@ export function engine(on: On, options: EngineOptions = {}) {
   on('session.model', () => ({ value: host.model?.() ?? 'claude-opus-5-5' }))
   on('agent.list', () => ({ value: agents() }))
   on('fs.exists', (_, e) => ({ value: host.exists?.(e.path) ?? true }))
-  on('session.usage', () => ({ value: { startedAt: 0, context: { window: 200_000 }, rateLimits } }))
+  on('session.usage', () => ({ value: { startedAt: 0, context: context(), rateLimits } }))
   on('session.measure', (_, e) => ({ changed: e.changed }))
   on('process.run', (_, e) => ({
     value: { exitCode: 0, stdout: probe(e.argv, e.init?.stdin ?? ''), stderr: '', isStdoutTruncated: false, isStderrTruncated: false },

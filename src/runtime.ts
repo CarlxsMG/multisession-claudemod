@@ -82,6 +82,13 @@ function fresh() {
     lines: { writingSig: '', failedSig: '' },
     /** `src/engine.ts`: the kinds of engine text logged as unrecognized. */
     logged: { unrecognized: new Set<string>() },
+    /**
+     * `src/crew/compaction.ts`: whether a compaction the crew started is
+     * under way, when the main conversation's turn last ended, and the
+     * auto-compaction threshold as last read (undefined before it is, or
+     * when auto-compaction is off) and when.
+     */
+    compaction: { isRunning: false, mainEndedAt: 0, threshold: undefined as number | undefined, thresholdAt: -Infinity },
   }
 }
 
