@@ -1,7 +1,9 @@
 // The progress tick, once a second: it ends the runs whose end was missed,
-// keeps the status line and the newest check-in up to date, and places the
-// rows that are due.
+// keeps the status line and the newest check-in up to date, stops the
+// background tasks of workers that are done, and places the rows that are
+// due.
 import type { Orch, Run, Worker } from '../../types'
+import { sweepBackground } from '../background/sweep'
 import { ACTIVE } from '../crew/workers'
 import { quiet } from '../engine'
 import type { Engine } from '../engine'
@@ -52,7 +54,8 @@ async function placeRoundRow($: Engine, list: readonly Worker[], all: readonly R
   else await updateRound($, x => ({ ...x, lastAt: now }))
 }
 
-// Ends the runs whose end was missed, pins the status line, and places the
+// Ends the runs whose end was missed, pins the status line, stops what
+// finished workers left running in the background, and places the
 // lines of ends that wait and a check-in or a round's summary when one is
 // due, while the main session's turn is not under way.
 async function progressTick($: Engine) {
@@ -66,6 +69,7 @@ async function progressTick($: Engine) {
     await pinStatus($, list, all, now)
     // A row that stands is drawn again, so it follows even while the main turn runs.
     await followCheckIn($, await readRound($), now)
+    await quiet($, sweepBackground($, now), 'background sweep')
 
     if (isMainBusy(await readOrch($))) return
     // The lines that wait, before any summary of their round.

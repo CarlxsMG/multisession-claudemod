@@ -2,11 +2,14 @@
 // worker are doing, for the pane, the rows and the check-ins.
 import type { HookFor } from 'claude-code'
 
-import { DELEGATE, PROGRESS } from '../config'
+import { BACKGROUND_TOOLS } from '../background/tasks'
+import { noteBackground } from '../background/sweep'
+import { DELEGATE, PLUGIN, PROGRESS } from '../config'
 import { gistOf, markCall, markCrewCall, setJob, setOrch } from '../crew/feed'
 import { noteSendGist } from '../crew/sends'
 import { forgetIsolated, noteIsolated, takeRenamed } from '../crew/spawn'
 import { findWorker } from '../crew/workers'
+import { quiet } from '../engine'
 import type { Engine } from '../engine'
 import { t } from '../i18n'
 import { describe } from '../progress/phase'
@@ -19,11 +22,13 @@ import { oneLine } from '../util/text'
 type WatchCallHook = HookFor<'tool.call'>
 /**
  * Follows every tool call but the progress tool's: a spawn into a worktree
- * and the name its agent took, who a SendMessage reaches, and a worker's
- * activity, phase and plan.
+ * and the name its agent took, who a SendMessage reaches, a worker's
+ * activity, phase and plan, and the tasks left running in the background.
  */
 export async function watchCall($: Engine, e: Parameters<WatchCallHook>[1], next: Parameters<WatchCallHook>[2]) {
   if ((e.tool as string) === PROGRESS) return next(e)
+  // The crew's own stops of background tasks: nobody's activity.
+  if (next.origin.plugin === PLUGIN) return next(e)
   const call: ToolCall = e
   if (call.tool === 'Agent' && call.isolation === 'worktree') await noteIsolated($, String(call.tool_use_id))
   if (e.tool === 'SendMessage' && typeof call.to === 'string') {
@@ -51,8 +56,11 @@ export async function watchCall($: Engine, e: Parameters<WatchCallHook>[1], next
     const note = takeRenamed(e.tool_use_id)
     return note === undefined || done.deny !== undefined ? done : { ...done, context: [...(done.context ?? []), note] }
   }
-  if (e.agentId === undefined || !TODO_TOOLS.has(e.tool)) return next(e)
+  const isTodos = e.agentId !== undefined && TODO_TOOLS.has(e.tool)
+  const isBackground = BACKGROUND_TOOLS.has(e.tool)
+  if (!isTodos && !isBackground) return next(e)
   const done = await next(e)
-  if (done.result !== undefined) await noteTodos($, e.agentId, call, done.result)
+  if (isTodos && e.agentId !== undefined && done.result !== undefined) await noteTodos($, e.agentId, call, done.result)
+  if (isBackground) await quiet($, noteBackground($, e.tool, e, e.agentId, done), 'background task')
   return done
 }

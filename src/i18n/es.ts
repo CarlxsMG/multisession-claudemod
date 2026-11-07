@@ -33,6 +33,15 @@ export const es: Messages = {
   notDelivered: (text, reason) => (reason === undefined ? `${text} (no entregado)` : `${text} (no entregado: ${reason})`),
   missedWorker: (name, reason) => `No llegó a ${name}: ${reason}`,
   missedRelay: (name, by, reason) => `No llegó a ${name} el mensaje de ${by}: ${reason}`,
+  background: {
+    stopFailed: (what, reason) => `No se pudo detener ${what}: ${reason}`,
+    refused: 'necesita tu aprobación; pulsa Detener en el panel del equipo',
+    heading: n => `En segundo plano · ${n}`,
+    stop: '■ Detener',
+    main: 'principal',
+    monitor: 'monitor',
+    running: n => `${n} en segundo plano`,
+  },
   progress: {
     step: step => `paso ${step}`,
     steps: step => `${step} pasos`,

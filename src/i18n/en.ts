@@ -44,6 +44,23 @@ export const en = {
   /** The toasts of a message that did not arrive. */
   missedWorker: (name: string, reason: string) => `Did not reach ${name}: ${reason}`,
   missedRelay: (name: string, by: string, reason: string) => `${by}'s message did not reach ${name}: ${reason}`,
+  /** The shells and Monitors left running in the background. */
+  background: {
+    /** The toast of a stop that failed or was refused: what the task runs, and why. */
+    stopFailed: (what: string, reason: string) => `Could not stop ${what}: ${reason}`,
+    /** Why a stop the crew tried on its own did not go: the rules ask the person first. */
+    refused: 'it needs your approval; press Stop in the crew pane',
+    /** The team view's heading over them. */
+    heading: (n: number) => `Running in the background · ${n}`,
+    /** The press that stops one. */
+    stop: '■ Stop',
+    /** Whose a task is when the main conversation started it. */
+    main: 'main',
+    /** What a Monitor's line says it is; a shell's says nothing. */
+    monitor: 'monitor',
+    /** The main view's press that opens the team view, beside the crew's count. */
+    running: (n: number) => `${n} in background`,
+  },
   progress: {
     /** A plan's step in a line: ` · step 3/5`. */
     step: (step: string) => `step ${step}`,
