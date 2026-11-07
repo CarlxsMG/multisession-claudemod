@@ -41,6 +41,7 @@ export const es: Messages = {
     stop: '■ Detener',
     main: 'principal',
     monitor: 'monitor',
+    pid: pid => `pid ${pid}`,
     running: n => `${n} en segundo plano`,
   },
   progress: {

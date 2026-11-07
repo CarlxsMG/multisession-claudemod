@@ -17,6 +17,8 @@ All notable changes to crew are written here. The format follows
   10 minutes) and at the end of the session. The team view lists them with a Stop each, and the
   main view says how many there are. The main conversation's are listed, never stopped on their
   own; a stop that would need your approval is left for your press, with a toast saying so.
+- The team view's list of background tasks shows each task's process id (`pid 51452`), read
+  from the process table a moment after the task starts.
 
 ### Changed
 

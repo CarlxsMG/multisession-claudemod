@@ -1,7 +1,8 @@
-// Which processes a stopped background task left behind on Windows, as pure
-// rules over two snapshots of the process table. There TaskStop ends the
-// task's shell but not what the shell started (a `timeout.exe`, the node of a
-// dev server), which runs on with no parent and keeps the machine busy.
+// A background task's processes, as pure rules over snapshots of the process
+// table: which one is the task's (its root, whose id the pane shows), and
+// which a stopped task left behind on Windows. There TaskStop ends the task's
+// shell but not what the shell started (a `timeout.exe`, the node of a dev
+// server), which runs on with no parent and keeps the machine busy.
 /** One process of a snapshot: its id, its parent's, when it started (ms, NaN when unknown) and its command line. */
 export type Proc = { pid: number; ppid: number; createdAt: number; commandLine: string }
 
@@ -49,6 +50,18 @@ export function parseSnapshot(json: string): Proc[] {
     return [
       { pid: r.ProcessId, ppid: r.ParentProcessId, createdAt: parseDate(r.CreationDate), commandLine: typeof r.CommandLine === 'string' ? r.CommandLine : '' },
     ]
+  })
+}
+
+/**
+ * The processes of a `ps -A -o pid=,ppid=,lstart=,args=` answer, read in
+ * the C locale: two ids, the start as five words (`Thu Nov  7 10:00:00
+ * 2026`, to the second), then the command line.
+ */
+export function parsePs(text: string): Proc[] {
+  return text.split('\n').flatMap(line => {
+    const m = /^\s*(\d+)\s+(\d+)\s+(\S+\s+\S+\s+\d+\s+[\d:]+\s+\d+)\s+(.*)$/.exec(line)
+    return m === null ? [] : [{ pid: Number(m[1]), ppid: Number(m[2]), createdAt: Date.parse(m[3]!), commandLine: m[4]!.trim() }]
   })
 }
 
@@ -109,6 +122,20 @@ export function matchesCommand(commandLine: string, command: string): boolean {
 
 // Claude Code's own processes, whatever their parent: never a task's.
 const isClaude = (p: Proc): boolean => p.commandLine.toLowerCase().includes('claude')
+
+/**
+ * The task's own process in `procs`, or undefined when none is: of those
+ * started no earlier than the task (`startedAt`, less `START_SLACK_MS`) and
+ * running its command, not Claude Code's nor one another task has
+ * (`taken`), the one whose parent is none of them (the shell that runs the
+ * rest), the earliest when several are.
+ */
+export function rootOf(procs: readonly Proc[], command: string, startedAt: number, taken: readonly number[] = []): number | undefined {
+  const runs = procs.filter(p => p.createdAt >= startedAt - START_SLACK_MS && !taken.includes(p.pid) && !isClaude(p) && matchesCommand(p.commandLine, command))
+  const ids = new Set(runs.map(p => p.pid))
+  const tops = runs.filter(p => !ids.has(p.ppid)).sort((a, b) => a.createdAt - b.createdAt)
+  return tops[0]?.pid
+}
 
 /**
  * The processes to end, with their trees, after a task's shell was stopped:

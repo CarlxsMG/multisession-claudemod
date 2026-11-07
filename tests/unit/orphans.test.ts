@@ -1,6 +1,6 @@
 import { expect, test } from 'claude-code/testing'
 
-import { START_SLACK_MS, matchesCommand, orphansToKill, parseSnapshot, tokens } from '../../src/background/orphans'
+import { START_SLACK_MS, matchesCommand, orphansToKill, parsePs, parseSnapshot, rootOf, tokens } from '../../src/background/orphans'
 import type { Proc } from '../../src/background/orphans'
 
 const T0 = 1_700_000_000_000
@@ -60,4 +60,27 @@ test('an orphan running another command, or Claude Code itself, is left alone', 
   const other = proc(700, 9999, T0 + 100, 'python -m http.server')
   const claude = proc(701, 9999, T0 + 100, 'node C:\\Users\\me\\AppData\\Roaming\\npm\\node_modules\\@anthropic-ai\\claude-code\\cli.js timeout 900 sleep 900')
   expect(orphansToKill([], [CLAUDE, other, claude], 'timeout 900 sleep 900', T0)).toEqual([])
+})
+
+test("a task's process is the shell that runs its command, not what runs under it, nor the person's own or another task's", () => {
+  const procs = [CLAUDE, BASH, TIMEOUT, SLEEP]
+  expect(rootOf(procs, 'timeout 900 sleep 900', T0 + 1000)).toBe(200)
+  // Where the shell's line does not say the command, the process that runs it.
+  expect(rootOf([CLAUDE, { ...BASH, commandLine: 'bash.exe /tmp/run.sh' }, TIMEOUT, SLEEP], 'timeout 900 sleep 900', T0 + 1000)).toBe(300)
+  expect(rootOf(procs, 'timeout 900 sleep 900', T0 + 1000, [200])).toBe(300)
+  const own = proc(600, 7, T0 - START_SLACK_MS - 1, 'timeout 900 sleep 900')
+  expect(rootOf([CLAUDE, own], 'timeout 900 sleep 900', T0)).toBeUndefined()
+  expect(rootOf(procs, 'npm run dev', T0)).toBeUndefined()
+})
+
+test("ps's table reads in the C locale: ids, the start to the second, and the command line whole", () => {
+  const text = [
+    '  101     1 Thu Nov  7 10:00:00 2026 /usr/bin/claude',
+    '  202   101 Thu Nov  7 10:00:05 2026 /bin/bash -c timeout 900 sleep 900',
+    'garbage',
+  ].join('\n')
+  expect(parsePs(text)).toEqual([
+    proc(101, 1, Date.parse('Thu Nov 7 10:00:00 2026'), '/usr/bin/claude'),
+    proc(202, 101, Date.parse('Thu Nov 7 10:00:05 2026'), '/bin/bash -c timeout 900 sleep 900'),
+  ])
 })

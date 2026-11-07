@@ -1,8 +1,9 @@
 // The background tasks the session's agents leave running, with the engine:
 // recorded as their calls are answered, forgotten when the engine no longer
 // runs them, and stopped once their worker is done, at the end of the
-// session, or when the person presses Stop in the pane. On Windows, what a
-// stopped shell started and left running is ended after it.
+// session, or when the person presses Stop in the pane. Each is matched to
+// its process, whose id the pane shows; on Windows, what a stopped shell
+// started and left running is ended after it.
 import type { HookFor, ToolCallResult } from 'claude-code'
 
 import type { BackgroundTask } from '../../types'
@@ -11,7 +12,7 @@ import type { Engine } from '../engine'
 import { t } from '../i18n'
 import { readBackground, updateBackground } from '../state/atoms'
 import { oneLine } from '../util/text'
-import { orphansToKill, parseSnapshot } from './orphans'
+import { orphansToKill, parsePs, parseSnapshot, rootOf } from './orphans'
 import type { Proc } from './orphans'
 import { addTask, dropTask, isDueForStop, isGone, keepLive, markStopFailed, ownerEnded, ownerResumed, stoppedId, taskOfCall } from './tasks'
 
@@ -29,6 +30,11 @@ const KILL_TIMEOUT_MS = 5000
 // How long after TaskStop the processes a shell leaves are looked for: the
 // engine ends the shell a moment after it answers.
 const REAP_AFTER_MS = 1000
+// The process table elsewhere, its dates in English.
+const PS = ['ps', '-A', '-o', 'pid=,ppid=,lstart=,args=']
+// How long after a task is recorded its process is looked for: the shell
+// has started it by then.
+const PID_AFTER_MS = 1500
 
 /**
  * Records what a call of `BACKGROUND_TOOLS` did, once the engine answered
@@ -42,7 +48,31 @@ export async function noteBackground($: Engine, tool: string, input: unknown, ag
     return
   }
   const task = taskOfCall(tool, input, done.result, agentId, await $.clock.now())
-  if (task !== undefined) await updateBackground($, list => addTask(list, task))
+  if (task === undefined) return
+  await updateBackground($, list => addTask(list, task))
+  void quiet($, findPid($, task), 'background pid')
+}
+
+// The process table on any system, or undefined when it cannot be read.
+async function anySnapshot($: Engine): Promise<Proc[] | undefined> {
+  if (await isWindows($)) return snapshot($)
+  const ran = await quiet($, $.process.run(PS, { timeoutMs: SNAPSHOT_TIMEOUT_MS, env: { LC_ALL: 'C' } }), 'process snapshot')
+  if (ran === undefined || ran.exitCode !== 0) return undefined
+  const procs = parsePs(ran.stdout)
+  return procs.length > 0 ? procs : undefined
+}
+
+// Puts on `task`'s entry the id of its root process (`rootOf`), a moment
+// after it was recorded, while it is still listed and has none.
+async function findPid($: Engine, task: BackgroundTask) {
+  await $.clock.sleep(PID_AFTER_MS)
+  if (!(await readBackground($)).some(x => x.id === task.id && x.pid === undefined)) return
+  const procs = await anySnapshot($)
+  if (procs === undefined) return
+  const list = await readBackground($)
+  const taken = list.flatMap(x => (x.pid !== undefined ? [x.pid] : []))
+  const pid = rootOf(procs, task.command, task.startedAt, taken)
+  if (pid !== undefined) await updateBackground($, all => all.map(x => (x.id === task.id && x.pid === undefined ? { ...x, pid } : x)))
 }
 
 /** Marks the tasks of `agentId` as left by its turn, which just ended. */
