@@ -84,6 +84,7 @@ reading it to ignore it, and why the progress tool's description stays short.
 | The progress tool's spec | Tool list | Every request | `PROGRESS_SPEC` (`src/prompts/tools.ts`) | `spec.progress` |
 | The roster | Tool result, from `rosterText` (`src/crew/roster.ts`), which gathers what the rows say | Each call | `rosterList`, `rosterRow`, `emptyCrew` (`src/prompts/roster.ts`), `noWorker` (`src/prompts/results.ts`) | `roster.empty`, `roster.crew`, `roster.one`, `roster.unknown` |
 | A name the crew gave instead | Context after an Agent call's result, by `src/hooks/watch.ts` | The name the call gave does not fit a worker, or another member has it | `renamedAgent` (`src/prompts/results.ts`) | `result.renamedAgent` |
+| A command that does not end, refused | A denial, from `guardRunaway` (`src/guard/runaway.ts`) on Bash and PowerShell calls | A command `findRunaway` finds would run until killed: `tail -f`, `watch`, a watch mode, an endless loop | `runawayDenied` (`src/prompts/results.ts`) | `result.runaway` |
 | A send that may not have gone out | The reason on the send, from the `.catch` of `session.send` in `hooks/register.tsx` | `onSend` failed after the send may have left | `SEND_UNSURE` (`src/prompts/results.ts`) | `send.failed` |
 
 A worker's message to a free teammate is answered as delivered, and the engine words that answer.

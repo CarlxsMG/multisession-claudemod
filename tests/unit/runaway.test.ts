@@ -1,0 +1,43 @@
+import { expect, test } from 'claude-code/testing'
+
+import { findRunaway } from '../../src/guard/runaway'
+
+test('a follow, a watch, a watch mode or an endless loop is found, wrapped or chained', () => {
+  expect(findRunaway('tail -f app.log')).toBe('`tail -f`')
+  expect(findRunaway('tail -F /var/log/syslog')).toBe('`tail -f`')
+  expect(findRunaway('tail -n 50 --follow=name app.log')).toBe('`tail -f`')
+  expect(findRunaway('tail -fn100 app.log | grep ERROR')).toBe('`tail -f`')
+  expect(findRunaway('cd /work && sudo tail -f log')).toBe('`tail -f`')
+  expect(findRunaway('watch -n 1 kubectl get pods')).toBe('`watch`')
+  expect(findRunaway('Get-Content app.log -Tail 10 -Wait')).toBe('`Get-Content -Wait`')
+  expect(findRunaway('npx tsc -w -p .')).toBe('`tsc --watch`')
+  expect(findRunaway('tsc --watch')).toBe('`tsc --watch`')
+  expect(findRunaway('NODE_ENV=test vitest --watch')).toBe('`vitest --watch`')
+  expect(findRunaway('jest --watchAll')).toBe('`jest --watch`')
+  expect(findRunaway('vite build --watch')).toBe('`vite --watch`')
+  expect(findRunaway('nodemon -w src server.js')).toBe('`nodemon --watch`')
+  expect(findRunaway('npm test -- --watch')).toBe('`npm --watch`')
+  expect(findRunaway('node --watch server.js')).toBe('`node --watch`')
+  expect(findRunaway('while true; do curl localhost:3000; sleep 1; done')).toBe('an endless loop')
+  expect(findRunaway('while :; do date; done')).toBe('an endless loop')
+  expect(findRunaway('while ($true) { Get-Date; Start-Sleep 1 }')).toBe('an endless loop')
+  expect(findRunaway('for ((;;)); do echo hi; done')).toBe('an endless loop')
+  expect(findRunaway('for (;;) { echo hi }')).toBe('an endless loop')
+})
+
+test('what ends is let through: a timeout, a loop with an exit, a -w that does not watch', () => {
+  expect(findRunaway('timeout 30 tail -f app.log')).toBeNull()
+  expect(findRunaway('timeout -s KILL 10 watch date')).toBeNull()
+  expect(findRunaway('timeout 60 bash -c "while true; do date; sleep 1; done"')).toBeNull()
+  expect(findRunaway('while true; do curl -sf localhost:3000 && break; sleep 1; done')).toBeNull()
+  expect(findRunaway('tail -n 50 app.log')).toBeNull()
+  expect(findRunaway('git log -w --oneline')).toBeNull()
+  expect(findRunaway('grep -w foo src/*.ts')).toBeNull()
+  expect(findRunaway('npm run build -w packages/api')).toBeNull()
+  expect(findRunaway('npx -p typescript tsc -p .')).toBeNull()
+  expect(findRunaway('vitest run')).toBeNull()
+  expect(findRunaway('echo "do not run tail -f here"')).toBeNull()
+  expect(findRunaway('git commit -m "watch mode docs"')).toBeNull()
+  expect(findRunaway('while read line; do echo "$line"; done < list.txt')).toBeNull()
+  expect(findRunaway('Get-Content app.log -Tail 10')).toBeNull()
+})

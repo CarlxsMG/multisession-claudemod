@@ -279,6 +279,17 @@ test('the answer to a send that failed on its way', async ($, on) => {
   expectText('send.failed', await message('pip', 'Bolt: the lock is free', 'agent-2').catch((err: unknown) => String(err)))
 })
 
+test("a command that does not end is refused, a worker's and the main session's; one that ends goes on", async ($, on) => {
+  engine(on)
+  await start($)
+  const run = async (input: Record<string, unknown>) => (await $.tool.call(input as never)) as { result?: unknown; deny?: string }
+  expectText('result.runaway', (await run({ tool: 'Bash', command: 'tail -f app.log', agentId: 'agent-1' })).deny)
+  expect((await run({ tool: 'PowerShell', command: 'npx tsc --watch' })).deny).toContain('`tsc --watch` does not end')
+  const ends = await run({ tool: 'Bash', command: 'timeout 30 tail -f app.log' })
+  expect(ends.deny).toBeUndefined()
+  expect(ends.result).toEqual({})
+})
+
 // A reply is stored where the model reads it, so neither the UI's language nor
 // the personality changes a word of it, and what the person chose stands as
 // they wrote it. A share code holds the whole look, so the golden has `<code>`.

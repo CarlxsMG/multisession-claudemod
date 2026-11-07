@@ -146,3 +146,12 @@ export function progressReply(p: Pick<Plan, 'step' | 'total'>): string {
  * may have gone out.
  */
 export const SEND_UNSURE = 'crew: the message may not have gone out; check before sending it again.'
+
+// ---- commands that do not end ----
+
+/**
+ * Why a Bash or PowerShell call was refused: `what` (`` `tail -f` ``, an
+ * endless loop) would run until killed, and what to run instead.
+ */
+export const runawayDenied = (what: string): string =>
+  `crew: refused: ${what} does not end, and a process left running lags the app. Run it in the foreground under \`timeout N\` (for a log, \`timeout 30 tail -n 50 -f file\`), or watch it with Monitor and a timeout_ms. Background only what must outlive the call, and TaskStop it when done.`
