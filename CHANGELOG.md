@@ -30,6 +30,10 @@ All notable changes to crew are written here. The format follows
 - On Windows a background task the crew stops no longer leaves what its shell started running,
   such as `timeout.exe` or a dev server's node: the processes it left with no parent, started
   after it and running its command, are ended too.
+- On Windows what a stopped background shell left running is ended after a stop of yours or
+  Claude's too, not only the crew's own; the crew looks again for a few seconds while the shell
+  is still going away, matches a command that runs a quoted script, and says in a toast when it
+  cannot read the process table.
 - In the desktop app a card in the pane shows a worker's whole name, as the terminal does,
   instead of `V...` on every card or a name cut short, and the card for the
   workers that do not fit shows its count. There a worker's transcript opens from its name in

@@ -84,12 +84,29 @@ export function tokens(commandLine: string): string[] {
     .filter(x => x !== '')
 }
 
-// The simple commands of a recorded shell line, each its words, without
-// assignments and the builtins that start no process.
+// How many words of each simple command a process is matched by: its
+// command word and first arguments, before any quoted script, whose quoting
+// the process's command line spells otherwise.
+const HEAD_WORDS = 4
+
+// The words a simple command is matched by: up to `HEAD_WORDS`, stopping at
+// the first quoted or expanded one after the command word.
+function headWords(part: string): string[] {
+  const raw = part.replace(ASSIGNMENTS, '').match(/"[^"]*"|'[^']*'|\S+/g) ?? []
+  const head: string[] = []
+  for (const w of raw) {
+    if (head.length === HEAD_WORDS || (head.length > 0 && /["'`$]/.test(w))) break
+    head.push(word(w.replace(/^["']+|["']+$/g, '')))
+  }
+  return head.filter(x => x !== '')
+}
+
+// The simple commands of a recorded shell line, each the words it is
+// matched by, without the builtins that start no process.
 function commandsOf(command: string): string[][] {
   return command
     .split(SEPARATOR)
-    .map(part => tokens(part.replace(ASSIGNMENTS, '')))
+    .map(headWords)
     .filter(words => words.length > 0 && !BUILTINS.has(words[0]!))
 }
 
@@ -137,22 +154,11 @@ export function rootOf(procs: readonly Proc[], command: string, startedAt: numbe
   return tops[0]?.pid
 }
 
-/**
- * The processes to end, with their trees, after a task's shell was stopped:
- * those of `after` left with no parent (it is gone, or its id now names a
- * younger process), started no earlier than the task (`startedAt`, less
- * `START_SLACK_MS`), and either running the task's command or in `before`
- * under a process that ran it. Claude Code's processes are never among them.
- */
-export function orphansToKill(before: readonly Proc[], after: readonly Proc[], command: string, startedAt: number): number[] {
+// The task's processes in `after`: started no earlier than the task
+// (`startedAt`, less `START_SLACK_MS`), not Claude Code's, and either running
+// its command or in `before` under a process that ran it.
+function ofTask(before: readonly Proc[], after: readonly Proc[], command: string, startedAt: number): Proc[] {
   const fresh = (p: Proc): boolean => p.createdAt >= startedAt - START_SLACK_MS
-  const alive = new Map(after.map(p => [p.pid, p]))
-  const isOrphan = (p: Proc): boolean => {
-    const parent = alive.get(p.ppid)
-    // A parent id that now names a younger process names another process.
-    return parent !== undefined ? parent.createdAt > p.createdAt : true
-  }
-  // The task's processes before the stop: its matching ones and all under them.
   let tree: number[] = before.filter(p => fresh(p) && matchesCommand(p.commandLine, command)).map(p => p.pid)
   for (let grew = true; grew;) {
     const more = before.filter(p => tree.includes(p.ppid) && !tree.includes(p.pid) && fresh(p)).map(p => p.pid)
@@ -160,5 +166,33 @@ export function orphansToKill(before: readonly Proc[], after: readonly Proc[], c
     tree = [...tree, ...more]
   }
   const wasTask = (p: Proc): boolean => tree.includes(p.pid) && before.some(b => b.pid === p.pid && b.createdAt === p.createdAt)
-  return after.filter(p => fresh(p) && isOrphan(p) && !isClaude(p) && (matchesCommand(p.commandLine, command) || wasTask(p))).map(p => p.pid)
+  return after.filter(p => fresh(p) && !isClaude(p) && (matchesCommand(p.commandLine, command) || wasTask(p)))
+}
+
+/**
+ * The processes to end, with their trees, after a task's shell was stopped:
+ * the task's processes of `after` (started no earlier than the task, less
+ * `START_SLACK_MS`, and running its command or in `before` under a process
+ * that ran it) left with no parent: it is gone, or its id now names a
+ * younger process. Claude Code's processes are never among them.
+ */
+export function orphansToKill(before: readonly Proc[], after: readonly Proc[], command: string, startedAt: number): number[] {
+  const alive = new Map(after.map(p => [p.pid, p]))
+  const isOrphan = (p: Proc): boolean => {
+    const parent = alive.get(p.ppid)
+    // A parent id that now names a younger process names another process.
+    return parent !== undefined ? parent.createdAt > p.createdAt : true
+  }
+  return ofTask(before, after, command, startedAt)
+    .filter(isOrphan)
+    .map(p => p.pid)
+}
+
+/**
+ * Whether any process of the task (as `orphansToKill` tells them) still
+ * runs in `after`, leaving out the ids already ended (`ended`): while one
+ * does, its shell may still be on its way out.
+ */
+export function isTaskRunning(before: readonly Proc[], after: readonly Proc[], command: string, startedAt: number, ended: readonly number[]): boolean {
+  return ofTask(before, after, command, startedAt).some(p => !ended.includes(p.pid))
 }

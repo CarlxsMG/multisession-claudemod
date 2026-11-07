@@ -152,3 +152,77 @@ test('elsewhere than Windows ending the shell ends what it started: no process i
   expect(stops).toEqual(['b1'])
   expect(runs).toEqual([])
 })
+
+// A Windows engine whose table holds Claude Code, the shell of task b1 for
+// `shellLooks` looks after its stop, and the timeout.exe it ran; `failLooks`
+// of the looks fail first. `runs` records the looks and the kills.
+function windowsTable(shellLooks: number, failLooks = 0) {
+  const runs: string[][] = []
+  let looks = 0
+  let stoppedAt = Infinity
+  const probe = (argv: readonly string[]): string => {
+    if (argv[0] === 'taskkill') runs.push([...argv])
+    if (argv[0] !== 'powershell') return ''
+    looks++
+    runs.push(['snapshot'])
+    if (looks <= failLooks) return 'not json'
+    const t0 = 1_000_000
+    const shell: [number, number, number, string][] = looks - stoppedAt <= shellLooks ? [[200, 100, t0, 'bash.exe -c -l "timeout 900 sleep 900"']] : []
+    return table([[100, 1, 0, 'claude.exe'], ...shell, [300, 200, t0 + 50, '"C:\\Program Files\\Git\\usr\\bin\\timeout.exe" 900 sleep 900']])
+  }
+  const stopped = () => {
+    stoppedAt = looks
+  }
+  return { runs, probe, stopped }
+}
+
+test("on Windows the model's own TaskStop of a recorded task, the main session's too, ends what its shell left running", async ($, on) => {
+  const win = windowsTable(0)
+  on('tool.call', { tool: 'TaskStop' }, (_, e, next) => {
+    win.stopped()
+    return next(e)
+  })
+  const { clock, mainTurn } = await backgroundCrew($, on, 'allow', { host: { env: { OS: 'Windows_NT' } }, probe: win.probe })
+  const done = await mainTurn()
+  await bash($, 'timeout 900 sleep 900')
+  await clock.advance(2000)
+  win.runs.length = 0
+  await $.tool.call({ tool: 'TaskStop', task_id: 'b1' })
+  await clock.advance(10_000)
+  await done()
+  expect(win.runs).toEqual([['snapshot'], ['snapshot'], ['taskkill', '/PID', '300', '/T', '/F']])
+})
+
+test('on Windows a shell still on its way out a second after the stop is looked for again until what it left is ended', async ($, on) => {
+  const win = windowsTable(2)
+  on('tool.call', { tool: 'TaskStop' }, (_, e, next) => {
+    win.stopped()
+    return next(e)
+  })
+  const { clock, mainTurn } = await backgroundCrew($, on, 'allow', { host: { env: { OS: 'Windows_NT' } }, probe: win.probe })
+  const done = await mainTurn()
+  await bash($, 'timeout 900 sleep 900')
+  await clock.advance(2000)
+  win.runs.length = 0
+  await $.tool.call({ tool: 'TaskStop', task_id: 'b1' })
+  await clock.advance(10_000)
+  await done()
+  // Before the stop, then at 1 s and 3 s with the shell still there, and at 8 s without it.
+  expect(win.runs).toEqual([['snapshot'], ['snapshot'], ['snapshot'], ['snapshot'], ['taskkill', '/PID', '300', '/T', '/F']])
+})
+
+test('on Windows a process table that cannot be read still lets the later looks end what was left, and one never read says so', async ($, on) => {
+  const win = windowsTable(0, 2)
+  on('tool.call', { tool: 'TaskStop' }, (_, e, next) => {
+    win.stopped()
+    return next(e)
+  })
+  const { clock, delegate, end, toasts } = await backgroundCrew($, on, 'allow', { host: { env: { OS: 'Windows_NT' } }, probe: win.probe })
+  await delegate('Wait a while', '/work/web', 'Wait')
+  await bash($, 'timeout 900 sleep 900', 'agent-1')
+  await end('agent-1')
+  await clock.advance(12_000)
+  // The table before the stop and the first look fail; the second look ends timeout.exe.
+  expect(win.runs.filter(r => r[0] === 'taskkill')).toEqual([['taskkill', '/PID', '300', '/T', '/F']])
+  expect(toasts.some(x => x.includes('could not look'))).toBe(false)
+})

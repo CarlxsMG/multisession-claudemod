@@ -37,6 +37,7 @@ export const es: Messages = {
     stopFailed: (what, reason) => `No se pudo detener ${what}: ${reason}`,
     refused: 'necesita tu aprobación; pulsa Detener en el panel del equipo',
     orphansLeft: (what, pids) => `Se detuvo ${what}, pero no se pudo terminar lo que dejó en marcha (PID ${pids})`,
+    tableUnread: (what, reason) => `Se detuvo ${what}, pero no se pudo buscar lo que dejó en marcha: ${reason}`,
     heading: n => `En segundo plano · ${n}`,
     stop: '■ Detener',
     main: 'principal',

@@ -49,6 +49,8 @@ export const en = {
     /** The toast of a stop that failed or was refused: what the task runs, and why. */
     /** The toast of processes a stopped shell left running that could not be ended: what it ran, and their ids. */
     orphansLeft: (what: string, pids: string) => `Stopped ${what}, but could not end what it left running (PID ${pids})`,
+    /** The toast of a process table that could not be read after a stop: what the task ran, and why. */
+    tableUnread: (what: string, reason: string) => `Stopped ${what}, but could not look for what it left running: ${reason}`,
     stopFailed: (what: string, reason: string) => `Could not stop ${what}: ${reason}`,
     /** Why a stop the crew tried on its own did not go: the rules ask the person first. */
     refused: 'it needs your approval; press Stop in the crew pane',

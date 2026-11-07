@@ -12,7 +12,7 @@ import type { Engine } from '../engine'
 import { t } from '../i18n'
 import { readBackground, updateBackground } from '../state/atoms'
 import { oneLine } from '../util/text'
-import { orphansToKill, parsePs, parseSnapshot, rootOf } from './orphans'
+import { isTaskRunning, orphansToKill, parsePs, parseSnapshot, rootOf } from './orphans'
 import type { Proc } from './orphans'
 import { addTask, dropTask, isDueForStop, isGone, keepLive, markStopFailed, ownerEnded, ownerResumed, stoppedId, taskOfCall } from './tasks'
 
@@ -27,24 +27,45 @@ const SNAPSHOT = [
 ]
 const SNAPSHOT_TIMEOUT_MS = 8000
 const KILL_TIMEOUT_MS = 5000
-// How long after TaskStop the processes a shell leaves are looked for: the
-// engine ends the shell a moment after it answers.
-const REAP_AFTER_MS = 1000
+// The waits before each look for what a stopped shell left running, after
+// TaskStop answered: the engine ends the shell and what it holds over a few
+// seconds, and a process whose shell still lives is no orphan yet.
+const REAP_WAITS_MS = [1000, 2000, 5000]
 // The process table elsewhere, its dates in English.
 const PS = ['ps', '-A', '-o', 'pid=,ppid=,lstart=,args=']
 // How long after a task is recorded its process is looked for: the shell
 // has started it by then.
 const PID_AFTER_MS = 1500
 
+/** A recorded task a TaskStop is about to stop, with the process table read just before (none when it could not be). */
+export type Stopping = { task: BackgroundTask; before: readonly Proc[] | undefined }
+
+/**
+ * What a TaskStop call that is not the crew's own is about to stop, before
+ * the engine runs it: on Windows, a recorded task and the process table, so
+ * what its shell leaves can be ended after it. Undefined elsewhere, and for
+ * a task the crew did not record.
+ */
+export async function beforeTaskStop($: Engine, input: unknown): Promise<Stopping | undefined> {
+  const id = stoppedId(input)
+  const task = (await readBackground($)).find(x => x.id === id)
+  if (task === undefined || !(await isWindows($))) return undefined
+  const table = await readTable($)
+  return { task, before: 'procs' in table ? table.procs : undefined }
+}
+
 /**
  * Records what a call of `BACKGROUND_TOOLS` did, once the engine answered
- * it: a shell or a Monitor it left running, or a task a TaskStop ended.
+ * it: a shell or a Monitor it left running, or a task a TaskStop ended,
+ * after which what its shell left running is ended (`stopping`, from
+ * `beforeTaskStop`).
  */
-export async function noteBackground($: Engine, tool: string, input: unknown, agentId: string | undefined, done: ToolCallResult) {
+export async function noteBackground($: Engine, tool: string, input: unknown, agentId: string | undefined, done: ToolCallResult, stopping?: Stopping) {
   if (done.deny !== undefined || done.isError === true) return
   if (tool === 'TaskStop') {
     const id = stoppedId(input)
     if (id !== '' && (await readBackground($)).some(x => x.id === id)) await updateBackground($, list => dropTask(list, id))
+    if (stopping !== undefined && stopping.task.id === id) void quiet($, reapOrphans($, stopping.task, stopping.before), 'orphan reap')
     return
   }
   const task = taskOfCall(tool, input, done.result, agentId, await $.clock.now())
@@ -122,31 +143,54 @@ async function isWindows($: Engine): Promise<boolean> {
   return (await $.env.get('OS')) === 'Windows_NT'
 }
 
+// The Windows process table now, or why it could not be read.
+async function readTable($: Engine): Promise<{ procs: Proc[] } | { error: string }> {
+  try {
+    const ran = await $.process.run(SNAPSHOT, { timeoutMs: SNAPSHOT_TIMEOUT_MS })
+    if (ran.exitCode !== 0) return { error: `exit ${ran.exitCode}: ${oneLine(ran.stderr, 80)}` }
+    const procs = parseSnapshot(ran.stdout)
+    return procs.length > 0 ? { procs } : { error: `no processes in: ${oneLine(ran.stdout, 80)}` }
+  } catch (err) {
+    return { error: err instanceof Error ? err.message : String(err) }
+  }
+}
+
 // The process table now, or undefined when it cannot be read.
 async function snapshot($: Engine): Promise<Proc[] | undefined> {
-  const ran = await quiet($, $.process.run(SNAPSHOT, { timeoutMs: SNAPSHOT_TIMEOUT_MS }), 'process snapshot')
-  if (ran === undefined || ran.exitCode !== 0) return undefined
-  const procs = parseSnapshot(ran.stdout)
-  return procs.length > 0 ? procs : undefined
+  const table = await readTable($)
+  return 'procs' in table ? table.procs : undefined
 }
 
 // Ends, with their trees, the processes `task`'s stopped shell left running
-// (`orphansToKill`), against the table as it was before the stop. What ends
-// is logged; what does not, said in a toast.
-async function reapOrphans($: Engine, task: BackgroundTask, before: readonly Proc[]) {
-  await $.clock.sleep(REAP_AFTER_MS)
-  const after = await snapshot($)
-  if (after === undefined) return
-  const pids = orphansToKill(before, after, task.command, task.startedAt)
-  if (pids.length === 0) return
+// (`orphansToKill`), looking again a few times (`REAP_WAITS_MS`) while any of
+// the task's processes still runs, against the table as it was before the
+// stop when it was read. What ends is logged; what does not, and a table
+// never read, said in a toast.
+async function reapOrphans($: Engine, task: BackgroundTask, before: readonly Proc[] | undefined) {
+  const what = oneLine(task.command, TOAST_COMMAND) || task.id
+  const ended: number[] = []
   const missed: number[] = []
-  for (const pid of pids) {
-    const ran = await quiet($, $.process.run(['taskkill', '/PID', String(pid), '/T', '/F'], { timeoutMs: KILL_TIMEOUT_MS }), 'taskkill')
-    if (ran === undefined || ran.exitCode !== 0) missed.push(pid)
+  let unread: string | undefined
+  for (const wait of REAP_WAITS_MS) {
+    await $.clock.sleep(wait)
+    const table = await readTable($)
+    if ('error' in table) {
+      unread = table.error
+      continue
+    }
+    unread = undefined
+    const after = table.procs
+    for (const pid of orphansToKill(before ?? [], after, task.command, task.startedAt)) {
+      if (ended.includes(pid) || missed.includes(pid)) continue
+      const ran = await quiet($, $.process.run(['taskkill', '/PID', String(pid), '/T', '/F'], { timeoutMs: KILL_TIMEOUT_MS }), 'taskkill')
+      if (ran !== undefined && ran.exitCode === 0) ended.push(pid)
+      else missed.push(pid)
+    }
+    if (!isTaskRunning(before ?? [], after, task.command, task.startedAt, [...ended, ...missed])) break
   }
-  const ended = pids.filter(pid => !missed.includes(pid))
   if (ended.length > 0) $.ui.log(`crew: ended what background task ${task.id} left running: ${ended.join(', ')}`, { to: 'debug' })
-  if (missed.length > 0) $.ui.toast(t().background.orphansLeft(oneLine(task.command, TOAST_COMMAND) || task.id, missed.join(', ')))
+  if (missed.length > 0) $.ui.toast(t().background.orphansLeft(what, missed.join(', ')))
+  if (unread !== undefined) $.ui.toast(t().background.tableUnread(what, unread))
 }
 
 /**
@@ -180,7 +224,8 @@ export async function stopTask($: Engine, task: BackgroundTask, how: StopHow) {
       const verdict = await $.tool.check({ tool: 'TaskStop', input: { task_id: task.id } })
       if (verdict.decision !== 'allow') return await failed(verdict.reason ?? t().background.refused)
     }
-    const before = how !== 'end' && (await isWindows($)) ? await snapshot($) : undefined
+    const isReaped = how !== 'end' && (await isWindows($))
+    const before = isReaped ? await snapshot($) : undefined
     const done = await $.tool.call({ tool: 'TaskStop', task_id: task.id })
     if (done.deny !== undefined) return await failed(done.deny)
     if (done.isError === true && !isGone(done.text ?? '')) {
@@ -188,7 +233,7 @@ export async function stopTask($: Engine, task: BackgroundTask, how: StopHow) {
       return await failed(oneLine(done.text ?? '', 80))
     }
     await updateBackground($, list => dropTask(list, task.id))
-    if (before !== undefined) void quiet($, reapOrphans($, task, before), 'orphan reap')
+    if (isReaped) void quiet($, reapOrphans($, task, before), 'orphan reap')
   } catch (err) {
     await failed(err instanceof Error ? err.message : String(err))
   }
