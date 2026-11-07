@@ -7,6 +7,7 @@ import { onSpawn } from '../src/crew/spawn'
 import { chooseNapAfter } from '../src/crew/workers'
 import { guardRunaway } from '../src/guard/runaway'
 import { runCrewCommand } from '../src/hooks/commands'
+import { crewContext, onCompact } from '../src/hooks/compact'
 import { composePrompt, onSubmit } from '../src/hooks/prompt'
 import { onAttach, onMeasure, onModelSwitch, onSessionStart } from '../src/hooks/session'
 import { delegateTool, progressTool, rosterTool } from '../src/hooks/tools'
@@ -60,6 +61,11 @@ export const register: Register = (on, options) => {
   on('tool.call', { tool: /^mcp__crew__progress$/ }, ($, e) => progressTool($, e))
 
   on('prompt.compose', ($, e, next) => composePrompt($, e, next))
+
+  // ---- compaction ----
+
+  on('session.compact', ($, e, next) => onCompact($, e, next))
+  on('prompt.context', ($, e, next) => crewContext($, e, next))
 
   // ---- watching the session ----
 

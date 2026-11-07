@@ -40,7 +40,7 @@ the debug log. Its `unrecognized` logs there an engine text the crew reads in no
 | Folder or file | What it does |
 | --- | --- |
 | `hooks/register.tsx` | Every hook, each matcher written inline. Nothing else. |
-| `src/hooks/` | The hook bodies: the session's events (`session.ts`), the `/crew` command (`commands.ts`), the crew's tools (`tools.ts`), every tool call watched (`watch.ts`), turn starts and ends (`turns.ts`), the system prompt and the user's messages (`prompt.ts`). |
+| `src/hooks/` | The hook bodies: the session's events (`session.ts`), the `/crew` command (`commands.ts`), the crew's tools (`tools.ts`), every tool call watched (`watch.ts`), turn starts and ends (`turns.ts`), the system prompt and the user's messages (`prompt.ts`), compaction (`compact.ts`). |
 | `src/crew/` | The crew itself: the worker list and its statuses (`workers.ts`), `delegate` (`delegate.ts`), the spawn hook (`spawn.ts`) and the name it puts ahead of an agent's title (`title.ts`) and of a worker's background shell or Monitor (`shell-title.ts`), the send hook (`sends.ts`), relays (`relay.ts`), takeovers and held tasks (`takeover.ts`), one way to send and record (`deliver.ts`), the sync with the engine's agents (`sync.ts`), the user's message to a worker (`message.ts`), what the pane and the rows are drawn from (`feed.ts`), and the roster's data (`roster.ts`). |
 | `src/guard/runaway.ts` | The guard on Bash and PowerShell calls: it refuses a command that would not end (`tail -f`, `watch`, a watch mode, an endless loop), the main session's and every worker's. |
 | `src/prompts/` | Nearly every text a model reads ([docs/model-behavior.md](docs/model-behavior.md) lists them all): the orchestrator's brief and `[crew]` note (`orchestrator.ts`), the workers' preamble and the texts the crew sends them (`worker.ts`), the tool specs (`tools.ts`), the tool results and their parsers (`results.ts`), the roster's text (`roster.ts`), and what the `/crew` command answers (`commands.ts`). |
@@ -319,6 +319,20 @@ the rest of the load. When the user changes delegation, the name or the personal
 queued (`note`); it rides as context on the user's next message, and only the latest settings
 are told. `toldBy` remembers, per conversation, what its last note said, so a resumed or cleared
 conversation gets a note when the settings no longer match.
+
+### Compaction
+
+Every compaction of the main conversation (`/compact`, the engine's threshold, a plugin's) passes
+`onCompact` (`session.compact`), which adds the crew's instructions after the person's own while
+delegation is on or the crew has workers: what coordinating the crew needs kept, and what to leave
+out. A crew worker's own compaction (`agentId` one of the crew's) gets the worker's. The crew never
+skips a compaction: an automatic one runs because the context is full.
+
+The summary is followed by the crew's state through `prompt.context` (`crewContext`), not a message
+added to the compacted list: the engine asks for the context again after a compaction and sends a
+block of a plugin's own where the conversation holds none, placed where it never splits a tool call
+from its result. The block is the roster's text as it stands at that request, with a line saying it
+goes stale; an empty crew adds none.
 
 ### Keeping in step with the engine
 

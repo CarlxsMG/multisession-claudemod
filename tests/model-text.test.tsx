@@ -273,6 +273,27 @@ test("the progress tool's answers", async ($, on) => {
   expectText('progress.noRun', await progress($, 'agent-9', 1, 3, 'Read'))
 })
 
+test("what a compaction's summarizer is told, the main conversation's and a worker's, and the crew read back after it", async ($, on) => {
+  let spawned = 0
+  engine(on, { nextId: () => `agent-${++spawned}` })
+  const told: (string | undefined)[] = []
+  on('session.compact', (_, e) => {
+    told.push(e.instructions)
+    return { messages: [{ role: 'user' as const, text: 'Summary.', toolUses: [] }] }
+  })
+  on('prompt.context', (_, e) => ({ blocks: e.blocks }))
+  await start($)
+  await delegate($, { task: 'Fix the login', title: 'Login', repo: '/work/api' })
+  await finish($, 'agent-1')
+  const transcript = [{ role: 'user' as const, text: 'Fix the login.', toolUses: [] }]
+  await $.session.compact({ trigger: 'auto', messages: transcript })
+  await $.session.compact({ trigger: 'auto', agentId: 'agent-1', messages: transcript })
+  expectText('compact.main', told[0])
+  expectText('compact.worker', told[1])
+  const blocks = (await $.prompt.context({ blocks: [] })).blocks
+  expectText('compact.crewState', blocks.find(b => b.name === 'crewState')?.text)
+})
+
 test('the answer to a send that failed on its way', async ($, on) => {
   const { seen, message } = await wokenCrew($, on)
   seen.failSends = true

@@ -8,6 +8,11 @@ All notable changes to crew are written here. The format follows
 
 ### Added
 
+- Compacting the orchestrator's conversation keeps what coordinating the crew needs: the summary
+  is asked to keep each worker's name, address and what it owns, tasks in flight, your decisions,
+  branches, pull requests and issues, and to leave out file dumps and superseded reports, after
+  any instructions you typed after `/compact`. The crew's roster follows the summary, and a
+  worker's own compaction keeps its task, its branch and its teammates' addresses.
 - Claude Code's own list of running agents shows each crew agent's name ahead of its task,
   `(Mika) Fix the tests`, so the workers there can be told apart as in the pane.
 - A worker's background shells and Monitors show its name ahead of their description in that
