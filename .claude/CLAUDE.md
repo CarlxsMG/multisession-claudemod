@@ -67,3 +67,15 @@ npx --yes prettier@3.9.10 --check .
 
 One logical change per commit, on a branch, never on `main`. Stage explicit paths. The message rules
 are in [Commits and pull requests](../CONTRIBUTING.md#commits-and-pull-requests).
+
+## From issue to merge
+
+- Work starts from a GitHub issue, added to the
+  [Project](https://github.com/users/CarlxsMG/projects/5). No issue yet: create it first.
+- One branch per issue, named `feat/`, `fix/` or `docs/` plus a topic, in its own worktree off
+  `origin/main`.
+- Commit, push the branch, and open a pull request against `main`. Its body fills the template and
+  says `Closes #n`.
+- Merge with a merge commit, `gh pr merge <n> --merge`, only once the required checks are green:
+  `gh pr checks <n> --required --watch`.
+- After the merge, check the issue closed. If not, close it with a comment naming the pull request.
