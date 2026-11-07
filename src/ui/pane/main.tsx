@@ -176,7 +176,7 @@ function nextNapDue(inRow: readonly Worker[], kit: WorkerKit, now: number): numb
 function drawCardRow($: Engine, ctx: CrewContext) {
   const { ui, kit, now, width } = ctx
   const { Box, Text, Button } = ui
-  const { ordered, statusColor, lastRun, justEnded, figure, nameButton } = kit
+  const { ordered, statusColor, lastRun, justEnded, figure, cardName } = kit
   const inRow = ordered.filter(w => justEnded(w) !== undefined || !napsAway(w, now))
   // Under its name a working worker's card gives its plan's step, else its
   // run's time, and any other a word of four letters: what it is doing and
@@ -200,7 +200,7 @@ function drawCardRow($: Engine, ctx: CrewContext) {
         return (
           <Box flexDirection="column" width={DIAMOND_W}>
             {figure(worker, status)}
-            {nameButton(worker)}
+            {cardName(worker)}
             {ended !== undefined ? (
               <Text wrap="truncate-end" mono bold inverse color={END[ended].color}>
                 {cardLabel(ended)}
