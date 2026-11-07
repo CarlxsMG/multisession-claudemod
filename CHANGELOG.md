@@ -37,6 +37,9 @@ All notable changes to crew are written here. The format follows
 
 ### Fixed
 
+- In the desktop app the editor's palettes show their coloured cells, its steppers their ◀ ▶
+  and its tabs the `▸` on the one open, and the pane's Delegate switch and Edit button read as on
+  the terminal, instead of each showing the words meant for a screen reader (`Color: Cream`).
 - On Windows a background task the crew stops no longer leaves what its shell started running,
   such as `timeout.exe` or a dev server's node: the processes it left with no parent, started
   after it and running its command, are ended too.
