@@ -3,6 +3,7 @@ import type { Register } from 'claude-code'
 import { onSend } from '../src/crew/sends'
 import { onSpawn } from '../src/crew/spawn'
 import { chooseNapAfter } from '../src/crew/workers'
+import { guardRunaway } from '../src/guard/runaway'
 import { runCrewCommand } from '../src/hooks/commands'
 import { composePrompt, onSubmit } from '../src/hooks/prompt'
 import { onAttach, onMeasure, onModelSwitch, onSessionStart } from '../src/hooks/session'
@@ -61,6 +62,8 @@ export const register: Register = (on, options) => {
   // ---- watching the session ----
 
   on('tool.call', ($, e, next) => watchCall($, e, next))
+  // A guard with no `.catch`: if it fails, the command runs as asked.
+  on('tool.call', { tool: ['Bash', 'PowerShell'] }, (_, e, next) => guardRunaway(e, next))
   on('session.measure', ($, e, next) => onMeasure($, e, next))
   on('session.attach', ($, e, next) => onAttach($, e, next))
   on('session.detach', ($, e, next) => onDetach($, e, next))

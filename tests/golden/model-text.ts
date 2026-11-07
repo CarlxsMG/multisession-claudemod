@@ -346,6 +346,7 @@ export const GOLDEN: Record<string, string> = {
   "progress.orchestrator": "crew: progress is for workers; nothing changed.",
   "progress.invalid": "crew: step is 0 or more and total 1 or more.",
   "progress.noRun": "crew: no run of yours to note it on.",
+  "result.runaway": "crew: refused: `tail -f` does not end, and a process left running lags the app. Run it in the foreground under `timeout N` (for a log, `timeout 30 tail -n 50 -f file`), or watch it with Monitor and a timeout_ms. Background only what must outlive the call, and TaskStop it when done.",
   "send.failed": [
     "{",
     "  \"isDelivered\": false,",
