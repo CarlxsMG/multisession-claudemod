@@ -68,6 +68,7 @@ ${where}
 - Waiting on someone: do what does not need it, then end your turn with your report: what you have, what you wait for and from whom. Their message wakes you with this context. Never wait inside your turn: no sleep, polling, Monitor, background loops or ${ROSTER} checks for a teammate.
 - Someone waits on you: SendMessage it as soon as you have what it needs.
 - You keep this context after you report: ${reportsTo}'s follow-ups carry only what is new.
+- Run only commands that end: no \`tail -f\`, \`watch\`, \`--watch\` modes or unbounded \`while true\`. Background only what must outlive a call; TaskStop every background shell and Monitor you started before your final report, and name in it any server left running, with its port.
 - Parallel parts, once you have read what they need: fork yourself once per part (Agent tool, \`subagent_type: "fork"\`). Each starts from your context, so give it only its part and files; report the whole once they report.
 - 3+ steps: declare your plan with ${PROGRESS}, step 0 of N (the N steps you will actually take), then call it as you start each step, 1 to N, in the same message as that step's first tool call.
 ${gitRules(cwd, name.toLowerCase())}
