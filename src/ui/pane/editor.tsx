@@ -103,26 +103,38 @@ function partControls($: Engine, ctx: PaneContext) {
 
   // A palette to click: the color in use between brackets. A swatch is
   // painted background, which fills its cells in any font, as blocks may not.
+  // The desktop app draws a Button as a native one, its children as plain
+  // text: there the painted cell sits beside the Button, which holds a mark
+  // of the color in use.
   const colorName = (id: string): string => (t().colors as Record<string, string>)[id] ?? id
+  const isTerminal = ctx.surface === 'terminal'
   const swatches = (key: 'skin' | 'hairColor' | 'shirtColor' | 'pants' | 'shoes' | 'accColor', label: string, list: Named) => (
     <Box flexDirection="column">
       <Text>
         <Text dimColor>{label} · </Text>
         <Text bold>{colorName(list[look[key]]?.[0] ?? '')}</Text>
       </Text>
-      <Box flexDirection="row" flexWrap="wrap">
-        {list.map(([id, color], i) => (
-          <Button
-            key={`${key}-${i}`}
-            plain
-            {...labelOn(ctx.surface, `${label}: ${colorName(id)}`)}
-            onPress={() => void changeLook($, { [key]: i } as Partial<Look>)}
-          >
-            <Text bold>{i === look[key] ? '[' : ' '}</Text>
-            <Text backgroundColor={paintColor(hex(color))}>{'  '}</Text>
-            <Text bold>{i === look[key] ? ']' : ' '}</Text>
-          </Button>
-        ))}
+      <Box flexDirection="row" flexWrap="wrap" columnGap={isTerminal ? 0 : 1}>
+        {list.map(([id, color], i) => {
+          const pick = () => void changeLook($, { [key]: i } as Partial<Look>)
+          const cell = <Text backgroundColor={paintColor(hex(color))}>{'  '}</Text>
+          return isTerminal ? (
+            <Button key={`${key}-${i}`} plain label={`${label}: ${colorName(id)}`} onPress={pick}>
+              <Text bold>{i === look[key] ? '[' : ' '}</Text>
+              {cell}
+              <Text bold>{i === look[key] ? ']' : ' '}</Text>
+            </Button>
+          ) : (
+            <Box key={`${key}-${i}-swatch`} flexDirection="row">
+              <Button key={`${key}-${i}`} plain onPress={pick}>
+                <Text bold color="claude">
+                  {i === look[key] ? '●' : '○'}
+                </Text>
+              </Button>
+              {cell}
+            </Box>
+          )
+        })}
       </Box>
     </Box>
   )

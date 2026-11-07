@@ -332,9 +332,10 @@ test("on the desktop the editor's padded tabs, part names and values are monospa
   await ui.unmount()
 })
 
-// The desktop app draws a Button's label in place of its children, so a
-// Button whose children are the picture has its label on the terminal alone.
-test('on the desktop the swatches, arrows, tabs and the Delegate switch draw their children, not a label', async ($, on) => {
+// The desktop app draws a Button's label in place of its children, and its
+// children as plain text: a Button there has no label, and what is coloured
+// sits beside it.
+test('on the desktop the swatches, arrows, tabs and the Delegate switch draw their children, colours beside the Button', async ($, on) => {
   watched(on)
   await $.session.start({ cwd: '/work/main', surface: 'desktop', isInteractive: true })
   const ui = await $.ui.mount({ ...PANE, surface: 'desktop' })
@@ -343,7 +344,17 @@ test('on the desktop the swatches, arrows, tabs and the Delegate switch draw the
     expect(button?.props.label).toBe(button?.text)
     return button
   }
-  expect((await drawn('mode'))?.text).toBe(' Delegate ON  ')
+  const painted = (props: Record<string, unknown>) => expect.objectContaining({ type: 'Text', props: expect.objectContaining(props) })
+  const button = (key: string) => expect.objectContaining({ type: 'Button', props: expect.objectContaining({ key }) })
+  const hasNoColour = (found: { children: unknown[] } | undefined) =>
+    expect(JSON.stringify(found?.children)).not.toMatch(/"(backgroundColor|color)":"(success|inactive|#)/)
+
+  const mode = await drawn('mode')
+  expect(mode?.text).toBe(' Delegate ')
+  hasNoColour(mode)
+  const frame = await ui.find({ key: 'mode-frame' })
+  expect(frame?.children).toEqual(expect.arrayContaining([button('mode'), painted({ color: 'success' })]))
+  expect(frame?.text).toBe(' Delegate ON  ')
   expect((await drawn('edit'))?.text).toBe(' Edit ')
 
   await ui.press({ key: 'edit' })
@@ -351,8 +362,12 @@ test('on the desktop the swatches, arrows, tabs and the Delegate switch draw the
   expect((await drawn('tab-hair'))?.text).toBe('▸ Head')
   expect((await drawn('next-hair'))?.text).toBe('▶')
   expect((await drawn('prev-hair'))?.text).toBe('◀')
+  await ui.press({ key: 'hairColor-3' })
   const swatch = await drawn('hairColor-3')
-  expect(swatch?.children).toContainEqual(expect.objectContaining({ type: 'Text', props: expect.objectContaining({ backgroundColor: '#d35400' }) }))
+  expect(swatch?.text).toBe('●')
+  hasNoColour(swatch)
+  expect((await drawn('hairColor-2'))?.text).toBe('○')
+  expect((await ui.find({ key: 'hairColor-3-swatch' }))?.children).toEqual([button('hairColor-3'), painted({ backgroundColor: '#d35400' })])
 
   await ui.press({ key: 'tab-persona' })
   expect((await drawn('next-nameColor'))?.text).toBe(' ▶ ')
