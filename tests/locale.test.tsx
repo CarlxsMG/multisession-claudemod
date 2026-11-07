@@ -71,7 +71,7 @@ test('the pane and the editor in English', { options: { language: 'en' } }, asyn
   expect(await ui.find({ type: 'Text', text: /^1 worker · 1 active$/ })).toBeDefined()
   expect((await ui.find({ key: 'mode' }))?.props.label).toBe('Delegate: ON')
   expect((await ui.find({ key: 'edit' }))?.text).toBe(' Edit ')
-  expect((await ui.find({ key: 'view-agent-1' }))?.props.label).toBe('View Pip')
+  expect((await ui.find({ key: 'view-agent-1' }))?.text).toBe('Pip')
 
   await ui.press({ key: 'edit' })
   // A new orchestrator's catchphrase is the language's own.

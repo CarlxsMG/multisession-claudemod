@@ -156,7 +156,8 @@ function nextNapDue(inRow: readonly Worker[], kit: WorkerKit, now: number): numb
 // the width takes (nine in 46 columns), for every worker but those that
 // napped away; when they do not all fit, the last place says how many
 // more there are, framed as tall as a diamond and a name and as wide as
-// that count needs, and opens the whole team. With it, the rows it takes
+// that count needs, and opens the whole team; it has no label, which the
+// desktop app would draw in place of the count. With it, the rows it takes
 // (`crewRows`) and the redraw it owes the clock (`napDue`).
 function drawCardRow($: Engine, ctx: CrewContext) {
   const { ui, kit, now, width } = ctx
@@ -211,7 +212,7 @@ function drawCardRow($: Engine, ctx: CrewContext) {
           justifyContent="center"
           alignItems="center"
         >
-          <Button key="crew-all" plain label={t().pane.showAll(hidden)} onPress={() => void updateView($, () => 'crew')}>
+          <Button key="crew-all" plain onPress={() => void updateView($, () => 'crew')}>
             <Text bold>{`+${hidden}`}</Text>
           </Button>
         </Box>

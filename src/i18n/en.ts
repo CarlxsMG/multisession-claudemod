@@ -94,10 +94,6 @@ export const en = {
     delegate: 'Delegate',
     customize: 'Customize',
     edit: 'Edit',
-    /** The card that opens the whole team, to a screen reader. */
-    showAll: (more: number) => `Show all (${more} more)`,
-    /** A worker's name, which opens its transcript, to a screen reader. */
-    view: (name: string) => `View ${name}`,
     back: '◀ Back',
     clearFinished: 'Clear finished',
     /** The pane's title, as Claude Code shows it over the pane. */

@@ -83,8 +83,8 @@ test('the pane in Spanish: its top line, its count, its controls and its figures
   expect((await ui.find({ key: 'mode' }))?.props.label).toBe('Delegar: ON')
   expect((await ui.find({ key: 'edit' }))?.text).toBe(' Editar ')
   expect((await ui.find({ key: 'edit' }))?.props.label).toBe('Personalizar')
-  expect((await ui.find({ key: 'view-agent-2' }))?.props.label).toBe('Ver a Bolt')
-  expect((await ui.find({ key: 'crew-all' }))?.props.label).toBe('Ver todos (3 más)')
+  expect((await ui.find({ key: 'view-agent-2' }))?.text).toBe('Bolt')
+  expect((await ui.find({ key: 'crew-all' }))?.text).toBe('+3')
   await ui.unmount()
 })
 

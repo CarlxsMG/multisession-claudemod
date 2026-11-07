@@ -75,8 +75,6 @@ export const es: Messages = {
     delegate: 'Delegar',
     customize: 'Personalizar',
     edit: 'Editar',
-    showAll: more => `Ver todos (${more} más)`,
-    view: name => `Ver a ${name}`,
     back: '◀ Volver',
     clearFinished: 'Limpiar terminados',
     title: 'Crew',
