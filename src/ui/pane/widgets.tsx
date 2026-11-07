@@ -143,8 +143,8 @@ export function workerKit($: Engine, ctx: PaneContext, list: Worker[], runs: rea
   // figure, and a name as long as it holds fits only in the monospaced face.
   // The Button has no label: the desktop app draws a label in place of the
   // children.
-  const name = (w: Worker) => (
-    <Text bold mono color={accentOf(w, look)} wrap="truncate-end">
+  const name = (w: Worker, bold = true) => (
+    <Text bold={bold} mono color={accentOf(w, look)} wrap="truncate-end">
       {w.name}
     </Text>
   )
@@ -156,8 +156,9 @@ export function workerKit($: Engine, ctx: PaneContext, list: Worker[], runs: rea
   // The desktop app draws a Button as its native button, whose chrome leaves
   // a card's four cells room for one letter and an ellipsis: there a card
   // shows the name alone, and the team view's rows, which have the room,
-  // open the transcript.
-  const cardName = (w: Worker) => (surface === 'terminal' ? nameButton(w) : name(w))
+  // open the transcript. Its bold monospaced face is wider than the cells a
+  // Box counts, so the name is drawn at the regular weight there.
+  const cardName = (w: Worker) => (surface === 'terminal' ? nameButton(w) : name(w, false))
 
   return { list, active, ordered, statusColor, lastRun, justEnded, figure, nameButton, cardName }
 }
