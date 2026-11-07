@@ -16,6 +16,11 @@ All notable changes to crew are written here. The format follows
   main view says how many there are. The main conversation's are listed, never stopped on their
   own; a stop that would need your approval is left for your press, with a toast saying so.
 
+### Changed
+
+- The pane's feed shows the newest message first, so what just happened is at the top without
+  scrolling; when not every message fits, the oldest are the ones left out.
+
 ### Fixed
 
 - In the desktop app a card in the pane shows a worker's whole name, as the terminal does,

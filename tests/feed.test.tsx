@@ -24,17 +24,50 @@ test('the two newest messages are bubbles and older ones one line each', async (
   const ui = await $.ui.mount({ ...PANE, surface: 'terminal', props: { ...PANE.props, scroll: { offset: 0, bodyRows: 40 } } })
   const bubbles = (await ui.findAll({ type: 'Text', text: /^╭─ \S+ → / })).map(x => x.text)
   expect(bubbles).toHaveLength(2)
-  expect(bubbles[0]).toMatch(/^╭─ Bolt → Nova/)
-  expect(bubbles[1]).toMatch(/^╭─ Mika → Nova/)
+  expect(bubbles[0]).toMatch(/^╭─ Mika → Nova/)
+  expect(bubbles[1]).toMatch(/^╭─ Bolt → Nova/)
   const lines = (await ui.findAll({ type: 'Text', text: /^ ─ \S+ → / })).map(x => x.text)
-  expect(lines[0]).toMatch(/^ ─ you → Nova · .*“Repartid el trabajo”$/)
+  expect(lines[lines.length - 1]).toMatch(/^ ─ you → Nova · .*“Repartid el trabajo”$/)
   expect(lines.filter(x => /^ ─ Nova → /.test(x))).toHaveLength(3)
   expect(lines.filter(x => /^ ─ Pip → Nova · .*“Informe 1”$/.test(x))).toHaveLength(1)
   expect(bubbles.length + lines.length).toBeGreaterThanOrEqual(6)
   // Every bubble sits on the left, whoever wrote it.
-  const frame = await ui.find({ type: 'Box', text: /^╭─ Mika → Nova/ })
+  const frame = await ui.find({ type: 'Box', text: /^╭─ Bolt → Nova/ })
   expect(frame?.props.alignItems).toBe('flex-start')
   await ui.unmount()
+})
+
+test('the newest message is first, and the rows still go to the newest', async ($, on) => {
+  let spawned = 0
+  const clock = engine(on, { nextId: () => `agent-${++spawned}` })
+  on('prompt.submit', (_, e) => ({ text: e.text }))
+  await $.session.start({ cwd: '/work/main', surface: 'desktop', isInteractive: true })
+  await $.prompt.submit({ text: 'Repartid el trabajo', wait: false, origin: { kind: 'composer' } })
+  for (let i = 1; i <= 3; i++) {
+    await $.tool.call({ tool: 'mcp__crew__delegate', task: `Task ${i}`, title: `Tarea ${i}`, repo: `/work/r${i}` })
+  }
+  for (let i = 1; i <= 3; i++) {
+    await $.turn.complete({ answer: `Informe ${i}`, durationMs: 1000, isAborted: false, turnId: `t${i}`, agentId: `agent-${i}`, reason: 'answer' })
+  }
+  await clock.advance(60_000)
+  const heads = async (bodyRows: number) => {
+    const ui = await $.ui.mount({ ...PANE, surface: 'desktop', props: { ...PANE.props, scroll: { offset: 0, bodyRows } } })
+    const found = (await ui.findAll({ type: 'Text', text: /^(╭─| ─) \S+ → / })).map(x => x.text)
+    await ui.unmount()
+    return found
+  }
+
+  const all = await heads(40)
+  expect(all[0]).toMatch(/^╭─ Mika → Nova/)
+  expect(all[1]).toMatch(/^╭─ Bolt → Nova/)
+  expect(all[2]).toMatch(/^ ─ Pip → Nova · .*“Informe 1”$/)
+  expect(all[all.length - 1]).toMatch(/^ ─ you → Nova · .*“Repartid el trabajo”$/)
+
+  // Too few rows for every message: the oldest are the ones left out.
+  const few = await heads(20)
+  expect(few.length).toBeGreaterThan(0)
+  expect(few.length).toBeLessThan(all.length)
+  expect(few).toEqual(all.slice(0, few.length))
 })
 
 test("the person's own messages are one quiet line, not a bubble", async ($, on) => {
@@ -156,15 +189,15 @@ test('a worker named like the orchestrator keeps its own color in the feed', asy
   await clock.advance(10_000)
 
   const ui = await $.ui.mount({ ...PANE, surface: 'terminal' })
-  // The brief goes from the orchestrator to the worker, its report back.
+  // The report back, newest, above the brief from the orchestrator to the worker.
   const heads = await ui.findAll({ type: 'Text', text: /^╭─ Nova → Nova · / })
   const names = heads.map(h => (h.children as { props: { bold?: boolean; color?: string } }[]).filter(c => c.props.bold === true).map(c => c.props.color))
   const orch = nameColorOf(DEFAULT_LOOK)
-  const worker = names[0]?.[1]
+  const worker = names[0]?.[0]
   expect(worker).not.toBe(orch)
   expect(names).toEqual([
-    [orch, worker],
     [worker, orch],
+    [orch, worker],
   ])
   await ui.unmount()
 })

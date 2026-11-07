@@ -55,7 +55,8 @@ function revealed(lines: readonly string[], count: number): string[] {
 /**
  * The messages under the crew, in the rows it leaves (`feedRows`): the two
  * newest the crew wrote as bubbles, typing out, the rest one line each; and
- * until when the last of them types out (0 when none does).
+ * until when the last of them types out (0 when none does). The newest is
+ * first, so what just happened is at the top without scrolling.
  */
 export function drawFeed(ctx: PaneContext, msgs: readonly Msg[], feedRows: number, colorOf: (msg: Msg, side: 'from' | 'to') => string) {
   const { ui, now, width } = ctx
@@ -143,6 +144,9 @@ export function drawFeed(ctx: PaneContext, msgs: readonly Msg[], feedRows: numbe
     )
   }
 
-  const feed = picked.length > 0 && <Box flexDirection="column">{picked.map(({ entry, lines }) => (lines ? bubble({ entry, lines }) : aside(entry.msg)))}</Box>
+  // The rows went to the newest messages first, so the order is set only
+  // after they are picked.
+  const shown = [...picked].reverse()
+  const feed = shown.length > 0 && <Box flexDirection="column">{shown.map(({ entry, lines }) => (lines ? bubble({ entry, lines }) : aside(entry.msg)))}</Box>
   return { feed, typingUntil }
 }
