@@ -64,15 +64,25 @@ export type PaneContext = {
 }
 
 /**
+ * The `label` of a Button whose children are what it shows (a swatch, an
+ * arrow, a coloured word), as props to spread: on the terminal, which draws
+ * the children and names the control by the label, and nowhere else, as the
+ * desktop app draws a label in place of the children.
+ */
+export function labelOn(surface: PaneEvent['surface'], label: string): { label?: string } {
+  return surface === 'terminal' ? { label } : {}
+}
+
+/**
  * A framed ON/OFF switch, one press target. Its word is padded so the frame
  * keeps its width when it flips, which holds in the monospaced face only.
  */
-export function toggle(ui: PaneUi, key: string, label: string, value: boolean, onPress: () => void) {
+export function toggle(ui: PaneUi, surface: PaneEvent['surface'], key: string, label: string, value: boolean, onPress: () => void) {
   const { Box, Text, Button } = ui
   const said = value ? t().pane.on : t().pane.off
   return (
     <Box key={`${key}-frame`} borderStyle="round" borderColor={value ? 'success' : 'inactive'} hover={{ borderColor: 'claude' }}>
-      <Button key={key} plain label={`${label}: ${said}`} onPress={onPress}>
+      <Button key={key} plain {...labelOn(surface, `${label}: ${said}`)} onPress={onPress}>
         <Text> {label} </Text>
         <Text bold mono color={value ? 'success' : 'inactive'}>
           {said.padEnd(3)}

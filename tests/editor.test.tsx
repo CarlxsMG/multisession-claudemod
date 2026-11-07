@@ -331,3 +331,30 @@ test("on the desktop the editor's padded tabs, part names and values are monospa
   for (const text of padded) expect(text.props.mono).toBe(true)
   await ui.unmount()
 })
+
+// The desktop app draws a Button's label in place of its children, so a
+// Button whose children are the picture has its label on the terminal alone.
+test('on the desktop the swatches, arrows, tabs and the Delegate switch draw their children, not a label', async ($, on) => {
+  watched(on)
+  await $.session.start({ cwd: '/work/main', surface: 'desktop', isInteractive: true })
+  const ui = await $.ui.mount({ ...PANE, surface: 'desktop' })
+  const drawn = async (key: string) => {
+    const button = await ui.find({ key })
+    expect(button?.props.label).toBe(button?.text)
+    return button
+  }
+  expect((await drawn('mode'))?.text).toBe(' Delegate ON  ')
+  expect((await drawn('edit'))?.text).toBe(' Edit ')
+
+  await ui.press({ key: 'edit' })
+  await ui.press({ key: 'tab-hair' })
+  expect((await drawn('tab-hair'))?.text).toBe('▸ Head')
+  expect((await drawn('next-hair'))?.text).toBe('▶')
+  expect((await drawn('prev-hair'))?.text).toBe('◀')
+  const swatch = await drawn('hairColor-3')
+  expect(swatch?.children).toContainEqual(expect.objectContaining({ type: 'Text', props: expect.objectContaining({ backgroundColor: '#d35400' }) }))
+
+  await ui.press({ key: 'tab-persona' })
+  expect((await drawn('next-nameColor'))?.text).toBe(' ▶ ')
+  await ui.unmount()
+})

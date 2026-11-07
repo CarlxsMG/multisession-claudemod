@@ -16,7 +16,7 @@ import { VIBES, vibeOf } from '../../persona/vibes'
 import { changeLook } from '../../settings/look'
 import { readEditTab, updateEditTab, updateView } from '../../state/atoms'
 import { pane } from './animation'
-import { ORCH_SEED } from './widgets'
+import { ORCH_SEED, labelOn } from './widgets'
 import type { PaneContext, PaneUi } from './widgets'
 
 // The columns a part's name takes before its ◀ value ▶. Text padded to a
@@ -50,7 +50,7 @@ function tabMenu($: Engine, ctx: PaneContext, tab: EditTab) {
   return (
     <Box flexDirection="column">
       {tabs.map(([id, label]) => (
-        <Button key={`tab-${id}`} plain label={label} onPress={() => void updateEditTab($, () => id)}>
+        <Button key={`tab-${id}`} plain {...labelOn(ctx.surface, label)} onPress={() => void updateEditTab($, () => id)}>
           <Text mono bold={id === tab} color={id === tab ? 'claude' : 'text'} dimColor={id !== tab}>
             {id === tab ? `▸ ${label}` : `  ${label}`}
           </Text>
@@ -77,7 +77,7 @@ function partControls($: Engine, ctx: PaneContext) {
         <Text dimColor mono>
           {label.padEnd(LABEL_COLUMNS)}
         </Text>
-        <Button key={`prev-${id}`} plain label={words.previous(label)} onPress={step(-1)}>
+        <Button key={`prev-${id}`} plain {...labelOn(ctx.surface, words.previous(label))} onPress={step(-1)}>
           <Text bold color="claude">
             ◀
           </Text>
@@ -85,7 +85,7 @@ function partControls($: Engine, ctx: PaneContext) {
         <Text bold mono>
           {(options[i]?.label ?? '').padEnd(VALUE)}
         </Text>
-        <Button key={`next-${id}`} plain label={words.next(label)} onPress={step(1)}>
+        <Button key={`next-${id}`} plain {...labelOn(ctx.surface, words.next(label))} onPress={step(1)}>
           <Text bold color="claude">
             ▶
           </Text>
@@ -112,7 +112,12 @@ function partControls($: Engine, ctx: PaneContext) {
       </Text>
       <Box flexDirection="row" flexWrap="wrap">
         {list.map(([id, color], i) => (
-          <Button key={`${key}-${i}`} plain label={`${label}: ${colorName(id)}`} onPress={() => void changeLook($, { [key]: i } as Partial<Look>)}>
+          <Button
+            key={`${key}-${i}`}
+            plain
+            {...labelOn(ctx.surface, `${label}: ${colorName(id)}`)}
+            onPress={() => void changeLook($, { [key]: i } as Partial<Look>)}
+          >
             <Text bold>{i === look[key] ? '[' : ' '}</Text>
             <Text backgroundColor={paintColor(hex(color))}>{'  '}</Text>
             <Text bold>{i === look[key] ? ']' : ' '}</Text>
@@ -195,13 +200,13 @@ function personaTab($: Engine, ctx: PaneContext) {
   const recolor = (by: number) => () => void changeLook($, { nameColor: (look.nameColor + by + NAME_COLORS.length) % NAME_COLORS.length })
   const nameColorStepper = (
     <Box flexDirection="row">
-      <Button key="prev-nameColor" plain label={words.previous(words.nameColor)} onPress={recolor(-1)}>
+      <Button key="prev-nameColor" plain {...labelOn(ctx.surface, words.previous(words.nameColor))} onPress={recolor(-1)}>
         <Text bold color="claude">
           {' ◀ '}
         </Text>
       </Button>
       <Text backgroundColor={nameColorOf(look)}>{'  '}</Text>
-      <Button key="next-nameColor" plain label={words.next(words.nameColor)} onPress={recolor(1)}>
+      <Button key="next-nameColor" plain {...labelOn(ctx.surface, words.next(words.nameColor))} onPress={recolor(1)}>
         <Text bold color="claude">
           {' ▶ '}
         </Text>
