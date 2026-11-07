@@ -435,4 +435,23 @@ export const GOLDEN: Record<string, string> = {
     "{\"type\":\"control_request\",\"request_id\":\"crew-usage\",\"request\":{\"subtype\":\"get_usage\"}}",
     "",
   ].join('\n'),
+  "compact.main": [
+    "The crew plugin asks this summary to keep what coordinating the crew needs:",
+    "- Every crew worker named so far: its name and address, what it was given, what it owns (files, branch, worktree), and whether its report came back.",
+    "- Tasks in flight, and who waits on whom.",
+    "- The user's decisions and approvals, word for word where short.",
+    "- Branches, commits, pull requests and issues, with their numbers and state.",
+    "- The agreed plan and its next step.",
+    "- What came back but was not yet told to the user.",
+    "Leave out file contents, diffs and command output, reports already summarized to the user or superseded by a later one, roster listings, and the persona's chatter.",
+  ].join('\n'),
+  "compact.worker": [
+    "The crew plugin asks this summary to keep what this worker needs to finish: its task as given, word for word where short; the files it changed, its branch, worktree and commits; its teammates' addresses, and what it waits for from whom; the checks it ran and their results; and what its final report still owes. Leave out file contents, diffs and command output it already acted on.",
+  ].join('\n'),
+  "compact.crewState": [
+    "[crew] The crew as of the last compaction or resume, for the main assistant (a worker ignores this). It goes stale: call mcp__crew__roster for live state; reports that came back since arrive on their own.",
+    "Nova's crew (1):",
+    "- Pip: address \"pip\", done, repo /work/api, model test-model, 1 task, 0 tokens, last task \"Login\"",
+    "  last report: Done: 3 files changed, tests green.",
+  ].join('\n'),
 }
