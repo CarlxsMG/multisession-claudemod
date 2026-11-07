@@ -3,7 +3,7 @@
 import type { HookFor } from 'claude-code'
 
 import { BACKGROUND_TOOLS } from '../background/tasks'
-import { noteBackground } from '../background/sweep'
+import { beforeTaskStop, noteBackground } from '../background/sweep'
 import { DELEGATE, PLUGIN, PROGRESS } from '../config'
 import { gistOf, markCall, markCrewCall, setJob, setOrch } from '../crew/feed'
 import { noteSendGist } from '../crew/sends'
@@ -59,8 +59,9 @@ export async function watchCall($: Engine, e: Parameters<WatchCallHook>[1], next
   const isTodos = e.agentId !== undefined && TODO_TOOLS.has(e.tool)
   const isBackground = BACKGROUND_TOOLS.has(e.tool)
   if (!isTodos && !isBackground) return next(e)
+  const stopping = e.tool === 'TaskStop' ? await quiet($, beforeTaskStop($, e), 'background stop') : undefined
   const done = await next(e)
   if (isTodos && e.agentId !== undefined && done.result !== undefined) await noteTodos($, e.agentId, call, done.result)
-  if (isBackground) await quiet($, noteBackground($, e.tool, e, e.agentId, done), 'background task')
+  if (isBackground) await quiet($, noteBackground($, e.tool, e, e.agentId, done, stopping), 'background task')
   return done
 }

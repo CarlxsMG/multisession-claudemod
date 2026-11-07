@@ -1,6 +1,6 @@
 import { expect, test } from 'claude-code/testing'
 
-import { START_SLACK_MS, matchesCommand, orphansToKill, parsePs, parseSnapshot, rootOf, tokens } from '../../src/background/orphans'
+import { START_SLACK_MS, isTaskRunning, matchesCommand, orphansToKill, parsePs, parseSnapshot, rootOf, tokens } from '../../src/background/orphans'
 import type { Proc } from '../../src/background/orphans'
 
 const T0 = 1_700_000_000_000
@@ -83,4 +83,28 @@ test("ps's table reads in the C locale: ids, the start to the second, and the co
     proc(101, 1, Date.parse('Thu Nov 7 10:00:00 2026'), '/usr/bin/claude'),
     proc(202, 101, Date.parse('Thu Nov 7 10:00:05 2026'), '/bin/bash -c timeout 900 sleep 900'),
   ])
+})
+
+// What the live test left running after its tasks were stopped, as
+// Windows PowerShell 5.1 printed it: Tito's `timeout 900 sleep 901`, and the
+// main session's `timeout 720 bash -c '…'`, each parent gone.
+const LIVE_TABLE = String.raw`[{"ProcessId":51656,"ParentProcessId":45020,"CreationDate":"\/Date(1794053554742)\/","CommandLine":"\"C:\\Program Files\\Git\\usr\\bin\\timeout.exe\" 900 sleep 901"},{"ProcessId":48324,"ParentProcessId":32636,"CreationDate":"\/Date(1794053565344)\/","CommandLine":"\"C:\\Program Files\\Git\\usr\\bin\\timeout.exe\" 720 bash -c \"while powershell -NoProfile -Command \\\"@(Get-CimInstance Win32_Process | ? { \\$_.CommandLine -match \\\\\\\"sleep 901\\\\\\\" -and \\$_.Name -ne \\\\\\\"powershell.exe\\\\\\\" -and \\$_.Name -ne \\\\\\\"bash.exe\\\\\\\" }).Count\\\" | grep -qv \\\"^0\\\"; do sleep 10; done; echo \\\"GONE at $(date +%T)\\\"\""}]`
+const LOOP = String.raw`timeout 720 bash -c 'while powershell -NoProfile -Command "@(Get-CimInstance Win32_Process | ? { $_.CommandLine -match \"sleep 901\" -and $_.Name -ne \"powershell.exe\" -and $_.Name -ne \"bash.exe\" }).Count" | grep -qv "^0"; do sleep 10; done; echo "GONE at $(date +%T)"'`
+
+test("the live test's orphaned timeout.exe processes are the stopped tasks' to end, by their real table", () => {
+  const after = parseSnapshot(LIVE_TABLE)
+  expect(after.map(p => [p.pid, p.ppid, p.createdAt])).toEqual([
+    [51656, 45020, Date.parse('2026-11-07T12:12:34.742Z')],
+    [48324, 32636, Date.parse('2026-11-07T12:12:45.344Z')],
+  ])
+  // Tito's call was answered at 12:12:34.685, 57 ms before its timeout.exe started.
+  expect(orphansToKill([], after, 'timeout 900 sleep 901', Date.parse('2026-11-07T12:12:34.685Z'))).toEqual([51656])
+  // A quoted script is matched by the words ahead of it, its quoting being spelled otherwise there.
+  expect(orphansToKill([], after, LOOP, Date.parse('2026-11-07T12:12:45.300Z'))).toEqual([48324])
+})
+
+test("a task's process still running, its shell's included, keeps the look going until it is gone or ended", () => {
+  expect(isTaskRunning([], [CLAUDE, BASH, TIMEOUT], 'timeout 900 sleep 900', T0, [])).toBe(true)
+  expect(isTaskRunning([], [CLAUDE, TIMEOUT], 'timeout 900 sleep 900', T0, [300])).toBe(false)
+  expect(isTaskRunning([], [CLAUDE], 'timeout 900 sleep 900', T0, [])).toBe(false)
 })

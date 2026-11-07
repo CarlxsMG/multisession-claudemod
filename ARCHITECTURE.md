@@ -297,15 +297,18 @@ nor one another entry has, the one whose parent is none of them. The team view s
 process, leaves the entry without one.
 
 On Windows (`OS` is `Windows_NT`) TaskStop ends the task's shell but not what it started, which
-runs on with no parent. So around every stop but the session's end the crew reads the process
-table (`Get-CimInstance Win32_Process` through PowerShell, 8 s at most) before the call and again
-a second after it, without holding up the tick, and ends with `taskkill /T /F` each process of the
-second table that has no parent (its id is gone or names a younger process), started no earlier
-than the task (5 s of slack; a shell backgrounded at its timeout started that long before its
-call was answered), and either runs the task's command (`matchesCommand`: its simple commands'
-words in order, paths to their names, `npm` for `npm-cli.js`) or sat under a process that did in
-the first table. A command line naming `claude` is never ended. What ends is logged to the debug
-log; what does not, said in a toast. A table that cannot be read ends nothing.
+runs on with no parent. So around every successful TaskStop of a recorded task, the crew's own
+(but at the session's end) and the model's alike (`beforeTaskStop` in `watchCall`, the main
+session's included), the crew reads the process table (`Get-CimInstance Win32_Process` through
+PowerShell, 8 s at most) before the call, and looks again 1, 3 and 8 seconds after it, without
+holding up the tick or the call, until none of the task's processes runs. At each look it ends
+with `taskkill /T /F` each of the task's processes that has no parent (its id is gone or names a
+younger process). The task's processes started no earlier than the task (5 s of slack; a shell
+backgrounded at its timeout started that long before its call was answered) and either run its
+command (`matchesCommand`: the first four words of each simple command, up to a quoted or expanded
+one, in order, paths to their names, `npm` for `npm-cli.js`) or sat under a process that did in the
+table before the stop, when that one was read. A command line naming `claude` is never ended. What
+ends is logged to the debug log; what does not, and a table no look could read, said in a toast.
 
 ### The brief and `[crew]` notes
 
