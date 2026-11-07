@@ -33,6 +33,10 @@ export const es: Messages = {
   notDelivered: (text, reason) => (reason === undefined ? `${text} (no entregado)` : `${text} (no entregado: ${reason})`),
   missedWorker: (name, reason) => `No llegó a ${name}: ${reason}`,
   missedRelay: (name, by, reason) => `No llegó a ${name} el mensaje de ${by}: ${reason}`,
+  compaction: {
+    done: 'Conversación compactada; el resumen conserva el equipo',
+    skipped: reason => `No se compactó la conversación: ${reason}`,
+  },
   background: {
     stopFailed: (what, reason) => `No se pudo detener ${what}: ${reason}`,
     refused: 'necesita tu aprobación; pulsa Detener en el panel del equipo',

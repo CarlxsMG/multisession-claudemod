@@ -1,6 +1,7 @@
 import type { Register } from 'claude-code'
 
 import { onSessionEnd, onStop, onSubagentStop } from '../src/background/sweep'
+import { chooseCompactAt } from '../src/crew/compaction'
 import { onSend } from '../src/crew/sends'
 import { nameShell } from '../src/crew/shell-title'
 import { onSpawn } from '../src/crew/spawn'
@@ -10,7 +11,7 @@ import { runCrewCommand } from '../src/hooks/commands'
 import { crewContext, onCompact } from '../src/hooks/compact'
 import { composePrompt, onSubmit } from '../src/hooks/prompt'
 import { onAttach, onMeasure, onModelSwitch, onSessionStart } from '../src/hooks/session'
-import { delegateTool, progressTool, rosterTool } from '../src/hooks/tools'
+import { compactTool, delegateTool, progressTool, rosterTool } from '../src/hooks/tools'
 import { onTurnComplete, onTurnStart } from '../src/hooks/turns'
 import { watchCall } from '../src/hooks/watch'
 import { DELEGATE_FAILED, SEND_UNSURE } from '../src/prompts/results'
@@ -41,6 +42,7 @@ export const register: Register = (on, options) => {
   chooseLocale(options.language)
   chooseUsageProbe(options.usageProbe)
   chooseNapAfter(options.napAfter)
+  chooseCompactAt(options.compactAt)
 
   on('session.start', ($, e, next) => onSessionStart($, e, next))
 
@@ -59,6 +61,8 @@ export const register: Register = (on, options) => {
   on('tool.call', { tool: /^mcp__crew__roster$/ }, ($, e) => rosterTool($, e))
 
   on('tool.call', { tool: /^mcp__crew__progress$/ }, ($, e) => progressTool($, e))
+
+  on('tool.call', { tool: /^mcp__crew__compact$/ }, ($, e) => compactTool($, e))
 
   on('prompt.compose', ($, e, next) => composePrompt($, e, next))
 

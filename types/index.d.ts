@@ -291,6 +291,18 @@ export type BackgroundTask = {
   pid?: number
 }
 
+/**
+ * A compaction of the main conversation waiting for a safe moment: what the
+ * summary should stress (`focus`, '' for nothing more than the crew's), what
+ * it waits for (`idle`: no worker busy; `reports`: also the round over and
+ * the orchestrator's turn since its last report), who asked (the
+ * orchestrator's tool, or the `compactAt` threshold), and when.
+ */
+export type CompactAsk = { focus: string; after: 'idle' | 'reports'; by: 'model' | 'threshold'; askedAt: number }
+
+/** The compaction waiting, if any, and when the crew last ran one (0 for never). */
+export type Compaction = { ask: CompactAsk | null; lastAt: number }
+
 declare module 'claude-code' {
   interface PluginState {
     crew: {
@@ -329,6 +341,7 @@ declare module 'claude-code' {
       taskLists: Shaped<TaskList[]>
       noteFirst: Shaped<NoteFirst[]>
       background: Shaped<BackgroundTask[]>
+      compactAsk: Shaped<Compaction>
     }
   }
 }

@@ -8,7 +8,7 @@ rules the code relies on. Words in **bold** on first use are defined in the [Glo
 
 crew is a Claude Code plugin with one **hooks module**, `hooks/register.tsx` (named by
 `hooks/hooks.json`). Claude Code loads it and calls `register(on, options)`, where `options` holds
-the plugin's `userConfig` values (`language`, `usageProbe`, `napAfter`). Each
+the plugin's `userConfig` values (`language`, `usageProbe`, `napAfter`, `compactAt`). Each
 `on(event, matcher?, handler)` call adds a hook.
 
 - **A hook** receives `$` (the engine: `$.state`, `$.store`, `$.ui`, `$.agent`, `$.session`,
@@ -41,7 +41,7 @@ the debug log. Its `unrecognized` logs there an engine text the crew reads in no
 | --- | --- |
 | `hooks/register.tsx` | Every hook, each matcher written inline. Nothing else. |
 | `src/hooks/` | The hook bodies: the session's events (`session.ts`), the `/crew` command (`commands.ts`), the crew's tools (`tools.ts`), every tool call watched (`watch.ts`), turn starts and ends (`turns.ts`), the system prompt and the user's messages (`prompt.ts`), compaction (`compact.ts`). |
-| `src/crew/` | The crew itself: the worker list and its statuses (`workers.ts`), `delegate` (`delegate.ts`), the spawn hook (`spawn.ts`) and the name it puts ahead of an agent's title (`title.ts`) and of a worker's background shell or Monitor (`shell-title.ts`), the send hook (`sends.ts`), relays (`relay.ts`), takeovers and held tasks (`takeover.ts`), one way to send and record (`deliver.ts`), the sync with the engine's agents (`sync.ts`), the user's message to a worker (`message.ts`), what the pane and the rows are drawn from (`feed.ts`), and the roster's data (`roster.ts`). |
+| `src/crew/` | The crew itself: the worker list and its statuses (`workers.ts`), `delegate` (`delegate.ts`), the spawn hook (`spawn.ts`) and the name it puts ahead of an agent's title (`title.ts`) and of a worker's background shell or Monitor (`shell-title.ts`), the send hook (`sends.ts`), relays (`relay.ts`), takeovers and held tasks (`takeover.ts`), compactions the crew starts (`compaction.ts`), one way to send and record (`deliver.ts`), the sync with the engine's agents (`sync.ts`), the user's message to a worker (`message.ts`), what the pane and the rows are drawn from (`feed.ts`), and the roster's data (`roster.ts`). |
 | `src/guard/runaway.ts` | The guard on Bash and PowerShell calls: it refuses a command that would not end (`tail -f`, `watch`, a watch mode, an endless loop), the main session's and every worker's. |
 | `src/prompts/` | Nearly every text a model reads ([docs/model-behavior.md](docs/model-behavior.md) lists them all): the orchestrator's brief and `[crew]` note (`orchestrator.ts`), the workers' preamble and the texts the crew sends them (`worker.ts`), the tool specs (`tools.ts`), the tool results and their parsers (`results.ts`), the roster's text (`roster.ts`), and what the `/crew` command answers (`commands.ts`). |
 | `src/progress/` | Progress, which no model reads: `run-store.ts` is the only module that records runs with the engine, `calls.ts` holds tool calls for the pane's next frame, `todos.ts` reads a plan off a todo list, `status.ts` pins the status line, `placed.ts` places the rows and keeps the check-in interval, and `tick.ts` is the progress tick; `runs.ts`, `round.ts`, `plan.ts`, `phase.ts`, `check-in.ts` are pure; `text/` builds the status line, the team view, the cards and the placed rows. |
@@ -105,6 +105,7 @@ under, so it never changes even where the code name differs.
 | `taskLists` | `taskLists` | `taskLists-1` | Each worker's TaskCreate items in its run, up to 80 workers of 100 items |
 | `noteFirst` | `noteFirst` | `noteFirst-1` | What each end-of-task row was first drawn with, up to 300 |
 | `background` | `background` | `background-1` | Shells and Monitors left running in the background, whose each is, its process and when its owner's turn ended, up to 100 |
+| `compactAsk` | `compaction` | `compactAsk-1` | The compaction the orchestrator or `compactAt` asked for, until a safe moment runs it, and when the crew last ran one |
 
 The last five hold what a call under way leaves for the hooks that follow it, which a reload of
 the plugin's code may come between: a spawn auto mode handed to the orchestrator, an Agent call
@@ -121,7 +122,7 @@ the names given, the agents the engine listed, the check-in interval, the status
 widths and the run times, the tool calls and the end-of-task rows' first drawings held for the next
 frame (a drawing may not write the state), the usage probe's permission and time, the pane's
 frame, the look it last showed, rasters and the redraws it owes, the last `[crew]` check, the mood lines asked for, and
-the kinds of engine wording logged. It is one typed object
+the kinds of engine wording logged, and whether a compaction the crew started is under way, when the main turn last ended and the auto-compaction threshold as last read. It is one typed object
 in parts, each read and written only by the module its comment names; another module goes
 through that module's functions. It imports types only.
 
@@ -133,7 +134,7 @@ writes, which work an earlier session started still holds its place in, and the 
 placed rows' ids apart, as those rows outlive the load.
 
 Outside it: what `register` takes from the plugin's options before the session starts (the
-`language`, `usageProbe` and `napAfter` choices), the locale and the 256-colour palette `session.start`
+`language`, `usageProbe`, `napAfter` and `compactAt` choices), the locale and the 256-colour palette `session.start`
 settles (read on every drawing, through `t()` and `onScreen`), and the colour-fitting memo of
 `src/figure/color256.ts`, which gives the same answer in any session.
 
@@ -162,7 +163,7 @@ holds no look, and is turned down as a bad code.
 | --- | --- | --- |
 | Pane tick (`tick`) | `TICK_MS`, 400 ms | Advances the figures' frame and blits each changed raster in place. Every 12 frames (4.8 s) redraws the pane for its ages, when it is mounted or shown as a page. Redraws when a nap or an end highlight is due. Writes the workers' tool calls held since the last frame, and what the end-of-task rows drawn since were first drawn with. Sends due relays. Every 8 frames (3.2 s) syncs the crew with the engine's agent list and lifts takeovers; between those, lifts takeovers a turn end asked for. Every 25 frames (10 s) looks for a batch of mood lines to ask Haiku for. |
 | Typing tick (`typeTick`) | 90 ms, 180 ms on Terminal.app | Types out the newest bubbles in the feed. Runs only while one types: the drawing that shows it starts the timer, and the tick that draws it whole, the pane closing or a session's start stops it. |
-| Progress tick (`progressTick`) | 1 s | Closes runs whose end was missed, writes the status line, brings the round's newest check-in up to date (`followCheckIn`, even while the main turn runs), places the rows that waited for the main turn, places check-ins and the round's summary, and stops the background tasks of agents that are done (see Background tasks). |
+| Progress tick (`progressTick`) | 1 s | Closes runs whose end was missed, writes the status line, brings the round's newest check-in up to date (`followCheckIn`, even while the main turn runs), places the rows that waited for the main turn, places check-ins and the round's summary, stops the background tasks of agents that are done (see Background tasks), and runs a compaction asked for once it is safe (see Compaction). |
 | Usage probe (`probeUsage`) | At most every 3 min | Runs a headless `claude -p` for Fable's weekly window; started at session start, when the engine measures new windows, and when an app attaches; never with the `usageProbe` option `off`. |
 
 ## Main flows
@@ -333,6 +334,16 @@ added to the compacted list: the engine asks for the context again after a compa
 block of a plugin's own where the conversation holds none, placed where it never splits a tool call
 from its result. The block is the roster's text as it stands at that request, with a line saying it
 goes stale; an empty crew adds none.
+
+The orchestrator asks for a compaction with `mcp__crew__compact` (`focus`, `after`), and the
+`compactAt` option asks for one when the context reaches that share of the auto-compaction
+threshold (read with `$.session.usage({ breakdown: 'summary' })` once a minute; the fill itself is
+free to read). A turn cannot compact itself, so the ask waits in `compactAsk`, and the progress tick
+runs it (`compactWhenSafe`) while the main turn is not under way, no worker is busy, no row is due
+and no takeover stands; `after: "reports"` also waits for the round to close and for a main turn
+since the last run ended. The crew starts at most one every 10 minutes (`COMPACT_GAP_MIN`) and does
+not wait for it: one a turn that began refuses stays queued for the next safe moment; one that
+stands or is skipped clears its ask, with a toast.
 
 ### Keeping in step with the engine
 

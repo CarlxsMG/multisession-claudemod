@@ -44,6 +44,11 @@ export const en = {
   /** The toasts of a message that did not arrive. */
   missedWorker: (name: string, reason: string) => `Did not reach ${name}: ${reason}`,
   missedRelay: (name: string, by: string, reason: string) => `${by}'s message did not reach ${name}: ${reason}`,
+  /** The toasts of a compaction the crew ran: it stood, or why the engine or a plugin skipped it. */
+  compaction: {
+    done: 'Compacted the conversation; the summary keeps the crew',
+    skipped: (reason: string) => `Did not compact the conversation: ${reason}`,
+  },
   /** The shells and Monitors left running in the background. */
   background: {
     /** The toast of a stop that failed or was refused: what the task runs, and why. */

@@ -1,9 +1,9 @@
 import { expect } from 'claude-code/testing'
 import type { TestBody } from 'claude-code/testing'
-import type { On, SessionCompactInput } from 'claude-code'
+import type { On, SessionCompactInput, SessionContextBreakdown } from 'claude-code'
 
 import { COMPACT_MAIN, COMPACT_WORKER } from '../src/prompts/compact'
-import { engine, test } from './support/crew'
+import { engine, progressCrew, test } from './support/crew'
 
 type Dollar = Parameters<TestBody>[0]
 
@@ -73,3 +73,103 @@ test('the context after a compaction carries the crew as the roster has it; an e
   expect(text).toMatch(/^\[crew\] The crew as of the last compaction or resume, .*call mcp__crew__roster for live state/)
   expect(text).toMatch(/\nNova's crew \(1\):\n- Pip: address "pip", /)
 })
+
+// A compaction the crew starts: the engine beneath records what it ran with,
+// and answers each as `answer` says (a summary, a skip, or a turn refusing it).
+function scheduledCompactor(on: On) {
+  const ran: (string | undefined)[] = []
+  const answer = { now: 'compact' as 'compact' | 'skip' | 'busy' }
+  on('session.compact', (_, e) => {
+    if (answer.now === 'busy') throw new Error('a turn is running')
+    ran.push(e.instructions)
+    if (answer.now === 'skip') return { skip: 'a plugin said no' }
+    return { messages: [{ role: 'user' as const, text: 'Summary.', toolUses: [] }] }
+  })
+  return { ran, answer }
+}
+
+const compactCall = async ($: Dollar, input: Record<string, unknown>, agentId?: string) =>
+  String((await $.tool.call({ tool: 'mcp__crew__compact', ...input, ...(agentId ? { agentId } : {}) } as never)).result)
+
+test("the orchestrator's compaction waits for no worker busy, runs once with the crew's instructions, and the next waits 10 minutes", async ($, on) => {
+  const { ran } = scheduledCompactor(on)
+  const { clock, delegate, end, toasts } = await progressCrew($, on)
+  await delegate('Fix the login', '/work/api', 'Login')
+
+  expect(await compactCall($, { focus: 'the billing phase' })).toBe(
+    'Compaction queued: it runs between turns once no worker is busy. End your turn when you are done; a later call replaces this one.',
+  )
+  await clock.advance(5000)
+  expect(ran).toHaveLength(0)
+
+  await end('agent-1')
+  await clock.advance(3000)
+  expect(ran).toEqual([`Stress for what comes next: the billing phase\n\n${COMPACT_MAIN}`])
+  expect(toasts).toContain('Compacted the conversation; the summary keeps the crew')
+
+  expect(await compactCall($, {})).toMatch(/, in 10 min at the soonest \(one every 10 min\)\./)
+  await clock.advance(5 * 60_000)
+  expect(ran).toHaveLength(1)
+  await clock.advance(5 * 60_000 + 2000)
+  expect(ran).toEqual([`Stress for what comes next: the billing phase\n\n${COMPACT_MAIN}`, COMPACT_MAIN])
+})
+
+test('a compaction a turn refuses stays queued and runs at the next safe moment; a skipped one is told and dropped', async ($, on) => {
+  const { ran, answer } = scheduledCompactor(on)
+  const { clock, toasts } = await progressCrew($, on)
+  answer.now = 'busy'
+  await compactCall($, {})
+  await clock.advance(3000)
+  expect(ran).toHaveLength(0)
+  answer.now = 'skip'
+  await clock.advance(2000)
+  expect(ran).toEqual([COMPACT_MAIN])
+  expect(toasts).toContain('Did not compact the conversation: a plugin said no')
+  await clock.advance(20 * 60_000)
+  expect(ran).toHaveLength(1)
+})
+
+test('a compaction that waits for reports runs only after a turn of the orchestrator since the last one came in', async ($, on) => {
+  const { ran } = scheduledCompactor(on)
+  const { clock, delegate, end, mainTurn } = await progressCrew($, on)
+  await delegate('Fix the login', '/work/api', 'Login')
+  await compactCall($, { after: 'reports' })
+  await clock.advance(1000)
+  await end('agent-1')
+  await clock.advance(5000)
+  expect(ran).toHaveLength(0)
+
+  const done = await mainTurn()
+  await clock.advance(2000)
+  expect(ran).toHaveLength(0)
+  await done()
+  await clock.advance(2000)
+  expect(ran).toEqual([COMPACT_MAIN])
+})
+
+test("a worker is told the compact tool is the orchestrator's, and nothing is queued", async ($, on) => {
+  const { ran } = scheduledCompactor(on)
+  const { clock, delegate } = await progressCrew($, on)
+  await delegate('Fix the login', '/work/api', 'Login')
+  expect(await compactCall($, {}, 'agent-1')).toBe("mcp__crew__compact compacts the orchestrator's conversation; a worker's is compacted by the engine.")
+  await clock.advance(20 * 60_000)
+  expect(ran).toHaveLength(0)
+})
+
+for (const [option, tokens, runs] of [
+  ['70%', 150_000, 1],
+  ['70%', 130_000, 0],
+  ['off', 190_000, 0],
+] as const) {
+  test(
+    `with compactAt ${option}, a context of ${tokens} tokens against a threshold of 200000 ${runs ? 'compacts' : 'does not compact'} on its own`,
+    { options: { compactAt: option } },
+    async ($, on) => {
+      const breakdown = { autoCompactThreshold: 200_000, isAutoCompactEnabled: true } as SessionContextBreakdown
+      const { ran } = scheduledCompactor(on)
+      const { clock } = await progressCrew($, on, {}, { context: () => ({ tokens, window: 1_000_000, breakdown }) })
+      await clock.advance(3000)
+      expect(ran).toHaveLength(runs)
+    },
+  )
+}

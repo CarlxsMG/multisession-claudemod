@@ -8,6 +8,11 @@ All notable changes to crew are written here. The format follows
 
 ### Added
 
+- The orchestrator can compact its own conversation at a good moment with `mcp__crew__compact`:
+  before a new phase, or once a batch of reports is told to you. It runs between turns once no
+  worker is busy, at most once every 10 minutes, and a toast says when it ran. The `compactAt`
+  option (`off`, `70%`, `85%`) has the crew queue one on its own as the context fills, ahead of
+  Claude Code's automatic compaction.
 - Compacting the orchestrator's conversation keeps what coordinating the crew needs: the summary
   is asked to keep each worker's name, address and what it owns, tasks in flight, your decisions,
   branches, pull requests and issues, and to leave out file dumps and superseded reports, after

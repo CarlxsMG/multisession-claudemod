@@ -280,7 +280,12 @@ export const textIn = (x: unknown): string =>
 // rows placed. The orchestrator delegates in a turn of its own that then
 // ends, as it does in a session; the engine's list has each worker running
 // until its turn ends, and running again once it is given more.
-export async function progressCrew($: Parameters<TestBody>[0], on: On, stored: Record<string, unknown> = {}, more: Pick<EngineOptions, 'host' | 'probe'> = {}) {
+export async function progressCrew(
+  $: Parameters<TestBody>[0],
+  on: On,
+  stored: Record<string, unknown> = {},
+  more: Pick<EngineOptions, 'host' | 'probe' | 'context'> = {},
+) {
   let spawned = 0
   const states = new Map<string, AgentInfo['status']>()
   const agents = (): AgentInfo[] =>

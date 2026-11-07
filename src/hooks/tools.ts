@@ -1,10 +1,12 @@
-// The crew's own tools: delegate, roster and progress.
+// The crew's own tools: delegate, roster, progress and compact.
 import type { MatchedHook } from 'claude-code'
 
+import { askCompaction } from '../crew/compaction'
 import { delegateInTurn, refuseWorker } from '../crew/delegate'
 import { rosterText } from '../crew/roster'
 import type { Engine } from '../engine'
 import { declarePlan } from '../progress/plan'
+import { COMPACT_NOT_FOR_WORKERS } from '../prompts/compact'
 import { setPlan } from '../progress/run-store'
 import { PROGRESS_INVALID, PROGRESS_NOT_FOR_MAIN, PROGRESS_NO_RUN, progressReply } from '../prompts/results'
 import { fieldOf, rawStringArg } from '../util/input'
@@ -41,4 +43,14 @@ export async function progressTool($: Engine, e: CrewToolCall) {
   const doing = rawStringArg(e, 'doing') ?? ''
   const isNoted = await setPlan($, e.agentId, prev => declarePlan(prev, step, total, doing))
   return { result: isNoted ? progressReply(declarePlan(undefined, step, total, doing)) : PROGRESS_NO_RUN }
+}
+
+/**
+ * The compact tool: the orchestrator queues a compaction of its own
+ * conversation for a safe moment; a worker is told whose tool it is.
+ */
+export async function compactTool($: Engine, e: CrewToolCall) {
+  if (e.agentId !== undefined) return { result: COMPACT_NOT_FOR_WORKERS }
+  const after = rawStringArg(e, 'after') === 'reports' ? 'reports' : 'idle'
+  return { result: await askCompaction($, (rawStringArg(e, 'focus') ?? '').trim(), after) }
 }

@@ -5,6 +5,7 @@ import type { HookFor } from 'claude-code'
 import { ORCH_ID, USER_ID, say } from '../crew/feed'
 import type { Engine } from '../engine'
 import { t } from '../i18n'
+import { COMPACT_BRIEF } from '../prompts/compact'
 import { crewNote } from '../prompts/orchestrator'
 import { heldMissedNote } from '../prompts/results'
 import { checkConversation, freezeBrief, sameSettings, saveTold, sessionKey } from '../settings/notes'
@@ -14,13 +15,20 @@ import { unwrapPasted } from '../util/text'
 type ComposePromptHook = HookFor<'prompt.compose'>
 /**
  * Adds the orchestrator's brief to the main conversation's system prompt, as
- * this load froze it.
+ * this load froze it, and the line on when to compact in a section of its own,
+ * which the delegate tool's description does not carry.
  */
 export async function composePrompt($: Engine, e: Parameters<ComposePromptHook>[1], next: Parameters<ComposePromptHook>[2]) {
   const composed = await next(e)
   if (e.traits.includes('teammate')) return composed
   const text = (await readBrief($)) || (await freezeBrief($))
-  return { sections: [...composed.sections, { id: 'crew:orchestrator', text, scope: 'session' as const }] }
+  return {
+    sections: [
+      ...composed.sections,
+      { id: 'crew:orchestrator', text, scope: 'session' as const },
+      { id: 'crew:compact', text: COMPACT_BRIEF, scope: 'session' as const },
+    ],
+  }
 }
 
 type OnSubmitHook = HookFor<'prompt.submit'>

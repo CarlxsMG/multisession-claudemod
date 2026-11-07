@@ -29,10 +29,15 @@ happens.
   reuse the worker that already knows an area, to run independent parts in parallel and to
   steer workers with `SendMessage`. The brief is frozen for the load, so the prompt cache stays
   whole; later changes reach the model as one short `[crew]` note with your next message.
-- **Three tools for the orchestrator.** `mcp__crew__delegate` gives a task to a worker: the one
+- **Tools for the orchestrator.** `mcp__crew__delegate` gives a task to a worker: the one
   you name, the most recent free one that worked in that repository (it keeps its context), or a
-  new one. `mcp__crew__roster` lists the crew for the model. Workers call `mcp__crew__progress`
-  to declare a plan and the step they are on.
+  new one. `mcp__crew__roster` lists the crew for the model. `mcp__crew__compact` queues a
+  compaction of the orchestrator's conversation for a safe moment: between turns, no worker busy,
+  one every 10 minutes at most. Workers call `mcp__crew__progress` to declare a plan and the step
+  they are on.
+- **Compaction that keeps the crew.** Any compaction of the orchestrator's conversation asks the
+  summary to keep the workers, tasks in flight, your decisions, branches and pull requests, and
+  the crew's roster follows it.
 - **Workers that report briefly and work safely.** Every worker hears that its report goes back to
   a conversation that must stay small: result first, then facts. In a git repository it commits
   its own work on a `crew/*` branch or worktree, never on the main branch unless you asked.
@@ -162,6 +167,10 @@ code.
   one stays at least while its end stands out (30 s), whatever the setting; with `never` no worker
   leaves the row. One that left is still in the team view and the roster, and comes back when it
   is woken.
+- **Compact at** (`compactAt` option of the plugin: `off`, `70%` or `85%`; `off` by default). With
+  a share set, the crew queues a compaction on its own once the context reaches that share of
+  Claude Code's auto-compaction threshold, and runs it at the next moment no worker is busy, before
+  Claude Code's own would cut in. A toast says when it ran, or why not.
 
 ## Compatibility
 

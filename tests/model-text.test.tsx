@@ -67,6 +67,7 @@ for (const isOn of [true, false]) {
       expectText('spec.delegate.inputSchema', spec('delegate').inputSchema)
       expectText('spec.roster', spec('roster'))
       expectText('spec.progress', spec('progress'))
+      expectText('spec.compact', spec('compact'))
     }
   })
 }
@@ -292,6 +293,23 @@ test("what a compaction's summarizer is told, the main conversation's and a work
   expectText('compact.worker', told[1])
   const blocks = (await $.prompt.context({ blocks: [] })).blocks
   expectText('compact.crewState', blocks.find(b => b.name === 'crewState')?.text)
+})
+
+test("the line on when to compact, in its own section of the system prompt, and the compact tool's answers", async ($, on) => {
+  const clock = engine(on)
+  on('session.compact', () => ({ messages: [{ role: 'user' as const, text: 'Summary.', toolUses: [] }] }))
+  on('ui.toast', () => ({ value: undefined }))
+  composed(on)
+  await start($)
+  const sections = (
+    await $.prompt.compose({ model: 'test-model', promptModel: 'test-model', surfaces: ['terminal'], tools: [DELEGATE], outputStyle: null, traits: [] })
+  ).sections
+  expectText('brief.compact', sections.find(s => s.id === 'crew:compact')?.text)
+  const compact = async (input: Record<string, unknown>) => String((await $.tool.call({ tool: 'mcp__crew__compact', ...input } as never)).result)
+  expectText('result.compactQueued', await compact({ focus: 'the billing phase' }))
+  await clock.advance(2000)
+  expectText('result.compactQueuedWait', await compact({ after: 'reports' }))
+  expectText('result.compactNotForWorkers', await compact({ agentId: 'agent-1' }))
 })
 
 test('the answer to a send that failed on its way', async ($, on) => {
