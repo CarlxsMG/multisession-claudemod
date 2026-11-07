@@ -22,8 +22,8 @@ happens.
   or stopped) leaves the row a few seconds later, once its end has stood out (how long is a
   [setting](#settings)), and stays in the team view (`/crew team`), which lists every worker with its status, repository, task, what it is
   doing and its run's time and calls.
-- **A feed of the crew's messages**: the two newest as chat bubbles that type out, older ones as
-  one quiet line each.
+- **A feed of the crew's messages**, newest first: the two newest as chat bubbles that type out,
+  older ones as one quiet line each.
 - **Delegation by default.** With Delegate ON, the orchestrator's system prompt and the
   `delegate` tool's description tell it to hand everything but quick answers to the crew, to
   reuse the worker that already knows an area, to run independent parts in parallel and to

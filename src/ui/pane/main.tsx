@@ -251,7 +251,7 @@ export async function drawMain($: Engine, ctx: CrewContext) {
   const msgs = await readMessages($)
   const { header, headRows } = await drawHeader($, ctx, msgs)
   const { crew, crewRows, napDue } = drawCardRow($, ctx)
-  // Bubbles fill the rows the orchestrator and the crew leave, newest last.
+  // Bubbles fill the rows the orchestrator and the crew leave.
   const feedRows = height - 1 - headRows - crewRows - 1
   const { feed, typingUntil } = drawFeed(ctx, msgs, feedRows, lineColors(look, kit.list))
 
