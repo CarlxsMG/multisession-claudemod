@@ -1,5 +1,6 @@
 import type { Register } from 'claude-code'
 
+import { onSessionEnd, onStop, onSubagentStop } from '../src/background/sweep'
 import { onSend } from '../src/crew/sends'
 import { onSpawn } from '../src/crew/spawn'
 import { chooseNapAfter } from '../src/crew/workers'
@@ -72,6 +73,9 @@ export const register: Register = (on, options) => {
   on('classic.PostModelSwitch', ($, e, next) => onModelSwitch($, e, next))
 
   on('turn.complete', ($, e, next) => onTurnComplete($, e, next))
+  on('classic.Stop', ($, e, next) => onStop($, e, next))
+  on('classic.SubagentStop', ($, e, next) => onSubagentStop($, e, next))
+  on('session.end', ($, e, next) => onSessionEnd($, e, next))
 
   on('agent.spawn', ($, e, next) => onSpawn($, e, next))
 

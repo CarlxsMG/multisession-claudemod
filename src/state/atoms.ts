@@ -86,6 +86,9 @@ const isolated = atom({ plugin: 'crew', key: 'isolated' } as const, [], { shape:
 const sendGists = atom({ plugin: 'crew', key: 'sendGists' } as const, [], { shape: 'sendGists-1' })
 const taskLists = atom({ plugin: 'crew', key: 'taskLists' } as const, [], { shape: 'taskLists-1' })
 const noteFirst = atom({ plugin: 'crew', key: 'noteFirst' } as const, [], { shape: 'noteFirst-1' })
+// The shells and Monitors the session's agents left running in the
+// background, which the crew stops once their worker is done.
+const background = atom({ plugin: 'crew', key: 'background' } as const, [], { shape: 'background-1' })
 
 // What an atom holds, as a change to it takes and gives it.
 type Change<A> = A extends Atom<infer T> ? (value: T) => T : never
@@ -361,4 +364,12 @@ export function readNoteFirst($: StateDollar) {
 
 export function updateNoteFirst($: StateDollar, change: Change<typeof noteFirst>) {
   return update($, noteFirst, change)
+}
+
+export function readBackground($: StateDollar) {
+  return read($, background)
+}
+
+export function updateBackground($: StateDollar, change: Change<typeof background>) {
+  return update($, background, change)
 }

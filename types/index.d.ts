@@ -270,6 +270,25 @@ export type TaskList = { id: string; items: { key: string; status: string; text:
  */
 export type NoteFirst = { id: string; title: string; ms?: number; step: string }
 
+/**
+ * A shell or a Monitor left running in the background, by the engine's task
+ * id: the agent whose call started it (absent for the main conversation's),
+ * what it runs, and when it started. `wakesOwner` says its agent waits for
+ * its end; `ownerDoneAt`, set while its agent's turn has ended, when it did;
+ * `stopFailedAt`, when a stop the crew tried on its own failed or was
+ * refused, after which only the person stops it.
+ */
+export type BackgroundTask = {
+  id: string
+  agentId?: string
+  command: string
+  kind: 'shell' | 'monitor'
+  startedAt: number
+  wakesOwner?: boolean
+  ownerDoneAt?: number
+  stopFailedAt?: number
+}
+
 declare module 'claude-code' {
   interface PluginState {
     crew: {
@@ -307,6 +326,7 @@ declare module 'claude-code' {
       sendGists: Shaped<SendGist[]>
       taskLists: Shaped<TaskList[]>
       noteFirst: Shaped<NoteFirst[]>
+      background: Shaped<BackgroundTask[]>
     }
   }
 }

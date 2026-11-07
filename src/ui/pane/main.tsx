@@ -16,7 +16,7 @@ import { vibeOf } from '../../persona/vibes'
 import { JUST_ENDED_MS, isOpen } from '../../progress/runs'
 import { cardText } from '../../progress/text/card'
 import { setMode } from '../../settings/notes'
-import { readIsOn, readLimits, readMainModel, readMessages, readModelLimits, readMoodLines, readOrch, updateView } from '../../state/atoms'
+import { readBackground, readIsOn, readLimits, readMainModel, readMessages, readModelLimits, readMoodLines, readOrch, updateView } from '../../state/atoms'
 import { LIMITS_SHOWN, limitColor, limitLabel } from '../../usage/limits'
 import { wrapText } from '../../util/text'
 import { END, cardLabel, statusLabel } from '../../words'
@@ -62,6 +62,9 @@ async function drawHeader($: Engine, ctx: CrewContext, msgs: readonly Msg[]) {
   const extra = await readMoodLines($)
   // The session's window, the week's, and below them each model's week.
   const usage = [...(await readLimits($)), ...(await readModelLimits($))].slice(0, LIMITS_SHOWN)
+  // What is left running in the background, a press away from its list.
+  const inBackground = (await readBackground($)).length
+  const hasCount = list.length > 0 || inBackground > 0
 
   const anim = orchAnim(orch, now)
   const latest = [...list].sort((a, b) => b.updatedAt - a.updatedAt)[0]
@@ -80,7 +83,7 @@ async function drawHeader($: Engine, ctx: CrewContext, msgs: readonly Msg[]) {
   // past the figure.
   const doing = orch.activity !== '' && anim !== 'idle' && anim !== 'sleep' ? wrapText(orch.activity, Math.max(10, width - FIGURE_W - 2), 2) : []
   // The bubble and the controls take three rows each.
-  const headRows = Math.max(pictureRows(true), 6 + doing.length + (list.length > 0 ? 1 : 0))
+  const headRows = Math.max(pictureRows(true), 6 + doing.length + (hasCount ? 1 : 0))
 
   const persona = vibeOf(look).label
   const modelName = fitModel(modelLabel(await readMainModel($)), width - look.name.length - persona.length - 6)
@@ -107,10 +110,21 @@ async function drawHeader($: Engine, ctx: CrewContext, msgs: readonly Msg[]) {
                 {line}
               </Text>
             ))}
-            {list.length > 0 && (
-              <Text dimColor wrap="truncate-end">
-                {t().pane.count(list.length, active.length)}
-              </Text>
+            {hasCount && (
+              <Box flexDirection="row">
+                {list.length > 0 && (
+                  <Text dimColor wrap="truncate-end">
+                    {t().pane.count(list.length, active.length)}
+                  </Text>
+                )}
+                {inBackground > 0 && (
+                  <Button key="bg-open" plain label={t().background.running(inBackground)} onPress={() => void updateView($, () => 'crew')}>
+                    <Text color="warning" wrap="truncate-end">
+                      {`${list.length > 0 ? ' · ' : ''}${t().background.running(inBackground)}`}
+                    </Text>
+                  </Button>
+                )}
+              </Box>
             )}
           </Box>
           <Box flexDirection="row" justifyContent="flex-end" columnGap={1}>
