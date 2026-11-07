@@ -11,7 +11,7 @@ import { DEFAULT_LOOK } from '../../src/figure/look'
 import { JUST_ENDED_MS } from '../../src/progress/runs'
 import { MISSED_MS } from '../../src/progress/tick'
 import { engine } from './engine'
-import type { Seen } from './engine'
+import type { EngineOptions, Seen } from './engine'
 
 export { DELEGATE }
 
@@ -280,7 +280,7 @@ export const textIn = (x: unknown): string =>
 // rows placed. The orchestrator delegates in a turn of its own that then
 // ends, as it does in a session; the engine's list has each worker running
 // until its turn ends, and running again once it is given more.
-export async function progressCrew($: Parameters<TestBody>[0], on: On, stored: Record<string, unknown> = {}) {
+export async function progressCrew($: Parameters<TestBody>[0], on: On, stored: Record<string, unknown> = {}, more: Pick<EngineOptions, 'host' | 'probe'> = {}) {
   let spawned = 0
   const states = new Map<string, AgentInfo['status']>()
   const agents = (): AgentInfo[] =>
@@ -292,7 +292,7 @@ export async function progressCrew($: Parameters<TestBody>[0], on: On, stored: R
       status: states.get(id) ?? 'running',
     }))
   const seen = { prompts: [] as string[], sends: [] as string[], tools: [] as string[] }
-  const clock = engine(on, { nextId: () => `agent-${++spawned}`, agents, seen, rateLimits: [], stored })
+  const clock = engine(on, { nextId: () => `agent-${++spawned}`, agents, seen, rateLimits: [], stored, ...more })
   const statuses: (string | undefined)[] = []
   const placed: string[] = []
   const toasts: string[] = []

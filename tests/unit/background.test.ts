@@ -92,3 +92,7 @@ test('a TaskStop error for a task already over is told from one that failed', ()
   expect(isGone('Task b1 is not running (status: completed)')).toBe(true)
   expect(isGone('Permission denied')).toBe(false)
 })
+
+test('a shell the engine backgrounded at its timeout started that long before its call was answered', () => {
+  expect(taskOfCall('Bash', { command: 'npm test' }, { backgroundTaskId: 'b1', timedOutAfterMs: 120_000 }, 'agent-1', 200_000)?.startedAt).toBe(80_000)
+})
