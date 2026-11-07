@@ -19,8 +19,9 @@ All notable changes to crew are written here. The format follows
 ### Fixed
 
 - In the desktop app a card in the pane shows a worker's whole name, as the terminal does,
-  instead of `V...` on every card, and the card for the workers that do not fit shows its
-  count.
+  instead of `V...` on every card or its first letter and an ellipsis, and the card for the
+  workers that do not fit shows its count. There a worker's transcript opens from its name in
+  the team view.
 - In the desktop app the side borders of the pane's message bubbles line up with their corners,
   and with the next bubble's.
 - In the desktop app the columns that line up on the terminal line up there too: the usage

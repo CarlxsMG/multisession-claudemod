@@ -49,7 +49,7 @@ export async function drawPane($: Engine, e: PaneEvent) {
   const look = await readLook($)
   noticeLook(look)
   const sprite = startSprites(ui, e.surface)
-  const ctx: PaneContext = { ui, sprite, look, now, width: e.props.bodyColumns, height: e.props.scroll.bodyRows }
+  const ctx: PaneContext = { ui, sprite, look, now, width: e.props.bodyColumns, height: e.props.scroll.bodyRows, surface: e.surface }
 
   const page = await readView($)
   if (page === 'edit') return drawEditor($, ctx)

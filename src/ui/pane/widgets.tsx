@@ -59,6 +59,8 @@ export type PaneContext = {
   now: number
   width: number
   height: number
+  /** The surface the pane is drawn on. */
+  surface: PaneEvent['surface']
 }
 
 /**
@@ -108,10 +110,11 @@ const mailOf = (w: Worker, now: number): 'in' | 'out' | undefined => (now - w.la
 /**
  * What both views draw the workers with: each one's figure, posed by its
  * status and by how its latest run ended while that end is fresh, and its
- * name, which opens its transcript.
+ * name, which opens its transcript; a card's name does so on the terminal
+ * only.
  */
 export function workerKit($: Engine, ctx: PaneContext, list: Worker[], runs: readonly Run[]) {
-  const { ui, sprite, look, now } = ctx
+  const { ui, sprite, look, now, surface } = ctx
   const { Button, Text } = ui
   const active = list.filter(w => ACTIVE.has(w.status))
   const ordered = [...list].sort(byActivity)
@@ -139,16 +142,24 @@ export function workerKit($: Engine, ctx: PaneContext, list: Worker[], runs: rea
   // draws Text in a proportional one unless told: a card is as wide as its
   // figure, and a name as long as it holds fits only in the monospaced face.
   // The Button has no label: the desktop app draws a label in place of the
-  // children, and no other text fits a card's four cells.
+  // children.
+  const name = (w: Worker) => (
+    <Text bold mono color={accentOf(w, look)} wrap="truncate-end">
+      {w.name}
+    </Text>
+  )
   const nameButton = (w: Worker) => (
     <Button key={`view-${w.id}`} plain onPress={() => void $.ui.view({ agentId: w.id })}>
-      <Text bold mono color={accentOf(w, look)} wrap="truncate-end">
-        {w.name}
-      </Text>
+      {name(w)}
     </Button>
   )
+  // The desktop app draws a Button as its native button, whose chrome leaves
+  // a card's four cells room for one letter and an ellipsis: there a card
+  // shows the name alone, and the team view's rows, which have the room,
+  // open the transcript.
+  const cardName = (w: Worker) => (surface === 'terminal' ? nameButton(w) : name(w))
 
-  return { list, active, ordered, statusColor, lastRun, justEnded, figure, nameButton }
+  return { list, active, ordered, statusColor, lastRun, justEnded, figure, nameButton, cardName }
 }
 
 /** The crew as the pane's views show it. */
