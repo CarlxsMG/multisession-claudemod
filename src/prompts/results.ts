@@ -52,11 +52,12 @@ export const renamedAgent = (asked: string, name: string, address: string): stri
 
 /**
  * Where auto mode reviews only the calls in the model's own response, the
- * orchestrator starts the worker itself, with the Agent call spelt out.
+ * orchestrator starts the worker itself, with the Agent call spelt out, in
+ * the turn delegate answered in: the crew holds the name no longer.
  */
 export function autoModeHandoff(name: string, address: string, title: string, type: string, model: string, cwd: string): string {
   const args = [`name "${address}"`, `description "${title}"`, `subagent_type "${type}"`, ...(model !== '' ? [`model "${model}"`] : [])]
-  return `crew: nothing started: auto mode reviews only calls you write, not the one delegate makes. Start ${name} yourself now: Agent tool with ${args.join(', ')}, and as prompt the task exactly as you gave delegate. The crew takes that agent as ${name}, working in ${cwd}.`
+  return `crew: nothing started: auto mode reviews only calls you write, not the one delegate makes. Start ${name} yourself before this turn ends: Agent tool with ${args.join(', ')}, and as prompt the task exactly as you gave delegate. The crew takes that agent as ${name}, working in ${cwd}. Left for a later turn, the handoff lapses: delegate the task again then.`
 }
 
 /**

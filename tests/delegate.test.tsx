@@ -41,11 +41,11 @@ test("where auto mode reviews only the model's own calls, the orchestrator start
   const done = (agentId: string) => $.turn.complete({ answer: 'Hecho', durationMs: 1, isAborted: false, turnId: `t-${agentId}`, agentId, reason: 'answer' })
 
   expect(await delegate({ task: 'Run the tests', title: 'Tests', repo: '/work/api' })).toBe(
-    'crew: nothing started: auto mode reviews only calls you write, not the one delegate makes. Start Pip yourself now: Agent tool with name "pip", description "Tests", subagent_type "general-purpose", and as prompt the task exactly as you gave delegate. The crew takes that agent as Pip, working in /work/api.',
+    'crew: nothing started: auto mode reviews only calls you write, not the one delegate makes. Start Pip yourself before this turn ends: Agent tool with name "pip", description "Tests", subagent_type "general-purpose", and as prompt the task exactly as you gave delegate. The crew takes that agent as Pip, working in /work/api. Left for a later turn, the handoff lapses: delegate the task again then.',
   )
   // Another in the same response is handed a name of its own.
   expect(await delegate({ task: 'Fix the login', title: 'Login', repo: '/work/web', model: 'sonnet' })).toMatch(
-    /Start Bolt yourself now: Agent tool with name "bolt", description "Login", subagent_type "general-purpose", model "sonnet", and as prompt/,
+    /Start Bolt yourself before this turn ends: Agent tool with name "bolt", description "Login", subagent_type "general-purpose", model "sonnet", and as prompt/,
   )
   expect(seen.spawns).toHaveLength(0)
 
@@ -99,7 +99,7 @@ test('a worker the orchestrator starts for delegate is as delegate asked: its mo
   // Asked for sonnet, and the Agent call leaves the model out.
   const tests = { task: 'Run the tests', title: 'Tests', repo: '/work/api', model: 'sonnet' }
   const handoff = await delegate({ ...tests, tool_use_id: 'toolu_d1' })
-  expect(handoff).toMatch(/Start Pip yourself now/)
+  expect(handoff).toMatch(/Start Pip yourself before this turn ends/)
   const first = await agent('toolu_a1', { prompt: 'Run the tests', description: 'Tests', name: 'pip' })
   expect(seen.spawns[0]?.model).toBe('sonnet')
   expect(first.context).toEqual([
@@ -112,7 +112,7 @@ test('a worker the orchestrator starts for delegate is as delegate asked: its mo
 
   // Asked for no model, and the Agent call names one: delegate's stands,
   // and the call hears it, with who is busy there.
-  expect(await delegate({ task: 'Fix the login', title: 'Login', repo: '/work/api', fresh: true })).toMatch(/Start Bolt yourself now/)
+  expect(await delegate({ task: 'Fix the login', title: 'Login', repo: '/work/api', fresh: true })).toMatch(/Start Bolt yourself before this turn ends/)
   const second = await agent('toolu_a2', { prompt: 'Fix the login', description: 'Login', name: 'bolt', model: 'sonnet' })
   expect(seen.spawns[1]?.model).toBe('opus')
   expect(second.context).toEqual([
@@ -124,6 +124,75 @@ test('a worker the orchestrator starts for delegate is as delegate asked: its mo
   await done('agent-2')
   expect(await delegate({ task: 'Now the e2e', repo: '/work/api', model: 'sonnet' })).toMatch(/^Given to Pip/)
   expect(await delegate({ task: 'And the signup', repo: '/work/api' })).toMatch(/^Given to Bolt/)
+})
+
+test('a worker handed to the orchestrator that its turn does not start is let go: its name is free, and a later agent is not the crew’s worker', async ($, on) => {
+  let spawned = 0
+  const seen: Seen = { prompts: [], sends: [], spawns: [], refuse: NO_VERDICT }
+  engine(on, { nextId: () => `agent-${++spawned}`, seen })
+  await $.session.start({ cwd: '/work/main', surface: 'desktop', isInteractive: false })
+  const delegate = async (input: Record<string, unknown>) => String((await $.tool.call({ tool: DELEGATE, repo: '/work/api', ...input })).result)
+  const done = (agentId?: string) =>
+    $.turn.complete({
+      answer: 'Hecho',
+      durationMs: 1,
+      isAborted: false,
+      turnId: `t-${agentId ?? 'main'}-${spawned}`,
+      reason: 'answer',
+      ...(agentId ? { agentId } : {}),
+    })
+  const agent = (name: string, prompt: string) =>
+    spawnAgent($, { prompt, description: prompt, subagentType: 'general-purpose', name, tool_use_id: `toolu_${name}` })
+
+  // Its Agent call comes in the turn delegate answered in, after a worker's
+  // own turn ended meanwhile: the handoff stands until the main turn ends.
+  expect(await delegate({ task: 'Run the tests' })).toMatch(/Start Pip yourself before this turn ends/)
+  await agent('pip', 'Run the tests')
+  expect(await delegate({ task: 'Fix the login', fresh: true })).toMatch(/Start Bolt yourself before this turn ends/)
+  await done('agent-1')
+  await agent('bolt', 'Fix the login')
+  expect(seen.prompts[1]).toMatch(/^\[crew\] You are Bolt, a worker in Nova's crew\./)
+  expect(rowOf(await roster($), 'Bolt')).toMatch(/^- Bolt: address "bolt", starting, repo \/work\/api, /)
+
+  // The main turn ends with a handoff not acted on: the next new worker
+  // takes its name.
+  expect(await delegate({ task: 'Write the docs', fresh: true })).toMatch(/Start Mika yourself before this turn ends/)
+  await done()
+  expect(await delegate({ task: 'Ship it', fresh: true })).toMatch(/Start Mika yourself before this turn ends/)
+  await done()
+
+  // An Agent call a later turn writes for it starts an agent of its own
+  // repository and no worker of delegate's: an unnamed task does not reach it.
+  await agent('mika', 'Write the docs')
+  expect(seen.spawns?.[2]?.cwd).toBeUndefined()
+  await done('agent-3')
+  await done('agent-2')
+  const given = await delegate({ task: 'Polish it' })
+  expect(given).toMatch(/^Given to Pip .*\(also free: Bolt; /)
+  expect(given).not.toMatch(/Mika/)
+})
+
+test('an Agent call for a handed-over worker that starts nothing leaves the handoff for the call written again, until the turn ends', async ($, on) => {
+  let spawned = 0
+  const seen: Seen = { prompts: [], sends: [], spawns: [], refuse: NO_VERDICT, refuseAgent: 'Auto mode blocked this action.' }
+  engine(on, { nextId: () => `agent-${++spawned}`, seen })
+  await $.session.start({ cwd: '/work/main', surface: 'desktop', isInteractive: false })
+  const delegate = async (input: Record<string, unknown>) => String((await $.tool.call({ tool: DELEGATE, repo: '/work/api', ...input })).result)
+  const agent = () => spawnAgent($, { prompt: 'Run the tests', description: 'Tests', subagentType: 'general-purpose', name: 'pip', tool_use_id: 'toolu_1' })
+
+  expect(await delegate({ task: 'Run the tests' })).toMatch(/Start Pip yourself before this turn ends/)
+  expect((await agent()).agentId).toBeUndefined()
+  // Written again in the same turn, it is delegate's worker still.
+  seen.refuseAgent = undefined
+  await agent()
+  expect(seen.spawns?.map(s => [s.cwd, s.background])).toEqual([['/work/api', true]])
+
+  // Refused and not written again: the end of the turn frees its name.
+  seen.refuseAgent = 'Auto mode blocked this action.'
+  expect(await delegate({ task: 'Fix the login', fresh: true })).toMatch(/Start Bolt yourself before this turn ends/)
+  await spawnAgent($, { prompt: 'Fix the login', description: 'Login', subagentType: 'general-purpose', name: 'bolt', tool_use_id: 'toolu_2' })
+  await $.turn.complete({ answer: 'Hecho', durationMs: 1, isAborted: false, turnId: 't-main', reason: 'answer' })
+  expect(await delegate({ task: 'Fix the login', fresh: true })).toMatch(/Start Bolt yourself before this turn ends/)
 })
 
 test("a worker on the session's model is asked for it by the alias the Agent tool takes", async ($, on) => {

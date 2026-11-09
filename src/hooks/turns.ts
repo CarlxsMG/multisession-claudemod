@@ -4,6 +4,7 @@ import type { HookFor } from 'claude-code'
 import type { RunEndKind } from '../../types'
 import { backgroundTurnEnded, backgroundTurnStarted } from '../background/sweep'
 import { noteMainTurnEnd } from '../crew/compaction'
+import { lapseHandoffs } from '../crew/delegate'
 import { ORCH_ID, say, setOrch } from '../crew/feed'
 import { releaseSoon } from '../crew/takeover'
 import { patchWorker } from '../crew/workers'
@@ -37,8 +38,8 @@ export async function onTurnStart($: Engine, e: Parameters<OnTurnStartHook>[1], 
 type OnTurnCompleteHook = HookFor<'turn.complete'>
 /**
  * Ends the orchestrator's turn happy, or idle when it failed or was stopped,
- * noted for a compaction that waits for one,
- * and a worker's run with its status, its report in the feed. Any agent's
+ * noted for a compaction that waits for one, the workers handed to it that
+ * it did not start let go, and a worker's run with its status, its report in the feed. Any agent's
  * background tasks are left for the progress tick to stop.
  */
 export async function onTurnComplete($: Engine, e: Parameters<OnTurnCompleteHook>[1], next: Parameters<OnTurnCompleteHook>[2]) {
@@ -47,6 +48,9 @@ export async function onTurnComplete($: Engine, e: Parameters<OnTurnCompleteHook
     const isFailed = e.isAborted || e.reason === 'error' || e.reason === 'refusal'
     await setOrch($, isFailed ? 'idle' : 'happy', '')
     noteMainTurnEnd(await $.clock.now())
+    // A worker handed to the orchestrator that this turn did not start is
+    // let go: its Agent call would have spawned before the turn ended.
+    await quiet($, lapseHandoffs($), 'handoff lapse')
     return next(e)
   }
   await quiet($, backgroundTurnEnded($, e.agentId), 'background turn end')
