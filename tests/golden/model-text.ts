@@ -276,6 +276,8 @@ export const GOLDEN: Record<string, string> = {
     "Given to Pip (address \"pip\") in /work/api; context kept.",
     "Heads-up: Bolt is working in this repository; keep files apart or wait for its report.",
   ].join('\n'),
+  "result.givenWhileBusy": "Given to Pip (address \"pip\") in /work/api; context kept. Pip is busy: the task reached it as a message in the middle of \"Login\", which it may finish first or set aside.",
+  "result.givenAfterFailure": "Given to Pip (address \"pip\") in /work/api; context kept. Pip's last run failed: if this task builds on that one, have it check what was left undone.",
   "task.reused": [
     "Add the tests",
     "",

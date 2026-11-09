@@ -10,6 +10,8 @@ import {
   TASK_REQUIRED,
   autoModeHandoff,
   given,
+  givenAfterFailure,
+  givenWhileBusy,
   headsUp,
   heldFor,
   heldMissed,
@@ -101,6 +103,9 @@ async function giveTask(
   const before = mark?.held ?? []
   const all = [...before, { task, title }]
   const body = before.length > 0 ? heldTasks(all) : task
+  // Only a call that names its worker reaches one that is busy or failed.
+  const wasBusy = ACTIVE.has(chosen.status)
+  const state = wasBusy ? givenWhileBusy(chosen.name, oneLine(chosen.task, 48)) : chosen.status === 'failed' ? givenAfterFailure(chosen.name) : ''
   // Delegate's own workers always had the crew's preamble; any other agent
   // may not have (a fork, one started with delegation off): it hears it all.
   const sent = await deliver($, {
@@ -108,8 +113,10 @@ async function giveTask(
     worker: chosen,
     text: `${body}\n\n${taskClose(chosen.asked)}`,
     line: { from: { name: look.name, id: ORCH_ID }, to: chosen.name, text: body, tone: 'orch', isQuietIfLost: true },
-    patch: w => ({ status: 'working', task: title, tasks: w.tasks + all.length }),
-    job: title,
+    // A busy worker takes the task into the one in flight, whose title
+    // stays its own in the pane and the roster.
+    patch: w => ({ status: 'working', ...(wasBusy ? {} : { task: title }), tasks: w.tasks + all.length }),
+    ...(wasBusy ? {} : { job: title }),
   })
   if (sent.isDelivered && mark !== undefined) await updateTakeovers($, list => list.filter(t => t.id !== chosen.id))
   if (!sent.isDelivered && mark !== undefined) {
@@ -124,7 +131,7 @@ async function giveTask(
     const own = inWorktree.has(chosen.id)
     const where = own ? `a worktree of ${chosen.cwd}` : chosen.cwd
     const warn = own ? '' : busyHere(list, chosen.cwd, inWorktree, chosen.id)
-    return given(chosen, where, (before.length > 0 ? heldWentFirst(before.length) : '') + warn)
+    return given(chosen, where, state + (before.length > 0 ? heldWentFirst(before.length) : '') + warn)
   }
   return isNamed ? unreachable(chosen.name, sent.reason) : undefined
 }

@@ -145,6 +145,16 @@ test("delegate's results: started, given, busy repositories, and what it turns d
   expectText('result.unreachable', await delegate($, { task: 'Polish it', worker: 'bolt' }))
 })
 
+test("delegate's results for a worker named while busy, and after a run that failed", async ($, on) => {
+  let spawned = 0
+  engine(on, { nextId: () => `agent-${++spawned}`, seen: recording() })
+  await start($)
+  await delegate($, { task: 'Fix the login', title: 'Login', repo: '/work/api' })
+  expectText('result.givenWhileBusy', await delegate($, { task: 'Add the tests', title: 'Tests', worker: 'pip' }))
+  await $.turn.complete({ answer: 'API error', durationMs: 1, isAborted: false, turnId: 't-failed', agentId: 'agent-1', reason: 'error' })
+  expectText('result.givenAfterFailure', await delegate($, { task: 'Try the login again', title: 'Login again', worker: 'pip' }))
+})
+
 test("delegate's results when a spawn is refused, by auto mode's missing verdict or otherwise", async ($, on) => {
   engine(on, { seen: { ...recording(), refuse: NO_VERDICT } })
   await start($)
