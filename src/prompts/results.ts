@@ -106,6 +106,27 @@ export const givenWhileBusy = (name: string, inFlight: string): string =>
 /** What a task given to a worker named after a failed run adds. */
 export const givenAfterFailure = (name: string): string => ` ${name}'s last run failed: if this task builds on that one, have it check what was left undone.`
 
+/** A `repo` a call gave with a worker that works elsewhere; `where` as `given` takes it. */
+export const unappliedRepo = (asked: string, where: string): string => `\`repo\` ${asked} (it works in ${where})`
+/** A `subagent_type` a call gave with a worker of another type. */
+export const unappliedType = (asked: string, has: string): string => `\`subagent_type\` ${asked} (it is ${has})`
+/** A `model` a call gave with a worker on another; `has` is its model's id, or words for it. */
+export const unappliedModel = (asked: string, has: string): string => `\`model\` ${asked} (it runs on ${has})`
+/** The `fresh` of a call that names its worker. */
+export const UNAPPLIED_FRESH = '`fresh` (it is not a new worker)'
+/** A worker's model when its spawn asked for none and answered none. */
+export const SESSION_MODEL = "the session's model"
+/** A worker's model when the crew has no word of it. */
+export const OWN_MODEL = 'a model of its own'
+
+/**
+ * What a task given to, or held for, a named worker adds when the call asked
+ * what the worker is not: each of `items` with what the worker has; '' when
+ * there is none.
+ */
+export const unapplied = (items: readonly string[]): string =>
+  items.length === 0 ? '' : ` Not applied, as a named worker stays as it is: ${items.join('; ')}.`
+
 /** `why` is the clause that says why a new worker and not one that existed. */
 export const started = (name: string, address: string, id: string | undefined, cwd: string, why: string, headsUp: string): string =>
   `${STARTED}${name} (address "${address}", id ${id ?? '?'}) in ${cwd}, ${why}.${headsUp}`
@@ -120,10 +141,13 @@ export function headsUp(busy: readonly string[]): string {
   return `\nHeads-up: ${busy.join(', ')} ${many ? 'are' : 'is'} working in this repository; keep files apart or wait for ${many ? 'their reports' : 'its report'}.`
 }
 
-/** `waiting` counts the tasks held for the worker, this one included. */
-export function heldFor(w: Pick<Worker, 'name' | 'address'>, by: string, waiting: number): string {
+/**
+ * `waiting` counts the tasks held for the worker, this one included; `notes`
+ * are the sentences that follow, each with its leading space.
+ */
+export function heldFor(w: Pick<Worker, 'name' | 'address'>, by: string, waiting: number, notes = ''): string {
   const more = waiting > 1 ? ` ${waiting} tasks held; they go together.` : ''
-  return `Held for ${w.name} (address "${w.address}"): ${w.name} is answering ${by}, whose message woke it. It gets this task when that run ends, and reports to you.${more}`
+  return `Held for ${w.name} (address "${w.address}"): ${w.name} is answering ${by}, whose message woke it. It gets this task when that run ends, and reports to you.${more}${notes}`
 }
 
 /**
