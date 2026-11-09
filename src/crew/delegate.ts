@@ -80,11 +80,22 @@ async function repoDir($: Engine, sessionCwd: string, repo: string): Promise<str
 }
 
 // The free workers of that type the crew started there, the one that ended
-// a turn last first, on the model asked for (none asked for: one started on
-// the session's), however long its history: it compacts. A failed one is
-// never free. `model` is an alias, and what a spawn answers may be a full
-// id: both go by their family.
-function freeWorkers(list: readonly Worker[], woken: ReadonlyMap<string, Takeover>, cwd: string, type: string, model: string): Worker[] {
+// a turn last first, on the model a new worker would get, the one asked for
+// or else the session's, however their own call named it: one asked for none
+// is on the session's, and one asked for a model, or that a spawn answered a
+// model for, is on that. However long its history: it compacts. A failed
+// one is never free. `model` and `session` are aliases, and what a spawn
+// answers may be a full id: all go by their family. A session whose model
+// names no family has only the workers asked for none.
+function freeWorkers(
+  list: readonly Worker[],
+  woken: ReadonlyMap<string, Takeover>,
+  cwd: string,
+  type: string,
+  model: string,
+  session: string | undefined,
+): Worker[] {
+  const isOn = (w: Worker, family: string | undefined) => family !== undefined && (modelAlias(w.asked ?? '') === family || modelAlias(w.model) === family)
   return list
     .filter(
       w =>
@@ -93,7 +104,7 @@ function freeWorkers(list: readonly Worker[], woken: ReadonlyMap<string, Takeove
         REUSABLE.has(w.status) &&
         !woken.has(w.id) &&
         w.asked !== null &&
-        (model === '' ? w.asked === '' : modelAlias(w.asked) === model || modelAlias(w.model) === model),
+        (model === '' ? w.asked === '' || isOn(w, session) : isOn(w, model)),
     )
     .sort((a, b) => lastFree(b) - lastFree(a))
 }
@@ -289,7 +300,9 @@ async function delegate($: Engine, input: object, callId?: string): Promise<stri
   // The free workers that would do, best first: the task goes to the first
   // it reaches, and the result names the ones it did not reach and the rest.
   // None has a mark, so each is a plain send.
-  const free = isFresh ? [] : freeWorkers(list, woken, cwd, type, model)
+  // The session's model, which a call for none is matched with.
+  const session = isFresh || model !== '' ? undefined : modelAlias(await $.session.model().catch(() => ''))
+  const free = isFresh ? [] : freeWorkers(list, woken, cwd, type, model, session)
   const names = (workers: readonly Worker[]) => workers.map(w => w.name)
   const lost: Lost[] = []
   for (const candidate of free.slice(0, REUSE_TRIES)) {

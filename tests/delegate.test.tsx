@@ -155,14 +155,14 @@ test('a free worker of the repo is reused however long its history', async ($, o
   const done = (agentId: string, usage?: typeof USAGE) =>
     $.turn.complete({ answer: 'Hecho', durationMs: 1000, isAborted: false, turnId: `t-${agentId}`, agentId, reason: 'answer', ...(usage ? { usage } : {}) })
 
-  expect(await delegate({ task: 'List the routes', repo: '/work/api', model: 'opus' })).toMatch(/^Started Pip/)
+  expect(await delegate({ task: 'List the routes', repo: '/work/api', model: 'sonnet' })).toMatch(/^Started Pip/)
   await done('agent-1')
-  // Without a model, only a worker on the session's model will do.
+  // Without a model, only a worker on the session's model, opus, will do.
   expect(await delegate({ task: 'Design the cache', repo: '/work/api' })).toMatch(/^Started Bolt/)
   await done('agent-2')
-  // A model asked for is one the worker must run on; Mika stays busy from here.
-  expect(await delegate({ task: 'Check the queries', repo: '/work/api', model: 'opus' })).toMatch(/^Given to Pip/)
-  expect(await delegate({ task: 'Review it', repo: '/work/api', model: 'sonnet' })).toMatch(/^Started Mika/)
+  // A model asked for is one the worker must run on; Pip and Mika stay busy from here.
+  expect(await delegate({ task: 'Check the queries', repo: '/work/api', model: 'sonnet' })).toMatch(/^Given to Pip/)
+  expect(await delegate({ task: 'Review it', repo: '/work/api', model: 'fable' })).toMatch(/^Started Mika/)
   // No count of tasks or tokens sends it to a new worker: a worker compacts.
   for (let i = 2; i <= 12; i++) {
     expect(await delegate({ task: `Follow-up ${i}`, repo: '/work/api' })).toMatch(/^Given to Bolt/)
@@ -568,8 +568,50 @@ test('a free worker running on a full id of the family asked for is reused, what
   // Another family is not the model it runs on.
   expect(await delegate({ task: 'Review the login', repo: '/work/api', model: 'sonnet' })).toMatch(/^Started Bolt/)
   await done('agent-2', 't3')
-  // No model asked: only the one started with none, not the newer one.
+  // No model asked: only the one on the session's model, not the newer one.
   expect(await delegate({ task: 'Polish it', repo: '/work/api' })).toMatch(/^Given to Pip/)
+})
+
+test("a free worker on the session's model is reused whether its call or the next names that model or none, and one on another model never", async ($, on) => {
+  let spawned = 0
+  let turns = 0
+  // The session is on opus, and a spawn answers the id its agent runs on.
+  const runsOn = (asked: string | undefined) => (asked === 'sonnet' ? 'claude-sonnet-4-5' : 'claude-opus-5-5')
+  engine(on, { nextId: () => `agent-${++spawned}`, runsOn })
+  await $.session.start({ cwd: '/work/main', surface: 'terminal', isInteractive: true })
+  const delegate = async (ask: Ask) => String((await $.tool.call({ tool: 'mcp__crew__delegate', ...ask })).result)
+  const done = (agentId: string) => $.turn.complete({ answer: 'Hecho', durationMs: 1000, isAborted: false, turnId: `t${++turns}`, agentId, reason: 'answer' })
+
+  // Asked for the session's model by name, then for none.
+  expect(await delegate({ task: 'List the routes', repo: '/work/api', model: 'opus' })).toMatch(/^Started Pip/)
+  await done('agent-1')
+  expect(await delegate({ task: 'Check the queries', repo: '/work/api' })).toMatch(/^Given to Pip/)
+  // Asked for none, then for the session's model by name.
+  expect(await delegate({ task: 'Review the login', repo: '/work/web' })).toMatch(/^Started Bolt/)
+  await done('agent-2')
+  expect(await delegate({ task: 'Polish it', repo: '/work/web', model: 'opus' })).toMatch(/^Given to Bolt/)
+  // Asked for another model by name, then for none: a new worker.
+  expect(await delegate({ task: 'Write the guide', repo: '/work/docs', model: 'sonnet' })).toMatch(/^Started Mika/)
+  await done('agent-3')
+  expect(await delegate({ task: 'Check the links', repo: '/work/docs' })).toMatch(/^Started (?!Mika)/)
+  await done('agent-4')
+  // Asked for none, then for another model by name: the one on it, not the
+  // one that ended a turn last.
+  expect(await delegate({ task: 'Fix the typos', repo: '/work/docs', model: 'sonnet' })).toMatch(/^Given to Mika/)
+})
+
+test('in a session whose model names no family, a call for no model reuses only a worker asked for none', async ($, on) => {
+  let spawned = 0
+  engine(on, { nextId: () => `agent-${++spawned}`, host: { model: () => 'local-model' } })
+  await $.session.start({ cwd: '/work/main', surface: 'terminal', isInteractive: true })
+  const delegate = async (ask: Ask) => String((await $.tool.call({ tool: 'mcp__crew__delegate', ...ask })).result)
+  const done = (agentId: string, turnId: string) => $.turn.complete({ answer: 'Hecho', durationMs: 1000, isAborted: false, turnId, agentId, reason: 'answer' })
+
+  expect(await delegate({ task: 'List the routes', repo: '/work/api', model: 'opus' })).toMatch(/^Started Pip/)
+  await done('agent-1', 't1')
+  expect(await delegate({ task: 'Check the queries', repo: '/work/api' })).toMatch(/^Started Bolt/)
+  await done('agent-2', 't2')
+  expect(await delegate({ task: 'Polish it', repo: '/work/api' })).toMatch(/^Given to Bolt/)
 })
 
 test('among several free workers the one that ended a turn last is reused, whichever was touched last', async ($, on) => {
