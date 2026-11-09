@@ -62,9 +62,22 @@ export function autoModeHandoff(name: string, address: string, title: string, ty
 const GIVEN = 'Given to '
 const STARTED = 'Started '
 
-/** `where` is the worker's repository, or "a worktree of" it. */
-export const given = (w: Pick<Worker, 'name' | 'address'>, where: string, headsUp: string): string =>
-  `${GIVEN}${w.name} (address "${w.address}") in ${where}; context kept.${headsUp}`
+/**
+ * `where` is the worker's repository, or "a worktree of" it; `notes` the
+ * sentences that follow, each with its leading space, then any heads-up.
+ */
+export const given = (w: Pick<Worker, 'name' | 'address'>, where: string, notes: string): string =>
+  `${GIVEN}${w.name} (address "${w.address}") in ${where}; context kept.${notes}`
+
+/**
+ * What a task given to a worker named while busy adds: it arrived inside the
+ * task in flight, whose title the worker keeps.
+ */
+export const givenWhileBusy = (name: string, inFlight: string): string =>
+  ` ${name} is busy: the task reached it as a message in the middle of "${inFlight}", which it may finish first or set aside.`
+
+/** What a task given to a worker named after a failed run adds. */
+export const givenAfterFailure = (name: string): string => ` ${name}'s last run failed: if this task builds on that one, have it check what was left undone.`
 
 export const started = (name: string, address: string, id: string | undefined, cwd: string, headsUp: string): string =>
   `${STARTED}${name} (address "${address}", id ${id ?? '?'}) in ${cwd}.${headsUp}`

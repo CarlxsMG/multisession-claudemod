@@ -208,7 +208,32 @@ test('a failed worker is never taken unnamed, and is when named', async ($, on) 
   await $.turn.complete({ answer: 'API error', durationMs: 1, isAborted: false, turnId: 't1', agentId: 'agent-1', reason: 'error' })
   expect(String((await $.tool.call({ tool: 'mcp__crew__roster', worker: 'pip' })).result)).toMatch(/^- Pip: address "pip", failed, /)
   expect(await delegate({ task: 'Seed the data' })).toMatch(/^Started Bolt/)
-  expect(await delegate({ task: 'Try the migration again', worker: 'pip' })).toMatch(/^Given to Pip/)
+  expect(await delegate({ task: 'Try the migration again', worker: 'pip' })).toBe(
+    'Given to Pip (address "pip") in /work/api; context kept. Pip\'s last run failed: if this task builds on that one, have it check what was left undone.\nHeads-up: Bolt is working in this repository; keep files apart or wait for its report.',
+  )
+})
+
+test('a busy worker named for a task keeps the title of the one in flight, and the result says it was busy', async ($, on) => {
+  let spawned = 0
+  const seen = { prompts: [] as string[], sends: [] as string[] }
+  engine(on, { nextId: () => `agent-${++spawned}`, seen })
+  await $.session.start({ cwd: '/work/main', surface: 'terminal', isInteractive: true })
+  const delegate = async (input: Record<string, unknown>) => String((await $.tool.call({ tool: 'mcp__crew__delegate', repo: '/work/api', ...input })).result)
+  const pip = async () => String((await $.tool.call({ tool: 'mcp__crew__roster', worker: 'pip' })).result)
+
+  expect(await delegate({ task: 'Migrate the schema', title: 'Schema' })).toMatch(/^Started Pip/)
+  expect(await delegate({ task: 'Seed the data too', title: 'Seeds', worker: 'pip' })).toBe(
+    'Given to Pip (address "pip") in /work/api; context kept. Pip is busy: the task reached it as a message in the middle of "Schema", which it may finish first or set aside.',
+  )
+  // The task went all the same, and counts.
+  expect(seen.sends[seen.sends.length - 1]).toMatch(/^Seed the data too\n/)
+  expect(await pip()).toMatch(/, 2 tasks, .*last task "Schema"/)
+  expect(await pip()).not.toMatch(/Seeds/)
+
+  // Free again, it takes the next task's title and no warning.
+  await $.turn.complete({ answer: 'Hecho', durationMs: 1, isAborted: false, turnId: 't1', agentId: 'agent-1', reason: 'answer' })
+  expect(await delegate({ task: 'Add the indexes', title: 'Indexes', worker: 'pip' })).toBe('Given to Pip (address "pip") in /work/api; context kept.')
+  expect(await pip()).toMatch(/last task "Indexes"/)
 })
 
 test('a worker sent where another is busy hears of it', async ($, on) => {
