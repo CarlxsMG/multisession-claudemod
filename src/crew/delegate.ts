@@ -7,6 +7,9 @@ import { quiet, unrecognized } from '../engine'
 import type { Engine } from '../engine'
 import {
   FORK_REFUSED,
+  NEW_FRESH,
+  NEW_NONE_FREE,
+  PICKED_NAMED,
   TASK_REQUIRED,
   autoModeHandoff,
   given,
@@ -16,11 +19,13 @@ import {
   heldFor,
   heldMissed,
   heldWentFirst,
+  newAfterLost,
   noModel,
   noRepo,
   noWorker,
   notForWorkers,
   notStarted,
+  pickedFree,
   started,
   unreachable,
 } from '../prompts/results'
@@ -94,17 +99,19 @@ const lastFree = (w: Worker): number => w.finishedAt ?? w.startedAt
 type Asked = { task: string; title: string; cwd: string; sessionCwd: string; type: string; model: string; callId: string | undefined }
 
 // Gives the task to a worker that exists, which any mark on it allows; its
-// answer, or undefined when it could not be reached and was not named, which
-// leaves the task to a new worker.
+// answer, or why it was lost when the worker could not be reached and was not
+// named, which leaves the task to a new worker. `why` is the result's clause
+// for how it was picked.
 async function giveTask(
   $: Engine,
   chosen: Worker,
   mark: Takeover | undefined,
   { task, title, callId }: Asked,
   isNamed: boolean,
+  why: string,
   list: readonly Worker[],
   inWorktree: ReadonlySet<string>,
-): Promise<string | undefined> {
+): Promise<string | { lost: string }> {
   const look = await readLook($)
   // Tasks held for it that once did not reach it go first, together.
   const before = mark?.held ?? []
@@ -138,13 +145,20 @@ async function giveTask(
     const own = inWorktree.has(chosen.id)
     const where = own ? `a worktree of ${chosen.cwd}` : chosen.cwd
     const warn = own ? '' : busyHere(list, chosen.cwd, inWorktree, chosen.id)
-    return given(chosen, where, state + (before.length > 0 ? heldWentFirst(before.length) : '') + warn)
+    return given(chosen, where, why, state + (before.length > 0 ? heldWentFirst(before.length) : '') + warn)
   }
-  return isNamed ? unreachable(chosen.name, sent.reason) : undefined
+  return isNamed ? unreachable(chosen.name, sent.reason) : { lost: sent.reason }
 }
 
-// Starts a new worker for the task, under a name free now.
-async function startWorker($: Engine, { task, title, cwd, sessionCwd, type, model, callId }: Asked, list: readonly Worker[], inWorktree: ReadonlySet<string>) {
+// Starts a new worker for the task, under a name free now; `why` is the
+// result's clause for why no worker that existed took it.
+async function startWorker(
+  $: Engine,
+  { task, title, cwd, sessionCwd, type, model, callId }: Asked,
+  why: string,
+  list: readonly Worker[],
+  inWorktree: ReadonlySet<string>,
+) {
   const { name } = claimName(await takenNow($, list))
   const address = name.toLowerCase()
   await intend($, { address, cwd, type })
@@ -184,7 +198,7 @@ async function startWorker($: Engine, { task, title, cwd, sessionCwd, type, mode
   // The spawn hook has put it on the list by its address.
   const id = spawned.agentId ?? (await readWorkers($)).find(w => w.address === address)?.id
   if (id !== undefined) await markCall($, callId, id)
-  return started(name, address, spawned.agentId, cwd, busyHere(list, cwd, inWorktree))
+  return started(name, address, spawned.agentId, cwd, why, busyHere(list, cwd, inWorktree))
 }
 
 async function delegate($: Engine, input: object, callId?: string): Promise<string> {
@@ -209,8 +223,11 @@ async function delegate($: Engine, input: object, callId?: string): Promise<stri
 
   // A blank `worker` names no one: the task goes as if it had none.
   const isNamed = worker !== undefined && worker.trim() !== ''
+  // The free workers that would do, best first: the first takes the task and
+  // the result names the rest.
+  const free = isNamed || isFresh ? [] : freeWorkers(list, woken, cwd, type, model)
   // One the list let go is still the crew's: named, it comes back from the shelf.
-  const chosen = isNamed ? (findWorker(list, worker) ?? (await recallWorker($, worker))) : isFresh ? undefined : freeWorkers(list, woken, cwd, type, model)[0]
+  const chosen = isNamed ? (findWorker(list, worker) ?? (await recallWorker($, worker))) : free[0]
   if (isNamed && chosen === undefined) {
     return noWorker(
       worker,
@@ -224,10 +241,12 @@ async function delegate($: Engine, input: object, callId?: string): Promise<stri
     // task waits, and goes from here then.
     const mark = woken.get(chosen.id)
     if (mark !== undefined && mark.missed === undefined) return hold($, chosen, mark, task, title, callId)
-    const answer = await giveTask($, chosen, mark, call, isNamed, list, inWorktree)
-    if (answer !== undefined) return answer
+    const why = isNamed ? PICKED_NAMED : pickedFree(free.slice(1).map(w => w.name))
+    const answer = await giveTask($, chosen, mark, call, isNamed, why, list, inWorktree)
+    if (typeof answer === 'string') return answer
+    return startWorker($, call, newAfterLost(chosen.name, answer.lost), list, inWorktree)
   }
-  return startWorker($, call, list, inWorktree)
+  return startWorker($, call, isFresh ? NEW_FRESH : NEW_NONE_FREE, list, inWorktree)
 }
 
 // Keeps a task for a woken worker until its run ends, and says so.

@@ -1,6 +1,6 @@
 import { expect } from 'claude-code/testing'
 import type { AgentSpawnInput } from 'claude-code'
-import { given, headsUp, heldFor, started } from '../src/prompts/results'
+import { NEW_NONE_FREE, PICKED_FREE, given, headsUp, heldFor, started } from '../src/prompts/results'
 import { CLICKS, DELEGATE, PANE, engine, frameRows, isBlank, mountResult, mountRow, mountSaid, spawnAgent, test, toolRow } from './support/crew'
 import type { Said } from './support/crew'
 
@@ -476,7 +476,7 @@ test("a resumed conversation's crew calls, which no state of this session knows,
   // A new worker: delegate's result gives its name, address and id, and the
   // id its color.
   const task = { task: 'Run the tests and fix what fails.', title: 'Arreglar tests', repo: '/work/api' }
-  const output = started('Pip', 'pip', 'agent-7', '/work/api', headsUp(['Bolt']))
+  const output = started('Pip', 'pip', 'agent-7', '/work/api', NEW_NONE_FREE, headsUp(['Bolt']))
   const fresh = await mountRow($, toolRow(DELEGATE, 'toolu_r1', task, { output }))
   expect(await frameRows(fresh)).toEqual([
     expect.stringMatching(/^╭─ Nova → Pip · Arreglar tests ─+╮$/),
@@ -494,7 +494,12 @@ test("a resumed conversation's crew calls, which no state of this session knows,
   // id, so it takes the plain color.
   const reused = await mountRow(
     $,
-    toolRow(DELEGATE, 'toolu_r2', { task: 'Y el registro', title: 'Registro' }, { output: given({ name: 'Bolt', address: 'bolt' }, '/work/web', '') }),
+    toolRow(
+      DELEGATE,
+      'toolu_r2',
+      { task: 'Y el registro', title: 'Registro' },
+      { output: given({ name: 'Bolt', address: 'bolt' }, '/work/web', PICKED_FREE, '') },
+    ),
   )
   expect(await frameRows(reused)).toEqual([
     expect.stringMatching(/^╭─ Nova → Bolt · Registro ─+╮$/),

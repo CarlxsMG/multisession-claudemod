@@ -62,12 +62,39 @@ export function autoModeHandoff(name: string, address: string, title: string, ty
 const GIVEN = 'Given to '
 const STARTED = 'Started '
 
+/** Why a task went to a worker that existed: the call named it. */
+export const PICKED_NAMED = 'as named'
+/** Why a task went to a worker that existed: no call named it, and of the free ones it came first. */
+export const PICKED_FREE = 'the free worker of that type and model there that last finished a task'
+
+// The free workers passed over that a result names; the rest are counted.
+const ALSO_FREE = 3
+
 /**
- * `where` is the worker's repository, or "a worktree of" it; `notes` the
- * sentences that follow, each with its leading space, then any heads-up.
+ * `PICKED_FREE` with the free workers it was picked over, best first, so the
+ * orchestrator can send the task to one of them by name instead.
  */
-export const given = (w: Pick<Worker, 'name' | 'address'>, where: string, notes: string): string =>
-  `${GIVEN}${w.name} (address "${w.address}") in ${where}; context kept.${notes}`
+export function pickedFree(others: readonly string[]): string {
+  if (others.length === 0) return PICKED_FREE
+  const more = others.length - ALSO_FREE
+  const names = others.slice(0, ALSO_FREE).join(', ') + (more > 0 ? ` and ${more} more` : '')
+  return `${PICKED_FREE} (also free: ${names}; name one with \`worker\` to pick it)`
+}
+/** Why a new worker was started: none that was free would do. */
+export const NEW_NONE_FREE = 'as no free worker of that type and model was there'
+/** Why a new worker was started: the call asked for one. */
+export const NEW_FRESH = 'as `fresh` asked'
+/** Why a new worker was started: the free one the task went to first did not get it. */
+export const newAfterLost = (name: string, reason: string): string =>
+  `as ${name}, free there, could not be reached (${reason.replace(/^crew: /, '').replace(/\.$/, '')})`
+
+/**
+ * `where` is the worker's repository, or "a worktree of" it; `why` the
+ * clause that says how it was picked; `notes` the sentences that follow, each
+ * with its leading space, then any heads-up.
+ */
+export const given = (w: Pick<Worker, 'name' | 'address'>, where: string, why: string, notes: string): string =>
+  `${GIVEN}${w.name} (address "${w.address}") in ${where}, ${why}; context kept.${notes}`
 
 /**
  * What a task given to a worker named while busy adds: it arrived inside the
@@ -79,8 +106,9 @@ export const givenWhileBusy = (name: string, inFlight: string): string =>
 /** What a task given to a worker named after a failed run adds. */
 export const givenAfterFailure = (name: string): string => ` ${name}'s last run failed: if this task builds on that one, have it check what was left undone.`
 
-export const started = (name: string, address: string, id: string | undefined, cwd: string, headsUp: string): string =>
-  `${STARTED}${name} (address "${address}", id ${id ?? '?'}) in ${cwd}.${headsUp}`
+/** `why` is the clause that says why a new worker and not one that existed. */
+export const started = (name: string, address: string, id: string | undefined, cwd: string, why: string, headsUp: string): string =>
+  `${STARTED}${name} (address "${address}", id ${id ?? '?'}) in ${cwd}, ${why}.${headsUp}`
 
 /**
  * A line for the result when other workers are busy in the repository, ''

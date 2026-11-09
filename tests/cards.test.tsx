@@ -7,7 +7,7 @@ import type { Mounted, TestBody } from 'claude-code/testing'
 import { accentHex } from '../src/figure/accent'
 import { RED } from '../src/figure/anim'
 import { DEFAULT_LOOK } from '../src/figure/look'
-import { started } from '../src/prompts/results'
+import { NEW_NONE_FREE, started } from '../src/prompts/results'
 import { hash } from '../src/util/random'
 import { DELEGATE, SURFACES, engine, frameRows, isBlank, test, toolRow } from './support/crew'
 import type { Result, Row, Said } from './support/crew'
@@ -237,7 +237,7 @@ for (const surface of CARD_SURFACES) {
     await $.session.start({ cwd: '/work/main', surface, isInteractive: true })
 
     const input = { task: TASK, title: 'Arreglar tests', repo: '/work/api' }
-    const call = await mountCall($, surface, toolRow(DELEGATE, 'toolu_r1', input, { output: started('Pip', 'pip', 'agent-7', '/work/api', '') }))
+    const call = await mountCall($, surface, toolRow(DELEGATE, 'toolu_r1', input, { output: started('Pip', 'pip', 'agent-7', '/work/api', NEW_NONE_FREE, '') }))
     const { svg } = await cardOf(call)
     await lineMatches(call, /^Nova → Pip · Arreglar tests · new$/)
     await opensTo(call, 'toolu_r1', TASK)
@@ -245,7 +245,7 @@ for (const surface of CARD_SURFACES) {
     const result = await mountResultOn($, surface, {
       tool: DELEGATE,
       tool_use_id: 'toolu_r1',
-      output: started('Pip', 'pip', 'agent-7', '/work/api', ''),
+      output: started('Pip', 'pip', 'agent-7', '/work/api', NEW_NONE_FREE, ''),
       isErrored: false,
     })
     expect(await isBlank(result)).toBe(true)
