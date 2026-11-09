@@ -29,6 +29,7 @@ import {
   notForWorkers,
   notStarted,
   pickedFree,
+  pickedNext,
   started,
   unapplied,
   unappliedModel,
@@ -36,6 +37,7 @@ import {
   unappliedType,
   unreachable,
 } from '../prompts/results'
+import type { Lost } from '../prompts/results'
 import { modelAlias } from '../model-label'
 import { heldTasks, taskClose } from '../prompts/worker'
 import { runtime } from '../runtime'
@@ -131,15 +133,14 @@ function unappliedTo(
 type Asked = { task: string; title: string; cwd: string; sessionCwd: string; type: string; model: string; callId: string | undefined }
 
 // Gives the task to a worker that exists, which any mark on it allows; its
-// answer, or why it was lost when the worker could not be reached and was not
-// named, which leaves the task to a new worker. `why` is the result's clause
-// for how it was picked.
+// answer, or why it was lost when the worker could not be reached, which
+// leaves the task to the caller. `why` is the result's clause for how it was
+// picked.
 async function giveTask(
   $: Engine,
   chosen: Worker,
   mark: Takeover | undefined,
   { task, title, callId }: Asked,
-  isNamed: boolean,
   why: string,
   notes: (where: string) => string,
   list: readonly Worker[],
@@ -180,8 +181,12 @@ async function giveTask(
     const warn = own ? '' : busyHere(list, chosen.cwd, inWorktree, chosen.id)
     return given(chosen, where, why, notes(where) + state + (before.length > 0 ? heldWentFirst(before.length) : '') + warn)
   }
-  return isNamed ? unreachable(chosen.name, sent.reason) : { lost: sent.reason }
+  return { lost: sent.reason }
 }
+
+// How many free workers an unnamed task is sent to before a new one starts:
+// each send that fails is a round trip the call waits for.
+const REUSE_TRIES = 3
 
 // Starts a new worker for the task, under a name free now; `why` is the
 // result's clause for why no worker that existed took it.
@@ -260,33 +265,42 @@ async function delegate($: Engine, input: object, callId?: string): Promise<stri
   const inWorktree = new Set(await readWorktrees($))
   const woken = new Map((await readTakeovers($)).map(t => [t.id, t]))
 
-  // The free workers that would do, best first: the first takes the task and
-  // the result names the rest.
-  const free = isNamed || isFresh ? [] : freeWorkers(list, woken, cwd, type, model)
-  // One the list let go is still the crew's: named, it comes back from the shelf.
-  const chosen = isNamed ? (findWorker(list, worker) ?? (await recallWorker($, worker))) : free[0]
-  if (isNamed && chosen === undefined) {
-    return noWorker(
-      worker,
-      list.map(w => w.address),
-    )
-  }
-
   const call: Asked = { task, title, cwd, sessionCwd, type, model, callId }
-  if (chosen !== undefined) {
+  if (isNamed) {
+    // One the list let go is still the crew's: named, it comes back from the shelf.
+    const chosen = findWorker(list, worker) ?? (await recallWorker($, worker))
+    if (chosen === undefined) {
+      return noWorker(
+        worker,
+        list.map(w => w.address),
+      )
+    }
     // An agent its worker woke reports to that worker until the run ends: the
     // task waits, and goes from here then.
     const mark = woken.get(chosen.id)
-    const notes = (where: string) => (isNamed ? unappliedTo(chosen, where, { repo, cwd, askedType, asked, isFresh }) : '')
+    const notes = (where: string) => unappliedTo(chosen, where, { repo, cwd, askedType, asked, isFresh })
     if (mark !== undefined && mark.missed === undefined) {
       return hold($, chosen, mark, task, title, notes(inWorktree.has(chosen.id) ? worktreeOf(chosen.cwd) : chosen.cwd), callId)
     }
-    const why = isNamed ? PICKED_NAMED : pickedFree(free.slice(1).map(w => w.name))
-    const answer = await giveTask($, chosen, mark, call, isNamed, why, notes, list, inWorktree)
-    if (typeof answer === 'string') return answer
-    return startWorker($, call, newAfterLost(chosen.name, answer.lost), list, inWorktree)
+    const answer = await giveTask($, chosen, mark, call, PICKED_NAMED, notes, list, inWorktree)
+    return typeof answer === 'string' ? answer : unreachable(chosen.name, answer.lost)
   }
-  return startWorker($, call, isFresh ? NEW_FRESH : NEW_NONE_FREE, list, inWorktree)
+
+  // The free workers that would do, best first: the task goes to the first
+  // it reaches, and the result names the ones it did not reach and the rest.
+  // None has a mark, so each is a plain send.
+  const free = isFresh ? [] : freeWorkers(list, woken, cwd, type, model)
+  const names = (workers: readonly Worker[]) => workers.map(w => w.name)
+  const lost: Lost[] = []
+  for (const candidate of free.slice(0, REUSE_TRIES)) {
+    const rest = names(free.slice(lost.length + 1))
+    const why = lost.length === 0 ? pickedFree(rest) : pickedNext(lost, rest)
+    const answer = await giveTask($, candidate, undefined, call, why, () => '', list, inWorktree)
+    if (typeof answer === 'string') return answer
+    lost.push({ name: candidate.name, reason: answer.lost })
+  }
+  const why = lost.length > 0 ? newAfterLost(lost, names(free.slice(lost.length))) : isFresh ? NEW_FRESH : NEW_NONE_FREE
+  return startWorker($, call, why, list, inWorktree)
 }
 
 // Keeps a task for a woken worker until its run ends, and says so.
