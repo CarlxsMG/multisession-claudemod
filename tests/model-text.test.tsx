@@ -168,6 +168,22 @@ test("delegate's results for a worker named while busy, and after a run that fai
   expectText('result.givenAfterFailure', await delegate($, { task: 'Try the login again', title: 'Login again', worker: 'pip' }))
 })
 
+test("delegate's result for a named worker the call's other arguments do not fit, given and held", async ($, on) => {
+  let spawned = 0
+  engine(on, { nextId: () => `agent-${++spawned}`, seen: recording() })
+  await start($)
+  await delegate($, { task: 'Fix the login', title: 'Login', repo: '/work/api' })
+  await finish($, 'agent-1')
+  const other = { repo: '/work/web', subagent_type: 'Explore', model: 'opus', fresh: true }
+  expectText('result.givenUnapplied', await delegate($, { task: 'Add the tests', title: 'Tests', worker: 'pip', ...other }))
+})
+
+test('a task held for a woken worker notes what the call asked that it is not', async ($, on) => {
+  const { delegate: give } = await wokenCrew($, on)
+  await $.tool.call({ tool: 'Read', file_path: '/work/api/src/bus.ts', agentId: 'agent-2' })
+  expectText('result.heldUnapplied', await give({ task: 'Record the event.', title: 'Session bus', worker: 'bolt', fresh: true }))
+})
+
 test("delegate's results when a spawn is refused, by auto mode's missing verdict or otherwise", async ($, on) => {
   engine(on, { seen: { ...recording(), refuse: NO_VERDICT } })
   await start($)

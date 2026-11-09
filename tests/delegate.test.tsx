@@ -328,7 +328,7 @@ test('a worker named for a task hears of who is busy in its own repository', asy
   // Pip stays in /work/api, whatever the session's directory or `repo` say.
   for (const extra of [{}, { repo: '/work/web' }]) {
     const given = await delegate({ task: 'Add the endpoint', worker: 'pip', ...extra })
-    expect(given).toMatch(/^Given to Pip \(address "pip"\) in \/work\/api, as named; context kept\.(\n|$)/)
+    expect(given).toMatch(/^Given to Pip \(address "pip"\) in \/work\/api, as named; context kept\.( Not applied|\n|$)/)
     expect(given).toMatch(/\nHeads-up: Bolt is working in this repository; .*its report\.$/)
     expect(given).not.toMatch(/Mika/)
     await done('agent-1')
@@ -343,6 +343,55 @@ test('a worker named for a task hears of who is busy in its own repository', asy
   expect(apart).not.toMatch(/Heads-up/)
   // It was not started by delegate: it hears the whole report rule.
   expect(seen.sends[seen.sends.length - 1]).toMatch(/^Fix the rest\n\nWhen done, report the outcome first, then only facts: /)
+})
+
+test('a named worker stays as it is, and the result notes what the call asked that it is not', async ($, on) => {
+  let spawned = 0
+  const seen: Seen = { prompts: [], sends: [] }
+  engine(on, { nextId: () => `agent-${++spawned}`, seen, host: { exists: path => !path.includes('missing') } })
+  await $.session.start({ cwd: '/work/main', surface: 'terminal', isInteractive: true })
+  const delegate = async (input: Record<string, unknown>) => String((await $.tool.call({ tool: 'mcp__crew__delegate', ...input })).result)
+  const done = () =>
+    $.turn.complete({ answer: 'Hecho', durationMs: 1, isAborted: false, turnId: `t-${seen.sends.length}`, agentId: 'agent-1', reason: 'answer' })
+  const own = { repo: '/work/api', subagent_type: 'Explore', model: 'sonnet' }
+  const plain = 'Given to Pip (address "pip") in /work/api, as named; context kept.'
+  const note = ' Not applied, as a named worker stays as it is: '
+
+  expect(await delegate({ task: 'Find the auth code', ...own })).toMatch(/^Started Pip/)
+  await done()
+  // What matches the worker, or is not given, is not noted.
+  expect(await delegate({ task: 'Find the routes', worker: 'pip', ...own })).toBe(plain)
+  await done()
+  expect(await delegate({ task: 'Find the models', worker: 'pip', fresh: false })).toBe(plain)
+  await done()
+
+  // Each argument the worker is not, alone.
+  const each: [Record<string, unknown>, string][] = [
+    [{ repo: '/work/web' }, '`repo` /work/web (it works in /work/api)'],
+    [{ subagent_type: 'Plan' }, '`subagent_type` Plan (it is Explore)'],
+    [{ model: 'opus' }, '`model` opus (it runs on test-model)'],
+    [{ fresh: true }, '`fresh` (it is not a new worker)'],
+  ]
+  for (const [extra, said] of each) {
+    expect(await delegate({ task: 'Find the tests', worker: 'pip', ...extra })).toBe(`${plain}${note}${said}.`)
+    expect(seen.sends[seen.sends.length - 1]).toMatch(/^Find the tests\n/)
+    await done()
+  }
+  // All of them, in the order of the tool's arguments.
+  expect(await delegate({ task: 'Find the rest', worker: 'pip', repo: '/work/web', subagent_type: 'Plan', model: 'opus', fresh: true })).toBe(
+    `${plain}${note}${each.map(([, said]) => said).join('; ')}.`,
+  )
+  await done()
+
+  // A value no new worker could take does not turn the call down: it would not be used.
+  expect(await delegate({ task: 'Find the docs', worker: 'pip', repo: '/work/missing', subagent_type: 'fork', model: 'gpt-5' })).toBe(
+    `${plain}${note}\`repo\` /work/missing (it works in /work/api); \`subagent_type\` fork (it is Explore); \`model\` gpt-5 (it runs on test-model).`,
+  )
+  expect(spawned).toBe(1)
+  // With no worker named it still does.
+  expect(await delegate({ task: 'Find the docs', repo: '/work/missing' })).toBe('crew: /work/missing does not exist.')
+  expect(await delegate({ task: 'Find the docs', model: 'gpt-5' })).toMatch(/^crew: no model "gpt-5"/)
+  expect(await delegate({ task: 'Find the docs', subagent_type: 'fork' })).toMatch(/a fork starts from the Agent tool/)
 })
 
 test('a worker can be of another agent type, and is reused only for that type', async ($, on) => {

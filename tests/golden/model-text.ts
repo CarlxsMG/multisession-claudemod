@@ -277,6 +277,8 @@ export const GOLDEN: Record<string, string> = {
     "Heads-up: Bolt is working in this repository; keep files apart or wait for its report.",
   ].join('\n'),
   "result.givenOverOthers": "Given to Luna (address \"luna\") in /work/api, the free worker of that type and model there that last finished a task (also free: Tito, Mika, Bolt and 1 more; name one with `worker` to pick it); context kept.",
+  "result.givenUnapplied": "Given to Pip (address \"pip\") in /work/api, as named; context kept. Not applied, as a named worker stays as it is: `repo` /work/web (it works in /work/api); `subagent_type` Explore (it is general-purpose); `model` opus (it runs on test-model); `fresh` (it is not a new worker).",
+  "result.heldUnapplied": "Held for Bolt (address \"agent-2\"): Bolt is answering Pip, whose message woke it. It gets this task when that run ends, and reports to you. Not applied, as a named worker stays as it is: `fresh` (it is not a new worker).",
   "result.givenWhileBusy": "Given to Pip (address \"pip\") in /work/api, as named; context kept. Pip is busy: the task reached it as a message in the middle of \"Login\", which it may finish first or set aside.",
   "result.givenAfterFailure": "Given to Pip (address \"pip\") in /work/api, as named; context kept. Pip's last run failed: if this task builds on that one, have it check what was left undone.",
   "task.reused": [
