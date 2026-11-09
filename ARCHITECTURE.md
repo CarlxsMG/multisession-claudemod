@@ -198,7 +198,8 @@ holds no look, and is turned down as a bad code.
    being tried, until the session starts again or the main conversation starts an agent out of
    auto mode (`noteSpawnMode`, from the spawn's `permissionMode`). The spawn hook
    recognizes that agent through `intents`: by its name, else, as the Agent tool may take none
-   and the orchestrator may reword, by its task, by its title, or as the only handoff of its
+   and the orchestrator may reword, by the worker's name ahead of the call's description (the
+   handoff spells it "(Pip) Title", which tells several handoffs of one response apart), by its task, by its title, or as the only handoff of its
    type (`handoffFor`; two that fit alike are neither). It is the worker `delegate` named; its
    address is the name its call gave, else its id, as the engine lets no hook name a spawn. The
    intent keeps what the call
