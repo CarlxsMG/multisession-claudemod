@@ -33,7 +33,7 @@ import { oneLine } from '../util/text'
 import { deliver } from './deliver'
 import { ORCH_ID, markCall, setOrch } from './feed'
 import { release } from './takeover'
-import { ACTIVE, REUSABLE, claimName, findWorker, takenNow, unclaimNames } from './workers'
+import { ACTIVE, REUSABLE, claimName, findWorker, recallWorker, takenNow, unclaimNames } from './workers'
 
 // The heads-up of the tool's result, from the workers busy in the
 // repository; one in a worktree of its own edits apart.
@@ -195,7 +195,8 @@ async function delegate($: Engine, input: object, callId?: string): Promise<stri
 
   // A blank `worker` names no one: the task goes as if it had none.
   const isNamed = worker !== undefined && worker.trim() !== ''
-  const chosen = isNamed ? findWorker(list, worker) : isFresh ? undefined : freeWorker(list, woken, cwd, type, model)
+  // One the list let go is still the crew's: named, it comes back from the shelf.
+  const chosen = isNamed ? (findWorker(list, worker) ?? (await recallWorker($, worker))) : isFresh ? undefined : freeWorker(list, woken, cwd, type, model)
   if (isNamed && chosen === undefined) {
     return noWorker(
       worker,

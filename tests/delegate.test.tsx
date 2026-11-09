@@ -211,6 +211,41 @@ test('a failed worker is never taken unnamed, and is when named', async ($, on) 
   expect(await delegate({ task: 'Try the migration again', worker: 'pip' })).toMatch(/^Given to Pip/)
 })
 
+test('a worker the list let go is found on the shelf by name, address or id, and is back on the list with the task', async ($, on) => {
+  let spawned = 0
+  const seen = { prompts: [] as string[], sends: [] as string[] }
+  const clock = engine(on, { nextId: () => `agent-${++spawned}`, seen })
+  await $.session.start({ cwd: '/work/main', surface: 'terminal', isInteractive: true })
+  const delegate = async (input: Record<string, unknown>) => String((await $.tool.call({ tool: DELEGATE, ...input })).result)
+  const roster = async (worker?: string) => String((await $.tool.call({ tool: 'mcp__crew__roster', ...(worker ? { worker } : {}) })).result)
+  const done = (agentId: string) => $.turn.complete({ answer: 'Done', durationMs: 1, isAborted: false, turnId: `t-${agentId}`, agentId, reason: 'answer' })
+
+  // More free workers than the list keeps: the three oldest go to the shelf.
+  for (let i = 1; i <= 28; i++) {
+    await delegate({ task: `Task ${i}`, repo: `/work/r${i}`, fresh: true })
+    await clock.advance(1000)
+    await done(`agent-${i}`)
+  }
+  const head = async () => (await roster()).split('\n')[0]
+  expect(await head()).toBe("Nova's crew (25):")
+
+  // Asked for by name, the roster shows one from the shelf and leaves it there.
+  expect(await roster('Pip')).toMatch(/^- Pip: address "pip", done, repo \/work\/r1, /)
+  expect(await head()).toBe("Nova's crew (25):")
+
+  expect(await delegate({ task: 'By name', worker: 'Pip' })).toMatch(/^Given to Pip \(address "pip"\) in \/work\/r1; context kept\./)
+  expect(await delegate({ task: 'By address', worker: 'bolt [3fa9c1]' })).toMatch(/^Given to Bolt .* in \/work\/r2; /)
+  expect(await delegate({ task: 'By id', worker: 'agent-3' })).toMatch(/^Given to Mika .* in \/work\/r3; /)
+  expect(seen.sends.map(s => s.split('\n')[0])).toEqual(['By name', 'By address', 'By id'])
+  expect(await head()).toBe("Nova's crew (28):")
+  const back = await roster()
+  for (const name of ['Pip', 'Bolt', 'Mika']) expect(back).toMatch(new RegExp(`- ${name}: address "${name.toLowerCase()}", working, `))
+
+  // On neither the list nor the shelf: no such worker, and nothing started.
+  expect(await delegate({ task: 'Nobody', worker: 'nobody' })).toMatch(/^crew: no worker "nobody"\. Workers: /)
+  expect(spawned).toBe(28)
+})
+
 test('a worker sent where another is busy hears of it', async ($, on) => {
   let spawned = 0
   engine(on, { nextId: () => `agent-${++spawned}` })

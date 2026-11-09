@@ -148,13 +148,27 @@ export async function shelve($: Engine, gone: readonly Worker[]) {
   await updateDropped($, list => appendKept(list, gone, SHELF, w => w.id))
 }
 
+// Moves a worker from the shelf back onto the list.
+async function restore($: Engine, kept: Worker) {
+  await updateDropped($, list => list.filter(w => w.id !== kept.id))
+  await updateWorkers($, list => (list.some(w => w.id === kept.id) ? list : [...list, kept]))
+}
+
 /** Puts a worker that wakes back on the list, as it was. */
 export async function unshelve($: Engine, id: string) {
   const kept = (await readDropped($)).find(w => w.id === id)
   if (kept === undefined) return
-  await updateDropped($, list => list.filter(w => w.id !== id))
-  const now = await $.clock.now()
-  await updateWorkers($, list => (list.some(w => w.id === id) ? list : [...list, { ...kept, status: 'working' as const, updatedAt: now }]))
+  await restore($, { ...kept, status: 'working', updatedAt: await $.clock.now() })
+}
+
+/**
+ * The worker on the shelf `key` names, as `findWorker` reads it, put back on
+ * the list untouched: it is not awake until what it was named for reaches it.
+ */
+export async function recallWorker($: Engine, key: string): Promise<Worker | undefined> {
+  const kept = findWorker(await readDropped($), key)
+  if (kept !== undefined) await restore($, kept)
+  return kept
 }
 
 // A worker that is not busy, free or finished, leaves the panel's row a time
