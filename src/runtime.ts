@@ -17,8 +17,12 @@ export type HeldCalls = { activity: string; calls: { kind: Phase | undefined; at
 // Everything a session starts afresh, as a load starts it.
 function fresh() {
   return {
-    /** `src/crew/spawn.ts`: what an Agent call whose agent the crew named otherwise reads after its result, by tool_use_id. */
-    spawn: { renamed: new Map<string, string>() },
+    /**
+     * `src/crew/spawn.ts`: what an Agent call reads after its result, by
+     * tool_use_id, when the crew named its agent otherwise or took it as the
+     * worker delegate handed over.
+     */
+    spawn: { notes: new Map<string, string>() },
     /**
      * `src/crew/relay.ts` and `src/crew/takeover.ts`: whether the next tick
      * sends on the messages that wait, and lifts the marks of runs that ended.

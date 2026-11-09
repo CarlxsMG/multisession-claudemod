@@ -59,6 +59,21 @@ export function autoModeHandoff(name: string, address: string, title: string, ty
   return `crew: nothing started: auto mode reviews only calls you write, not the one delegate makes. Start ${name} yourself now: Agent tool with ${args.join(', ')}, and as prompt the task exactly as you gave delegate. The crew takes that agent as ${name}, working in ${cwd}.`
 }
 
+/**
+ * What the Agent call that started a worker delegate handed over reads after
+ * its result, as delegate's own result would have said it: the worker, where
+ * it works (`where` as `given` takes it), why a new one, then `notes`, each
+ * with its leading space, and any heads-up.
+ */
+export const handedStarted = (w: Pick<Worker, 'id' | 'name' | 'address'>, where: string, why: string, notes: string, headsUp: string): string =>
+  `[crew] This agent is ${w.name} (address "${w.address}", id ${w.id}), the worker delegate had you start, in ${where}: a new one, ${why}.${notes}${headsUp}`
+
+/**
+ * What `handedStarted` adds when the Agent call named another model than
+ * delegate was asked: `runsOn` is delegate's, an alias or words for it.
+ */
+export const handedModel = (runsOn: string, called: string): string => ` It runs on ${runsOn}, as delegate was asked, not on "${called}".`
+
 const GIVEN = 'Given to '
 const STARTED = 'Started '
 

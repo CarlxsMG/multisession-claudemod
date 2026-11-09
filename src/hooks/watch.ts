@@ -7,7 +7,7 @@ import { beforeTaskStop, noteBackground } from '../background/sweep'
 import { DELEGATE, PLUGIN, PROGRESS } from '../config'
 import { gistOf, markCall, markCrewCall, setJob, setOrch } from '../crew/feed'
 import { noteSendGist } from '../crew/sends'
-import { forgetIsolated, noteIsolated, takeRenamed } from '../crew/spawn'
+import { forgetIsolated, noteIsolated, takeNote } from '../crew/spawn'
 import { findWorker } from '../crew/workers'
 import { quiet } from '../engine'
 import type { Engine } from '../engine'
@@ -49,11 +49,12 @@ export async function watchCall($: Engine, e: Parameters<WatchCallHook>[1], next
     if (e.tool === 'TaskStop') await markCrewCall($, e.tool_use_id, call.task_id ?? call.shell_id)
   }
   if (e.tool === 'Agent') {
-    // Its spawn ran inside: a name the crew gave in place of the call's is said here.
+    // Its spawn ran inside: a name the crew gave in place of the call's, and
+    // the worker delegate handed over that its agent is, are said here.
     const done = await next(e)
     // A denied call spawned nothing: no agent will ask for its worktree.
     if (done.deny !== undefined) await forgetIsolated($, String(call.tool_use_id))
-    const note = takeRenamed(e.tool_use_id)
+    const note = takeNote(e.tool_use_id)
     return note === undefined || done.deny !== undefined ? done : { ...done, context: [...(done.context ?? []), note] }
   }
   const isTodos = e.agentId !== undefined && TODO_TOOLS.has(e.tool)

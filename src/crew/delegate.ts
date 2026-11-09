@@ -1,7 +1,7 @@
 // The delegate tool: the worker a task goes to (a named one, the most recent
 // free one of its kind in that repository, or a new one), the send or the
 // spawn, and a task held for a worker another one woke.
-import type { Intent, Takeover, Worker } from '../../types'
+import type { Handed, Intent, Takeover, Worker } from '../../types'
 import { DEFAULT_TYPE } from '../config'
 import { quiet, unrecognized } from '../engine'
 import type { Engine } from '../engine'
@@ -18,6 +18,8 @@ import {
   given,
   givenAfterFailure,
   givenWhileBusy,
+  handedModel,
+  handedStarted,
   headsUp,
   heldFor,
   heldMissed,
@@ -233,7 +235,8 @@ async function startWorker(
     // however often it is made: the orchestrator's own Agent call is reviewed,
     // and the spawn hook takes its agent as this worker.
     if (UNREVIEWED.test(spawned.deny)) {
-      await intend($, { address, cwd, type, task })
+      const handed: Handed = { title, asked: model, why, ...(callId !== undefined ? { callId } : {}) }
+      await intend($, { address, cwd, type, task, handed })
       return autoModeHandoff(name, address, title, type, model, cwd)
     }
     // Any other refusal is said as it came; one in auto mode's words may be
@@ -248,6 +251,25 @@ async function startWorker(
   const id = spawned.agentId ?? (await readWorkers($)).find(w => w.address === address)?.id
   if (id !== undefined) await markCall($, callId, id)
   return started(name, address, spawned.agentId, cwd, why, busyHere(list, cwd, inWorktree))
+}
+
+/**
+ * Takes the agent the orchestrator started as the worker delegate handed
+ * over, once it is on the list: the delegate call's row names it, and what
+ * its Agent call reads after its result says what delegate's own result
+ * would have. `called` is the model the Agent call named.
+ */
+export async function adoptHanded($: Engine, handed: Handed, worker: Pick<Worker, 'id' | 'name' | 'address' | 'cwd'>, called: string | undefined) {
+  await setOrch($, 'delegating', `${handed.title} → ${worker.name}`)
+  await markCall($, handed.callId, worker.id)
+  const inWorktree = new Set(await readWorktrees($))
+  const own = inWorktree.has(worker.id)
+  const where = own ? worktreeOf(worker.cwd) : worker.cwd
+  const warn = own ? '' : busyHere(await readWorkers($), worker.cwd, inWorktree, worker.id)
+  // Delegate's model stands, whatever the Agent call named.
+  const isOther = called !== undefined && called !== '' && (modelAlias(called) ?? called) !== handed.asked
+  const model = isOther ? handedModel(handed.asked === '' ? SESSION_MODEL : handed.asked, called) : ''
+  return handedStarted(worker, where, handed.why, model, warn)
 }
 
 async function delegate($: Engine, input: object, callId?: string): Promise<string> {

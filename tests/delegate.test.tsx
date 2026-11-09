@@ -2,7 +2,7 @@ import { expect } from 'claude-code/testing'
 import type { TestBody } from 'claude-code/testing'
 import type { AgentSpawnInput } from 'claude-code'
 import { WORKER_NAMES } from '../src/persona/names'
-import { DELEGATE, NO_VERDICT, PANE, SURFACES, USAGE, crewCommand, engine, spawnAgent, test } from './support/crew'
+import { DELEGATE, NO_VERDICT, PANE, SURFACES, USAGE, crewCommand, engine, mountRow, spawnAgent, test, toolRow } from './support/crew'
 import type { Ask, Seen } from './support/crew'
 
 test('a haiku request asks the Agent tool for no model, as one with none does', async ($, on) => {
@@ -81,6 +81,49 @@ test("where auto mode reviews only the model's own calls, the orchestrator start
   await done('agent-2')
   expect(await delegate({ task: 'Now the e2e', repo: '/work/api' })).toMatch(/^Given to Pip/)
   expect(await delegate({ task: 'And the signup', repo: '/work/web', model: 'sonnet' })).toMatch(/^Given to Bolt/)
+})
+
+test('a worker the orchestrator starts for delegate is as delegate asked: its model, its reuse, the row of its delegate call, and why it is new', async ($, on) => {
+  let spawned = 0
+  const seen = { prompts: [] as string[], sends: [] as string[], spawns: [] as AgentSpawnInput[], refuse: NO_VERDICT }
+  engine(on, { nextId: () => `agent-${++spawned}`, seen })
+  await $.session.start({ cwd: '/work/main', surface: 'desktop', isInteractive: false })
+  const delegate = async (input: Record<string, unknown>) => String((await $.tool.call({ tool: DELEGATE, ...input })).result)
+  const done = (agentId: string) => $.turn.complete({ answer: 'Hecho', durationMs: 1, isAborted: false, turnId: `t-${agentId}`, agentId, reason: 'answer' })
+  // The orchestrator's Agent call: its spawn, then what the call reads after its result.
+  const agent = async (toolUseId: string, call: Partial<AgentSpawnInput> & Pick<AgentSpawnInput, 'prompt'>) => {
+    await spawnAgent($, { subagentType: 'general-purpose', parentModel: 'claude-opus-5-5', background: false, ...call, tool_use_id: toolUseId })
+    return (await $.tool.call({ tool: 'Agent', tool_use_id: toolUseId, ...call } as never)) as { context?: string[] }
+  }
+
+  // Asked for sonnet, and the Agent call leaves the model out.
+  const tests = { task: 'Run the tests', title: 'Tests', repo: '/work/api', model: 'sonnet' }
+  const handoff = await delegate({ ...tests, tool_use_id: 'toolu_d1' })
+  expect(handoff).toMatch(/Start Pip yourself now/)
+  const first = await agent('toolu_a1', { prompt: 'Run the tests', description: 'Tests', name: 'pip' })
+  expect(seen.spawns[0]?.model).toBe('sonnet')
+  expect(first.context).toEqual([
+    '[crew] This agent is Pip (address "pip", id agent-1), the worker delegate had you start, in /work/api: a new one, as no free worker of that type and model was there.',
+  ])
+  // The delegate call's row names the worker its Agent call started.
+  const row = await mountRow($, toolRow(DELEGATE, 'toolu_d1', tests, { output: handoff }))
+  expect(await row.find({ type: 'Text', text: /^╭─ Nova → Pip · Tests ─+╮$/ })).toBeDefined()
+  await row.unmount()
+
+  // Asked for no model, and the Agent call names one: delegate's stands,
+  // and the call hears it, with who is busy there.
+  expect(await delegate({ task: 'Fix the login', title: 'Login', repo: '/work/api', fresh: true })).toMatch(/Start Bolt yourself now/)
+  const second = await agent('toolu_a2', { prompt: 'Fix the login', description: 'Login', name: 'bolt', model: 'sonnet' })
+  expect(seen.spawns[1]?.model).toBe('opus')
+  expect(second.context).toEqual([
+    '[crew] This agent is Bolt (address "bolt", id agent-2), the worker delegate had you start, in /work/api: a new one, as `fresh` asked. It runs on the session\'s model, as delegate was asked, not on "sonnet".\nHeads-up: Pip is working in this repository; keep files apart or wait for its report.',
+  ])
+
+  // Each is reused for the model delegate was asked, not the one its Agent call named.
+  await done('agent-1')
+  await done('agent-2')
+  expect(await delegate({ task: 'Now the e2e', repo: '/work/api', model: 'sonnet' })).toMatch(/^Given to Pip/)
+  expect(await delegate({ task: 'And the signup', repo: '/work/api' })).toMatch(/^Given to Bolt/)
 })
 
 test("a worker on the session's model is asked for it by the alias the Agent tool takes", async ($, on) => {
