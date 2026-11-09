@@ -26,7 +26,7 @@ import {
 import { appendKept, setKept } from '../util/bounded'
 import { samePath } from '../util/path'
 import { cap, oneLine } from '../util/text'
-import { adoptHanded, keepHandoff, takeIntent } from './delegate'
+import { adoptHanded, keepHandoff, noteSpawnMode, takeIntent } from './delegate'
 import { ORCH_ID, enlist, say, setJob } from './feed'
 import { bareTitle, namedTitle } from './title'
 import { claimName, findWorker, makeWorker, matesOf, patchWorker, prune, shelve, takenNow, unclaimNames, unshelve } from './workers'
@@ -219,6 +219,8 @@ export async function onSpawn($: Engine, e: SpawnEvent, next: Parameters<OnSpawn
     await wakeResumed($, e.resume.agentId)
     return resumed
   }
+  // The main conversation's mode, which delegate cannot read for itself.
+  if (e.parentAgentId === undefined) noteSpawnMode(e.permissionMode)
   const who = await identify($, e)
   const { prompt, worktree } = await briefFor($, e, who)
   // Claude Code's own list of agents shows the description: the crew's name

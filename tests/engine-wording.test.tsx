@@ -45,15 +45,13 @@ test('a usage probe answer without the model windows is logged once, and the ans
 })
 
 test("a spawn refusal in auto mode's words the crew does not know is said as it came, and logged once", async ($, on) => {
-  const seen: Seen = { prompts: [], sends: [], refuse: NO_VERDICT }
+  const seen: Seen = { prompts: [], sends: [], refuse: 'A hook refused this Agent call.' }
   engine(on, { seen })
   const logged = unrecognizedLines(on, 'auto-mode spawn refusal')
   await $.session.start({ cwd: '/work/main', surface: 'desktop', isInteractive: false })
   const delegate = async (repo: string) => String((await $.tool.call({ tool: DELEGATE, task: 'Clean up', repo })).result)
 
-  // Auto mode's missing verdict hands the start on; a refusal in other words is said as it is.
-  expect(await delegate('/work/api')).toMatch(/^crew: nothing started: auto mode reviews only calls you write/)
-  seen.refuse = 'A hook refused this Agent call.'
+  // A refusal in other words than auto mode's missing verdict is said as it is.
   expect(await delegate('/work/api')).toBe('crew: could not start a worker: A hook refused this Agent call.')
   expect(logged).toEqual([])
 
@@ -62,6 +60,11 @@ test("a spawn refusal in auto mode's words the crew does not know is said as it 
   expect(await delegate('/work/api')).toBe(`crew: could not start a worker: ${reworded}`)
   seen.refuse = 'Auto mode blocked this action: it deletes the repository.'
   await delegate('/work/web')
+  expect(logged).toEqual([`crew: unrecognized auto-mode spawn refusal: ${reworded}`])
+
+  // The missing verdict hands the start on, and logs nothing.
+  seen.refuse = NO_VERDICT
+  expect(await delegate('/work/api')).toMatch(/^crew: nothing started: auto mode reviews only calls you write/)
   expect(logged).toEqual([`crew: unrecognized auto-mode spawn refusal: ${reworded}`])
 })
 

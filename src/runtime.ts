@@ -30,6 +30,12 @@ function fresh() {
      * go on at the first tick.
      */
     due: { relay: true, release: false },
+    /**
+     * `src/crew/delegate.ts`: whether auto mode refused a spawn of delegate's
+     * for want of a verdict, which it does every time while the session is
+     * in that mode.
+     */
+    handoffs: { isUnreviewed: false },
     /** `src/crew/workers.ts`: the names given in this load, the moment each is chosen. */
     names: { claimed: new Set<string>() },
     /** `src/progress/run-store.ts`: how long each worker's last run took. */
