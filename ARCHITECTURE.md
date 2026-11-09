@@ -179,7 +179,8 @@ holds no look, and is turned down as a bad code.
    included) and refuses a `fork` type.
 3. It picks the worker: the one named, else (without `fresh`) the most recent free worker that
    `delegate` started in that repository, of the same type and on the model asked for (the
-   session's when none), that is not woken by another worker; else none.
+   session's when none) however its own call named that model, that is not woken by another
+   worker; else none.
 4. A reused worker gets the task through `deliver`, a send from the main conversation, with a
    short reminder of how to report; held tasks that once missed it go first, in the same
    message. A worker woken by another worker gets nothing yet: the task is a **held task** on

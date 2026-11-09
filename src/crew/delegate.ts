@@ -78,11 +78,22 @@ async function repoDir($: Engine, sessionCwd: string, repo: string): Promise<str
 }
 
 // The free workers of that type the crew started there, the one that ended
-// a turn last first, on the model asked for (none asked for: one started on
-// the session's), however long its history: it compacts. A failed one is
-// never free. `model` is an alias, and what a spawn answers may be a full
-// id: both go by their family.
-function freeWorkers(list: readonly Worker[], woken: ReadonlyMap<string, Takeover>, cwd: string, type: string, model: string): Worker[] {
+// a turn last first, on the model a new worker would get, the one asked for
+// or else the session's, however their own call named it: one asked for none
+// is on the session's, and one asked for a model, or that a spawn answered a
+// model for, is on that. However long its history: it compacts. A failed
+// one is never free. `model` and `session` are aliases, and what a spawn
+// answers may be a full id: all go by their family. A session whose model
+// names no family has only the workers asked for none.
+function freeWorkers(
+  list: readonly Worker[],
+  woken: ReadonlyMap<string, Takeover>,
+  cwd: string,
+  type: string,
+  model: string,
+  session: string | undefined,
+): Worker[] {
+  const isOn = (w: Worker, family: string | undefined) => family !== undefined && (modelAlias(w.asked ?? '') === family || modelAlias(w.model) === family)
   return list
     .filter(
       w =>
@@ -91,7 +102,7 @@ function freeWorkers(list: readonly Worker[], woken: ReadonlyMap<string, Takeove
         REUSABLE.has(w.status) &&
         !woken.has(w.id) &&
         w.asked !== null &&
-        (model === '' ? w.asked === '' : modelAlias(w.asked) === model || modelAlias(w.model) === model),
+        (model === '' ? w.asked === '' || isOn(w, session) : isOn(w, model)),
     )
     .sort((a, b) => lastFree(b) - lastFree(a))
 }
@@ -256,13 +267,15 @@ async function delegate($: Engine, input: object, callId?: string): Promise<stri
   const model = alias === undefined || alias === 'haiku' ? '' : alias
   // Any type the Agent tool can dispatch, but a fork is that tool's own.
   if (!isNamed && type === 'fork') return FORK_REFUSED
+  // The session's model, which a call for none is matched with.
+  const session = isNamed || isFresh || model !== '' ? undefined : modelAlias(await $.session.model().catch(() => ''))
   const list = await readWorkers($)
   const inWorktree = new Set(await readWorktrees($))
   const woken = new Map((await readTakeovers($)).map(t => [t.id, t]))
 
   // The free workers that would do, best first: the first takes the task and
   // the result names the rest.
-  const free = isNamed || isFresh ? [] : freeWorkers(list, woken, cwd, type, model)
+  const free = isNamed || isFresh ? [] : freeWorkers(list, woken, cwd, type, model, session)
   // One the list let go is still the crew's: named, it comes back from the shelf.
   const chosen = isNamed ? (findWorker(list, worker) ?? (await recallWorker($, worker))) : free[0]
   if (isNamed && chosen === undefined) {
