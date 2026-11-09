@@ -65,7 +65,8 @@ async function repoDir($: Engine, sessionCwd: string, repo: string): Promise<str
 
 // The most recent free worker of that type the crew started there, on the
 // model asked for (none asked for: one started on the session's), however
-// long its history: it compacts. A failed one is never free.
+// long its history: it compacts. A failed one is never free. `model` is an
+// alias, and what a spawn answers may be a full id: both go by their family.
 function freeWorker(list: readonly Worker[], woken: ReadonlyMap<string, Takeover>, cwd: string, type: string, model: string): Worker | undefined {
   return list
     .filter(
@@ -75,7 +76,7 @@ function freeWorker(list: readonly Worker[], woken: ReadonlyMap<string, Takeover
         REUSABLE.has(w.status) &&
         !woken.has(w.id) &&
         w.asked !== null &&
-        (model === '' ? w.asked === '' : w.asked === model || w.model === model),
+        (model === '' ? w.asked === '' : modelAlias(w.asked) === model || modelAlias(w.model) === model),
     )
     .sort((a, b) => b.updatedAt - a.updatedAt)[0]
 }

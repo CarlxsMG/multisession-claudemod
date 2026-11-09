@@ -367,6 +367,27 @@ test('a full model id goes as the alias the Agent tool takes, to start a worker 
   expect(seen.models).toHaveLength(3)
 })
 
+test('a free worker running on a full id of the family asked for is reused, whatever alias it was asked', async ($, on) => {
+  let spawned = 0
+  // A spawn answers the full id its agent runs on: the session's when the
+  // call asks for none.
+  const runsOn = (asked: string | undefined) => (asked === 'sonnet' ? 'claude-sonnet-4-5-20250929' : 'us.anthropic.claude-opus-5-5-v1:0')
+  engine(on, { nextId: () => `agent-${++spawned}`, runsOn })
+  await $.session.start({ cwd: '/work/main', surface: 'terminal', isInteractive: true })
+  const delegate = async (ask: Ask) => String((await $.tool.call({ tool: 'mcp__crew__delegate', ...ask })).result)
+  const done = (agentId: string, turnId: string) => $.turn.complete({ answer: 'Hecho', durationMs: 1000, isAborted: false, turnId, agentId, reason: 'answer' })
+
+  expect(await delegate({ task: 'List the routes', repo: '/work/api' })).toMatch(/^Started Pip/)
+  await done('agent-1', 't1')
+  expect(await delegate({ task: 'Check the queries', repo: '/work/api', model: 'opus' })).toMatch(/^Given to Pip/)
+  await done('agent-1', 't2')
+  // Another family is not the model it runs on.
+  expect(await delegate({ task: 'Review the login', repo: '/work/api', model: 'sonnet' })).toMatch(/^Started Bolt/)
+  await done('agent-2', 't3')
+  // No model asked: only the one started with none, not the newer one.
+  expect(await delegate({ task: 'Polish it', repo: '/work/api' })).toMatch(/^Given to Pip/)
+})
+
 const roster = async ($: Parameters<TestBody>[0]) => String((await $.tool.call({ tool: 'mcp__crew__roster' })).result)
 const rowOf = (text: string, name: string) => text.split('\n').find(line => line.startsWith(`- ${name}: `)) ?? ''
 
