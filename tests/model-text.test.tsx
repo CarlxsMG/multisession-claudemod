@@ -143,6 +143,19 @@ test("delegate's results: started, given, busy repositories, and what it turns d
   await finish($, 'agent-2')
   seen.undelivered = 'the agent is gone'
   expectText('result.unreachable', await delegate($, { task: 'Polish it', worker: 'bolt' }))
+  expectText('result.startedAfterLost', await delegate($, { task: 'Polish it', title: 'Polish', repo: '/work/api' }))
+})
+
+test("delegate's result for a free worker picked over others that were free", async ($, on) => {
+  let spawned = 0
+  const clock = engine(on, { nextId: () => `agent-${++spawned}`, seen: recording() })
+  await start($)
+  for (const title of ['Login', 'Styles', 'Docs', 'Deploy', 'Search']) await delegate($, { task: `Build the ${title}`, title, repo: '/work/api', fresh: true })
+  for (let i = 1; i <= 5; i++) {
+    await clock.advance(1000)
+    await finish($, `agent-${i}`)
+  }
+  expectText('result.givenOverOthers', await delegate($, { task: 'Add the tests', title: 'Tests', repo: '/work/api' }))
 })
 
 test("delegate's results for a worker named while busy, and after a run that failed", async ($, on) => {

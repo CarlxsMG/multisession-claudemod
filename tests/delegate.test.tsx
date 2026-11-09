@@ -183,19 +183,19 @@ test('on Windows a repository is found however it is spelled, and its free worke
   const delegate = async (input: Record<string, unknown>) => String((await $.tool.call({ tool: 'mcp__crew__delegate', ...input })).result)
   const done = (agentId: string) => $.turn.complete({ answer: 'Hecho', durationMs: 1, isAborted: false, turnId: `t-${agentId}`, agentId, reason: 'answer' })
 
-  expect(await delegate({ task: 'Map the API', repo: 'C:\\work\\api' })).toMatch(/^Started Pip .* in C:\\work\\api\./)
+  expect(await delegate({ task: 'Map the API', repo: 'C:\\work\\api' })).toMatch(/^Started Pip .* in C:\\work\\api, /)
   await done('agent-1')
   // Another case, the other slash, a trailing one: the same repository.
   expect(await delegate({ task: 'Fix the router', repo: 'c:/work/api/' })).toMatch(/^Given to Pip /)
   // A teammate there is named by its folder, not the whole path.
   await delegate({ task: 'Write the docs', repo: '..\\api', fresh: true })
   expect(seen.prompts[seen.prompts.length - 1]).toMatch(/Teammates you can reach with SendMessage: Pip \("pip", api\)/)
-  expect(await delegate({ task: 'Style it', repo: '../web', fresh: true })).toMatch(/ in C:\\work\\web\./)
+  expect(await delegate({ task: 'Style it', repo: '../web', fresh: true })).toMatch(/ in C:\\work\\web, /)
   // Git Bash's spelling, a path from the drive's root, the home and a share.
-  expect(await delegate({ task: 'Shop', repo: '/c/work/shop', fresh: true })).toMatch(/ in C:\\work\\shop\./)
-  expect(await delegate({ task: 'Root', repo: '\\tools', fresh: true })).toMatch(/ in C:\\tools\./)
-  expect(await delegate({ task: 'Home', repo: '~\\code', fresh: true })).toMatch(/ in C:\\Users\\ana\\code\./)
-  expect(await delegate({ task: 'Share', repo: '\\\\srv\\team\\x\\..\\y', fresh: true })).toMatch(/ in \\\\srv\\team\\y\./)
+  expect(await delegate({ task: 'Shop', repo: '/c/work/shop', fresh: true })).toMatch(/ in C:\\work\\shop, /)
+  expect(await delegate({ task: 'Root', repo: '\\tools', fresh: true })).toMatch(/ in C:\\tools, /)
+  expect(await delegate({ task: 'Home', repo: '~\\code', fresh: true })).toMatch(/ in C:\\Users\\ana\\code, /)
+  expect(await delegate({ task: 'Share', repo: '\\\\srv\\team\\x\\..\\y', fresh: true })).toMatch(/ in \\\\srv\\team\\y, /)
 })
 
 test('a failed worker is never taken unnamed, and is when named', async ($, on) => {
@@ -209,7 +209,7 @@ test('a failed worker is never taken unnamed, and is when named', async ($, on) 
   expect(String((await $.tool.call({ tool: 'mcp__crew__roster', worker: 'pip' })).result)).toMatch(/^- Pip: address "pip", failed, /)
   expect(await delegate({ task: 'Seed the data' })).toMatch(/^Started Bolt/)
   expect(await delegate({ task: 'Try the migration again', worker: 'pip' })).toBe(
-    'Given to Pip (address "pip") in /work/api; context kept. Pip\'s last run failed: if this task builds on that one, have it check what was left undone.\nHeads-up: Bolt is working in this repository; keep files apart or wait for its report.',
+    'Given to Pip (address "pip") in /work/api, as named; context kept. Pip\'s last run failed: if this task builds on that one, have it check what was left undone.\nHeads-up: Bolt is working in this repository; keep files apart or wait for its report.',
   )
 })
 
@@ -223,7 +223,7 @@ test('a busy worker named for a task keeps the title of the one in flight, and t
 
   expect(await delegate({ task: 'Migrate the schema', title: 'Schema' })).toMatch(/^Started Pip/)
   expect(await delegate({ task: 'Seed the data too', title: 'Seeds', worker: 'pip' })).toBe(
-    'Given to Pip (address "pip") in /work/api; context kept. Pip is busy: the task reached it as a message in the middle of "Schema", which it may finish first or set aside.',
+    'Given to Pip (address "pip") in /work/api, as named; context kept. Pip is busy: the task reached it as a message in the middle of "Schema", which it may finish first or set aside.',
   )
   // The task went all the same, and counts.
   expect(seen.sends[seen.sends.length - 1]).toMatch(/^Seed the data too\n/)
@@ -232,7 +232,9 @@ test('a busy worker named for a task keeps the title of the one in flight, and t
 
   // Free again, it takes the next task's title and no warning.
   await $.turn.complete({ answer: 'Hecho', durationMs: 1, isAborted: false, turnId: 't1', agentId: 'agent-1', reason: 'answer' })
-  expect(await delegate({ task: 'Add the indexes', title: 'Indexes', worker: 'pip' })).toBe('Given to Pip (address "pip") in /work/api; context kept.')
+  expect(await delegate({ task: 'Add the indexes', title: 'Indexes', worker: 'pip' })).toBe(
+    'Given to Pip (address "pip") in /work/api, as named; context kept.',
+  )
   expect(await pip()).toMatch(/last task "Indexes"/)
 })
 
@@ -258,9 +260,9 @@ test('a worker the list let go is found on the shelf by name, address or id, and
   expect(await roster('Pip')).toMatch(/^- Pip: address "pip", done, repo \/work\/r1, /)
   expect(await head()).toBe("Nova's crew (25):")
 
-  expect(await delegate({ task: 'By name', worker: 'Pip' })).toMatch(/^Given to Pip \(address "pip"\) in \/work\/r1; context kept\./)
-  expect(await delegate({ task: 'By address', worker: 'bolt [3fa9c1]' })).toMatch(/^Given to Bolt .* in \/work\/r2; /)
-  expect(await delegate({ task: 'By id', worker: 'agent-3' })).toMatch(/^Given to Mika .* in \/work\/r3; /)
+  expect(await delegate({ task: 'By name', worker: 'Pip' })).toMatch(/^Given to Pip \(address "pip"\) in \/work\/r1, as named; context kept\./)
+  expect(await delegate({ task: 'By address', worker: 'bolt [3fa9c1]' })).toMatch(/^Given to Bolt .* in \/work\/r2, as named; /)
+  expect(await delegate({ task: 'By id', worker: 'agent-3' })).toMatch(/^Given to Mika .* in \/work\/r3, as named; /)
   expect(seen.sends.map(s => s.split('\n')[0])).toEqual(['By name', 'By address', 'By id'])
   expect(await head()).toBe("Nova's crew (28):")
   const back = await roster()
@@ -271,6 +273,33 @@ test('a worker the list let go is found on the shelf by name, address or id, and
   expect(spawned).toBe(28)
 })
 
+test('the result says why its worker got the task: named, the free one, or a new one and why', async ($, on) => {
+  let spawned = 0
+  const seen: Seen = { prompts: [], sends: [] }
+  engine(on, { nextId: () => `agent-${++spawned}`, seen })
+  await $.session.start({ cwd: '/work/main', surface: 'terminal', isInteractive: true })
+  const delegate = async (input: Record<string, unknown>) => String((await $.tool.call({ tool: 'mcp__crew__delegate', repo: '/work/api', ...input })).result)
+  const done = (agentId: string) => $.turn.complete({ answer: 'Hecho', durationMs: 1, isAborted: false, turnId: `t-${agentId}`, agentId, reason: 'answer' })
+  const first = (result: string) => result.split('\n')[0]
+
+  expect(await delegate({ task: 'Map the API' })).toBe('Started Pip (address "pip", id ?) in /work/api, as no free worker of that type and model was there.')
+  await done('agent-1')
+  expect(first(await delegate({ task: 'Write the docs', fresh: true }))).toBe('Started Bolt (address "bolt", id ?) in /work/api, as `fresh` asked.')
+  expect(first(await delegate({ task: 'Add the endpoint' }))).toBe(
+    'Given to Pip (address "pip") in /work/api, the free worker of that type and model there that last finished a task; context kept.',
+  )
+  await done('agent-1')
+  expect(first(await delegate({ task: 'Test the endpoint', worker: 'pip' }))).toBe('Given to Pip (address "pip") in /work/api, as named; context kept.')
+  await done('agent-1')
+
+  // A free worker the task did not reach: a new one takes it, and the result
+  // names the one that was tried and why it failed.
+  seen.undelivered = 'the agent is gone.'
+  expect(first(await delegate({ task: 'Review the endpoint' }))).toBe(
+    'Started Mika (address "mika", id ?) in /work/api, as Pip, free there, could not be reached (the agent is gone).',
+  )
+})
+
 test('a worker sent where another is busy hears of it', async ($, on) => {
   let spawned = 0
   engine(on, { nextId: () => `agent-${++spawned}` })
@@ -279,7 +308,7 @@ test('a worker sent where another is busy hears of it', async ($, on) => {
 
   expect(await delegate({ task: 'Refactor the router', repo: '/work/api' })).not.toMatch(/Heads-up/)
   const second = await delegate({ task: 'Update the docs', repo: '/work/api' })
-  expect(second).toMatch(/^Started Bolt \(address "bolt", id [^)]+\) in \/work\/api\.\nHeads-up: /)
+  expect(second).toMatch(/^Started Bolt \(address "bolt", id [^)]+\) in \/work\/api, as no free worker of that type and model was there\.\nHeads-up: /)
   expect(second).toMatch(/\nHeads-up: Pip is working in this repository; keep files apart or wait for its report\.$/)
   expect(await delegate({ task: 'Fix the styles', repo: '/work/web' })).not.toMatch(/Heads-up/)
 })
@@ -299,7 +328,7 @@ test('a worker named for a task hears of who is busy in its own repository', asy
   // Pip stays in /work/api, whatever the session's directory or `repo` say.
   for (const extra of [{}, { repo: '/work/web' }]) {
     const given = await delegate({ task: 'Add the endpoint', worker: 'pip', ...extra })
-    expect(given).toMatch(/^Given to Pip \(address "pip"\) in \/work\/api; context kept\.(\n|$)/)
+    expect(given).toMatch(/^Given to Pip \(address "pip"\) in \/work\/api, as named; context kept\.(\n|$)/)
     expect(given).toMatch(/\nHeads-up: Bolt is working in this repository; .*its report\.$/)
     expect(given).not.toMatch(/Mika/)
     await done('agent-1')
@@ -310,7 +339,7 @@ test('a worker named for a task hears of who is busy in its own repository', asy
   await spawnAgent($, { prompt: 'Fix it', description: 'Fix', subagentType: 'general-purpose', tool_use_id: 'toolu_1' })
   await done('agent-4')
   const apart = await delegate({ task: 'Fix the rest', worker: 'agent-4' })
-  expect(apart).toMatch(/^Given to Tito \(address "agent-4"\) in a worktree of \/work\/main; context kept\.$/)
+  expect(apart).toMatch(/^Given to Tito \(address "agent-4"\) in a worktree of \/work\/main, as named; context kept\.$/)
   expect(apart).not.toMatch(/Heads-up/)
   // It was not started by delegate: it hears the whole report rule.
   expect(seen.sends[seen.sends.length - 1]).toMatch(/^Fix the rest\n\nWhen done, report the outcome first, then only facts: /)

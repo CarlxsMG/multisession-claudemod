@@ -12,7 +12,7 @@ import { declarePlan, stepShare, stepsLeft } from '../src/progress/plan'
 import { JUST_ENDED_MS } from '../src/progress/runs'
 import { endNotice } from '../src/progress/text/ended'
 import { notePieces } from '../src/progress/text/note'
-import { given, headsUp, heldFor, started } from '../src/prompts/results'
+import { NEW_NONE_FREE, PICKED_FREE, given, headsUp, heldFor, started } from '../src/prompts/results'
 import { resultFoots } from '../src/ui/transcript/foots'
 import type { Member } from '../types'
 import {
@@ -431,14 +431,17 @@ test('the words the crew builds in Spanish: phases, plans, ends, messages and re
   const foots = (tool: string, output: unknown) => resultFoots(tool, output, pip, [pip, bolt], DEFAULT_LOOK)?.map(f => f.map(x => x.text).join(''))
   expect(foots('SendMessage', { success: true, message: 'ok' })).toEqual(['entregado'])
   expect(foots('SendMessage', { success: true, resumedAgentId: 'agent-1', message: 'Resuming' })).toEqual(['despierta a Pip', 'despierta'])
-  expect(foots('mcp__crew__delegate', [{ type: 'text', text: given(pip, '/w', '') }])).toEqual(['reutilizado · conserva su contexto', 'reutilizado'])
-  expect(foots('mcp__crew__delegate', started('Pip', 'pip', 'agent-1', '/w', headsUp(['Bolt'])))).toEqual([
+  expect(foots('mcp__crew__delegate', [{ type: 'text', text: given(pip, '/w', PICKED_FREE, '') }])).toEqual([
+    'reutilizado · conserva su contexto',
+    'reutilizado',
+  ])
+  expect(foots('mcp__crew__delegate', started('Pip', 'pip', 'agent-1', '/w', NEW_NONE_FREE, headsUp(['Bolt'])))).toEqual([
     'nuevo · ! Bolt trabaja aquí',
     'nuevo · ! Bolt trabaja aquí',
     'nuevo · ! 1 más aquí',
     'nuevo',
   ])
-  expect(foots('mcp__crew__delegate', given(pip, '/w', headsUp(['Bolt', 'Mika'])))).toEqual([
+  expect(foots('mcp__crew__delegate', given(pip, '/w', PICKED_FREE, headsUp(['Bolt', 'Mika'])))).toEqual([
     'reutilizado · conserva su contexto · ! Bolt y Mika trabajan aquí',
     'reutilizado · ! Bolt y Mika trabajan aquí',
     'reutilizado · ! 2 más aquí',
