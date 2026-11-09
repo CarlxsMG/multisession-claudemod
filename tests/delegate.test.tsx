@@ -456,6 +456,29 @@ test("Claude Code's list shows each agent by its crew name and title, and the cr
   expect(rowOf(text, 'Luna')).toMatch(/last task "Frontend"/)
 })
 
+test("an agent whose title another crew member's name stands ahead of shows only its own in Claude Code's list", async ($, on) => {
+  let spawned = 0
+  const seen = { prompts: [] as string[], sends: [] as string[], spawns: [] as AgentSpawnInput[] }
+  engine(on, { nextId: () => `agent-${++spawned}`, seen })
+  await $.session.start({ cwd: '/work/main', surface: 'terminal', isInteractive: true })
+  await $.tool.call({ tool: DELEGATE, task: 'Run the tests', title: 'Tests', repo: '/work/api' })
+  // A worker's own agent, its title written as the worker sees its own named.
+  await spawnAgent($, {
+    prompt: 'Process it',
+    description: '(Pip) Process the task',
+    subagentType: 'Explore',
+    parentAgentId: 'agent-1',
+    tool_use_id: 'toolu_1',
+  })
+  // A new worker's title copied from another's, twice named.
+  await $.tool.call({ tool: DELEGATE, task: 'Write the docs', title: '(Pip) (Bolt) Docs', repo: '/work/api', fresh: true })
+
+  expect(seen.spawns.map(s => s.description)).toEqual(['(Pip) Tests', '(Bolt) Process the task', '(Mika) Docs'])
+  const text = await roster($)
+  expect(rowOf(text, 'Bolt')).toMatch(/last task "Process the task"/)
+  expect(rowOf(text, 'Mika')).toMatch(/last task "Docs"/)
+})
+
 test('past the last name of the pool a worker takes a letter and a number, which no name taken before has', async ($, on) => {
   let spawned = 0
   const seen = { prompts: [] as string[], sends: [] as string[] }

@@ -6,6 +6,7 @@ import type { Engine } from '../engine'
 import { readWorkers } from '../state/atoms'
 import { oneLine } from '../util/text'
 import { namedTitle } from './title'
+import { takenNames } from './workers'
 
 // How much of the command stands in for a description the call left out.
 const COMMAND_GIST = 40
@@ -24,10 +25,10 @@ export function isListedCall(e: ShellCall): boolean {
  * The description `name`'s call shows in that list: its own, or a short
  * form of its command when it has none, with the name ahead once.
  */
-export function shellTitle(name: string, description: string | undefined, command: string | undefined): string {
+export function shellTitle(name: string, description: string | undefined, command: string | undefined, crew: ReadonlySet<string> = new Set()): string {
   const own = typeof description === 'string' ? description.trim() : ''
   const title = own !== '' ? own : oneLine(typeof command === 'string' ? command : '', COMMAND_GIST)
-  return namedTitle(name, title)
+  return namedTitle(name, title, crew)
 }
 
 /**
@@ -37,8 +38,9 @@ export function shellTitle(name: string, description: string | undefined, comman
  */
 export async function nameShell<E extends ShellCall, R>($: Engine, e: E, next: (e: E) => R | Promise<R>): Promise<R> {
   if (e.agentId === undefined || !isListedCall(e)) return next(e)
-  const worker = (await readWorkers($)).find(w => w.id === e.agentId)
+  const list = await readWorkers($)
+  const worker = list.find(w => w.id === e.agentId)
   if (worker === undefined) return next(e)
-  const description = shellTitle(worker.name, e.description, e.command)
+  const description = shellTitle(worker.name, e.description, e.command, takenNames(list))
   return next(description === '' || description === e.description ? e : { ...e, description })
 }
