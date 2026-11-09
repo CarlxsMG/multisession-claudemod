@@ -50,6 +50,14 @@ npx --yes prettier@3.9.10 --check .
 - `test` runs every `*.test.ts` and `*.test.tsx` under `tests/`, each file in a child of
   Claude Code, against the engine's test kit (`claude-code/testing`). It takes about a minute,
   most of it the kit loading the plugin afresh for each test.
+- **One full `test` run at a time.** A single run already uses every core, so full runs made at
+  once (several worktrees each running the checks) stretch every test by about the number of runs,
+  and the tests nearest the 15 s limit fail at exactly that limit, `timed out after 15000 ms`, a
+  different set each time: 9 or 10 of them with two runs on a 32-thread machine, about 120 with
+  four. Nothing in the tests waits on real time, so such a failure says the machine was busy, not
+  that the change is wrong: run the suite again alone before looking into it. The limit is not
+  raised for this (see [Tests](#tests)): four runs at once would need about 60 s for every test and
+  still take six times as long as one alone.
 - `tsc` needs `.claude-plugin/types/`, so it does **not** run on a fresh clone: load the plugin
   once first (see Setup). `validate` and `test` need no generated types, which is why CI runs those
   two and not this one. **`tsc` is a local check**: CI cannot run it, so a type error reaches `main` unless
