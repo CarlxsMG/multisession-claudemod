@@ -331,7 +331,7 @@ export const GOLDEN: Record<string, string> = {
   "roster.crew": [
     "Nova's crew (3):",
     "- Mika: address \"agent-3\", starting, fork of Bolt, repo /work/web, fork, model test-model, 1 task, 0 tokens, last task \"Frontend\", 0 tool calls, updated 0s ago",
-    "- Bolt: address \"bolt\", working (Edit app.css), step 2/4, repo /work/web, model test-model, 1 task, 0 tokens, last task \"Styles\", 1 tool calls, updated 30s ago",
+    "- Bolt: address \"bolt\", working (Edit app.css), step 2/4, repo /work/web, model test-model, 1 task, 0 tokens, last task \"Styles\", 1 tool call, updated 30s ago",
     "- Pip: address \"pip\", done, repo /work/api, model test-model, 1 task, 0 tokens, last task \"Login\"",
     "  last report: Login fixed: the token now refreshes. Tests: 42 pass.",
   ].join('\n'),
