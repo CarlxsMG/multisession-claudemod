@@ -171,6 +171,14 @@ export async function recallWorker($: Engine, key: string): Promise<Worker | und
   return kept
 }
 
+/**
+ * The worker `key` names, on the list or on the shelf: one the list let go is
+ * still the crew's, and whoever reaches it by name brings it back.
+ */
+export async function reachWorker($: Engine, key: string): Promise<Worker | undefined> {
+  return findWorker(await readWorkers($), key) ?? (await recallWorker($, key))
+}
+
 // A worker that is not busy, free or finished, leaves the panel's row a time
 // after its status changed, which `updatedAt` holds: an idle or finished
 // worker is touched again only by a message to it or by what wakes it (a

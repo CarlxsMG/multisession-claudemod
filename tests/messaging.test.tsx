@@ -231,3 +231,63 @@ test('a message that fails on its way is sent once only', async ($, on) => {
   expect(seen.sends).toHaveLength(sends + 1)
   expect(sent).toMatchObject({ isDelivered: false })
 })
+
+// More free workers than the list keeps: Pip, Bolt and Mika, the oldest, are
+// on the shelf, and Ivy, the last, is still busy.
+async function shelvedCrew($: Parameters<typeof crewCommand>[0], on: Parameters<typeof engine>[0]) {
+  let spawned = 0
+  const seen: Seen = { prompts: [], sends: [] }
+  const clock = engine(on, { nextId: () => `agent-${++spawned}`, seen })
+  await $.session.start({ cwd: '/work/main', surface: 'terminal', isInteractive: true })
+  for (let i = 1; i <= 28; i++) {
+    await $.tool.call({ tool: DELEGATE, task: `Task ${i}`, repo: `/work/r${i}`, fresh: true })
+    await clock.advance(1000)
+    if (i < 28) await $.turn.complete({ answer: 'Done', durationMs: 1, isAborted: false, turnId: `t-${i}`, agentId: `agent-${i}`, reason: 'answer' })
+  }
+  const roster = async () => String((await $.tool.call({ tool: 'mcp__crew__roster' })).result)
+  const listed = async () => (await roster()).split('\n')[0]
+  expect(await listed()).toBe("Nova's crew (25):")
+  return { seen, clock, roster, listed }
+}
+
+test('/crew msg reaches a worker on the shelf, which is back on the list; a name on neither gets the usage text', async ($, on) => {
+  const { seen, roster, listed } = await shelvedCrew($, on)
+  const usage = (await crewCommand($, 'msg nobody Are you there?')).text
+  expect(usage).toMatch(/^Usage: /)
+  // Nothing to say brings nobody back.
+  expect((await crewCommand($, 'msg pip')).text).toBe(usage)
+  expect(await listed()).toBe("Nova's crew (25):")
+
+  expect((await crewCommand($, 'msg pip Check the token refresh')).text).toBe('Message sent to Pip.')
+  expect(seen.sends[seen.sends.length - 1]).toContain('Check the token refresh')
+  expect(await listed()).toBe("Nova's crew (26):")
+  expect(await roster()).toMatch(/\n- Pip: address "pip", /)
+})
+
+test("the orchestrator's SendMessage to a worker on the shelf puts it back on the list, and goes as sent", async ($, on) => {
+  const { seen, roster, listed } = await shelvedCrew($, on)
+  const send = (to: string, text: string) => $.session.send({ to, text, origin: { kind: 'model' } } as Parameters<typeof $.session.send>[0])
+  expect(await send('bolt [3fa9c1]', 'Any news on the router?')).toMatchObject({ isDelivered: true })
+  expect(seen.sends[seen.sends.length - 1]).toBe('Any news on the router?')
+  expect(await listed()).toBe("Nova's crew (26):")
+  expect(await roster()).toMatch(/\n- Bolt: address "bolt", /)
+
+  // On neither the list nor the shelf: the send goes as it is.
+  expect(await send('nobody', 'Hello?')).toMatchObject({ isDelivered: true })
+  expect(seen.sends[seen.sends.length - 1]).toBe('Hello?')
+  expect(await listed()).toBe("Nova's crew (26):")
+})
+
+test("a worker's message to a teammate on the shelf goes on from the main conversation, as to a free one on the list", async ($, on) => {
+  const { seen, clock, roster, listed } = await shelvedCrew($, on)
+  const sends = seen.sends.length
+  expect(await workerSend($, 'mika', 'Ivy: is the schema yours?', 'agent-28')).toEqual({ isDelivered: true })
+  // Nothing left Ivy's loop: the next tick sends it from here.
+  expect(seen.sends).toHaveLength(sends)
+  await clock.advance(400)
+  expect(seen.sends.slice(sends)).toEqual([
+    '[crew] From Ivy ("ivy"), passed on by the crew: your report goes to Nova; what Ivy needs back, SendMessage it.\n\nIvy: is the schema yours?',
+  ])
+  expect(await listed()).toBe("Nova's crew (26):")
+  expect(await roster()).toMatch(/\n- Mika: address "mika", working, repo \/work\/r3, /)
+})
