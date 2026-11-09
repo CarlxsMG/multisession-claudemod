@@ -250,6 +250,42 @@ test('an Agent call that names no agent and rewords the handoff is still its wor
   expect(rowOf(await roster($), queue ?? '')).toMatch(/: address "q1", starting, repo \/work\/web, /)
 })
 
+test('a spawn auto mode gave no verdict for is not tried again in the session, until the session starts anew or leaves that mode', async ($, on) => {
+  let spawned = 0
+  const seen: Seen = { prompts: [], sends: [], spawns: [], refuse: NO_VERDICT }
+  engine(on, { nextId: () => `agent-${++spawned}`, seen })
+  const start = () => $.session.start({ cwd: '/work/main', surface: 'desktop', isInteractive: false })
+  await start()
+  const delegate = async (task: string) => String((await $.tool.call({ tool: DELEGATE, task, title: task, repo: '/work/api', fresh: true })).result)
+  const agent = (prompt: string, permissionMode: string) =>
+    spawnAgent($, { prompt, description: prompt, subagentType: 'general-purpose', tool_use_id: `toolu_${prompt}`, permissionMode })
+
+  // The first is tried and refused; the next are handed over at once, and
+  // each is still the crew's worker when its Agent call comes.
+  expect(await delegate('Run the tests')).toMatch(/Start Pip yourself before this turn ends/)
+  expect(await delegate('Fix the login')).toMatch(/Start Bolt yourself before this turn ends/)
+  expect(seen.refused).toBe(1)
+  await agent('Fix the login', 'auto')
+  expect([seen.prompts[0]?.slice(0, 20), seen.spawns?.[0]?.cwd]).toEqual(['[crew] You are Bolt,', '/work/api'])
+  expect(await delegate('Write the docs')).toMatch(/Start Mika yourself before this turn ends/)
+  expect(seen.refused).toBe(1)
+
+  // The main conversation starts an agent out of auto mode: delegate's own
+  // spawn is tried again, and starts its worker where nothing refuses it.
+  await agent('Write the docs', 'default')
+  seen.refuse = undefined
+  expect(await delegate('Ship it')).toMatch(/^Started Tito /)
+
+  // A session started anew tries again too.
+  seen.refuse = NO_VERDICT
+  expect(await delegate('Tag it')).toMatch(/Start Luna yourself before this turn ends/)
+  expect(await delegate('Announce it')).toMatch(/Start Rex yourself before this turn ends/)
+  expect(seen.refused).toBe(2)
+  await start()
+  expect(await delegate('Archive it')).toMatch(/yourself before this turn ends/)
+  expect(seen.refused).toBe(3)
+})
+
 test("a worker on the session's model is asked for it by the alias the Agent tool takes", async ($, on) => {
   let spawned = 0
   const seen = { prompts: [] as string[], sends: [] as string[], spawns: [] as AgentSpawnInput[], refuse: NO_VERDICT }

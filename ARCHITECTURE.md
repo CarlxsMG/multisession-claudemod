@@ -193,7 +193,10 @@ holds no look, and is turned down as a bad code.
    none, and the agent's own definition decides. So a haiku request gets the session's model,
    and workers run on haiku only in a session on haiku.
 6. If auto mode refuses the spawn with no verdict (it reviews only calls a model writes), the
-   result tells the orchestrator to start the worker itself with the Agent tool; the spawn hook
+   result tells the orchestrator to start the worker itself with the Agent tool. The refusal is
+   remembered (`runtime.handoffs`), so the next new workers are handed over without the spawn
+   being tried, until the session starts again or the main conversation starts an agent out of
+   auto mode (`noteSpawnMode`, from the spawn's `permissionMode`). The spawn hook
    recognizes that agent through `intents`: by its name, else, as the Agent tool may take none
    and the orchestrator may reword, by its task, by its title, or as the only handoff of its
    type (`handoffFor`; two that fit alike are neither). It is the worker `delegate` named; its

@@ -21,7 +21,7 @@ export function test(name: string, ...rest: TestRest) {
 // the delegate descriptions registered, `specs` every tool registration,
 // `undelivered` the reason a send is not delivered, `gone` that reason for
 // the sends to one agent, by its id, `refuse` auto mode's refusal of the
-// plugin's own spawns, `refuseAgent` a refusal of every other spawn.
+// plugin's own spawns and `refused` how many it refused, `refuseAgent` a refusal of every other spawn.
 export type Seen = {
   prompts: string[]
   sends: string[]
@@ -33,6 +33,7 @@ export type Seen = {
   gone?: Record<string, string>
   spawns?: AgentSpawnInput[]
   refuse?: string
+  refused?: number
   refuseAgent?: string
   opens?: string[]
 }
@@ -94,7 +95,10 @@ export function engine(on: On, options: EngineOptions = {}) {
   on('session.start', (_, e) => ({ cwd: e.cwd }))
   on('agent.spawn', (_, e, next) => {
     // Auto mode's answer to a spawn the plugin makes.
-    if (seen?.refuse !== undefined && next.origin.plugin === PLUGIN) return { deny: seen.refuse }
+    if (seen?.refuse !== undefined && next.origin.plugin === PLUGIN) {
+      seen.refused = (seen.refused ?? 0) + 1
+      return { deny: seen.refuse }
+    }
     if (seen?.refuseAgent !== undefined && next.origin.plugin !== PLUGIN) return { deny: seen.refuseAgent }
     seen?.spawns?.push(e)
     seen?.prompts.push(e.prompt)

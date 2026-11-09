@@ -202,6 +202,28 @@ async function giveTask(
 // each send that fails is a round trip the call waits for.
 const REUSE_TRIES = 3
 
+// Whether auto mode refused a spawn of delegate's for want of a verdict in
+// this session: until the session starts again or leaves that mode, every
+// new worker is handed to the orchestrator without the spawn being tried.
+const handoffs = runtime.handoffs
+
+// Hands the worker named `name` to the orchestrator to start: what it is
+// meant to be waits for its Agent call, and the result spells that call out.
+async function handOver($: Engine, { task, title, cwd, type, model, callId }: Asked, name: string, why: string): Promise<string> {
+  const address = name.toLowerCase()
+  const handed: Handed = { title, asked: model, why, ...(callId !== undefined ? { callId } : {}) }
+  await intend($, { address, cwd, type, task, handed })
+  return autoModeHandoff(name, address, title, type, model, cwd)
+}
+
+/**
+ * The permission mode the main conversation starts an agent in, as its spawn
+ * says it: out of auto mode, delegate's own spawn is tried again.
+ */
+export function noteSpawnMode(mode: string | undefined) {
+  if (mode !== undefined && mode !== 'auto') handoffs.isUnreviewed = false
+}
+
 // Starts a new worker for the task, under a name free now; `why` is the
 // result's clause for why no worker that existed took it.
 async function startWorker(
@@ -213,6 +235,10 @@ async function startWorker(
 ) {
   const { name } = claimName(await takenNow($, list))
   const address = name.toLowerCase()
+  const asked: Asked = { task, title, cwd, sessionCwd, type, model, callId }
+  // The refusal does not change while the session stays in that mode: the
+  // spawn is not made again to hear it.
+  if (handoffs.isUnreviewed) return handOver($, asked, name, why)
   await intend($, { address, cwd, type })
   let spawned: Awaited<ReturnType<typeof $.agent.spawn>>
   try {
@@ -236,9 +262,8 @@ async function startWorker(
     // however often it is made: the orchestrator's own Agent call is reviewed,
     // and the spawn hook takes its agent as this worker.
     if (UNREVIEWED.test(spawned.deny)) {
-      const handed: Handed = { title, asked: model, why, ...(callId !== undefined ? { callId } : {}) }
-      await intend($, { address, cwd, type, task, handed })
-      return autoModeHandoff(name, address, title, type, model, cwd)
+      handoffs.isUnreviewed = true
+      return handOver($, asked, name, why)
     }
     // Any other refusal is said as it came; one in auto mode's words may be
     // the unreviewed one, worded anew.
