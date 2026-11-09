@@ -51,7 +51,7 @@ export function rosterRow(worker: Worker, facts: RowFacts, cut: RowCut): string 
   const doing = worker.activity ? ` (${worker.activity})` : ''
   const step = facts.plan === undefined ? '' : `, step ${stepText(facts.plan)}`
   const age = Math.round((facts.now - worker.updatedAt) / 1000)
-  return `${head}${doing}${mark}${step}, ${where}, ${history}, ${task}, ${worker.tools} tool calls, updated ${age}s ago${report}`
+  return `${head}${doing}${mark}${step}, ${where}, ${history}, ${task}, ${plural(worker.tools, 'tool call')}, updated ${age}s ago${report}`
 }
 
 export const emptyCrew = (orchName: string): string => `${orchName}'s crew is empty.`

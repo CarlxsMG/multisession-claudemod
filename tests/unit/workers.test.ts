@@ -131,6 +131,13 @@ test("a roster row says what its caller tells it of the worker, whatever the wor
   const free = worker('a', 'Pip', 'idle')
   const facts = { isInWorktree: false, now: 0 }
   expect(rosterRow(free, { ...facts, isActive: true }, rowCut(true, false))).toContain('0 tool calls')
-  expect(rosterRow(free, { ...facts, isActive: false }, rowCut(false, false))).not.toContain('tool calls')
+  expect(rosterRow(free, { ...facts, isActive: false }, rowCut(false, false))).not.toContain('tool call')
   expect(rowCut(true, false).task).toBeGreaterThan(rowCut(false, false).task)
+})
+
+test('a roster row counts one tool call in the singular', () => {
+  const facts = { isInWorktree: false, isActive: true, now: 0 }
+  const row = (tools: number): string => rosterRow({ ...worker('a', 'Pip', 'working'), tools }, facts, rowCut(true, false))
+  expect(row(1)).toContain(', 1 tool call, ')
+  expect(row(2)).toContain(', 2 tool calls, ')
 })
