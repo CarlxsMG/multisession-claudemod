@@ -19,7 +19,7 @@ export const GOLDEN: Record<string, string> = {
     "Persona: Nova is cheerful and encouraging, a warm teammate. Let it color greetings and short status lines only; technical content stays precise and plain.",
   ].join('\n'),
   "spec.delegate.description.on": [
-    "Hand a task to a crew worker: a named background subagent, general-purpose unless `subagent_type` says otherwise, that reports back when done. Goes to the worker you name; else to the most recent free worker this tool started in that repository, of that type and model (the session's unless you ask for one), which keeps its context; else to a new one. Returns at once: the worker's address, and who else is busy where it works.",
+    "Hand a task to a crew worker: a named background subagent, general-purpose unless `subagent_type` says otherwise, that reports back when done. Goes to the worker you name; else to the free worker this tool started in that repository, of that type and on that model (the session's when unset), that last finished a task, or the next it can reach; it keeps its context; else to a new one. Returns at once: the worker's address, and who else is busy where it works.",
     "",
     "This brief is for the main assistant; a worker or fork reading it ignores it and does its own task.",
     "Crew: delegation was ON when this brief was written. A \"[crew]\" note beside a user message reports later changes to delegation, your name or persona; the latest note stands. Delegation OFF: do the work yourself; use the crew only when the user asks.",
@@ -133,7 +133,7 @@ export const GOLDEN: Record<string, string> = {
     "Persona: Nova is cheerful and encouraging, a warm teammate. Let it color greetings and short status lines only; technical content stays precise and plain.",
   ].join('\n'),
   "spec.delegate.description.off": [
-    "Hand a task to a crew worker: a named background subagent, general-purpose unless `subagent_type` says otherwise, that reports back when done. Goes to the worker you name; else to the most recent free worker this tool started in that repository, of that type and model (the session's unless you ask for one), which keeps its context; else to a new one. Returns at once: the worker's address, and who else is busy where it works.",
+    "Hand a task to a crew worker: a named background subagent, general-purpose unless `subagent_type` says otherwise, that reports back when done. Goes to the worker you name; else to the free worker this tool started in that repository, of that type and on that model (the session's when unset), that last finished a task, or the next it can reach; it keeps its context; else to a new one. Returns at once: the worker's address, and who else is busy where it works.",
     "",
     "This brief is for the main assistant; a worker or fork reading it ignores it and does its own task.",
     "Crew: delegation was OFF when this brief was written. A \"[crew]\" note beside a user message reports later changes to delegation, your name or persona; the latest note stands. Delegation OFF: do the work yourself; use the crew only when the user asks.",
