@@ -521,7 +521,8 @@ is noticed in the debug log: `unrecognized($, kind, detail)` (`src/engine.ts`) w
 - **Cast (members).** Everyone the crew has had this session, kept so old rows keep their names
   and colours after the list lets a worker go.
 - **Shelf (dropped).** Workers cleared from the list or let go by its size limit. They keep their
-  names and history; one that works again comes back.
+  names and history; one that works again, or that a delegate call names, comes back, and the
+  roster shows one asked for by name.
 - **Nap.** A free worker dozes (`zZ`); it and a finished one (done, failed, stopped) leave the
   card row the `napAfter` option's time after their status changed (5 s by default, never with
   `never`), once their end stopped standing out, and stay in the crew. The orchestrator naps after 3 minutes with nothing to do.

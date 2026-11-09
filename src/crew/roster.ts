@@ -8,7 +8,7 @@ import { isOpen } from '../progress/runs'
 import { noWorker } from '../prompts/results'
 import { FULL_ROW_CUT, emptyCrew, rosterList, rosterRow, rowCut } from '../prompts/roster'
 import type { RowFacts } from '../prompts/roster'
-import { readLook, readParents, readRuns, readTakeovers, readWorkers, readWorktrees } from '../state/atoms'
+import { readDropped, readLook, readParents, readRuns, readTakeovers, readWorkers, readWorktrees } from '../state/atoms'
 import { syncAgents, syncCrew } from './sync'
 import { ACTIVE, byActivity, findWorker } from './workers'
 
@@ -21,7 +21,11 @@ export async function rosterText($: Engine, key?: string, isMain = true): Promis
   await quiet($, isMain ? syncCrew($) : syncAgents($), 'roster sync')
   const list = await readWorkers($)
   const look = await readLook($)
-  if (list.length === 0) return emptyCrew(look.name)
+  const isOne = key !== undefined && key.trim() !== ''
+  // One the list let go is still the crew's: asked for by name, it is shown
+  // from the shelf, where it stays until something wakes it.
+  const one = isOne ? (findWorker(list, key) ?? findWorker(await readDropped($), key)) : undefined
+  if (list.length === 0 && one === undefined) return emptyCrew(look.name)
   const inWorktree = new Set(await readWorktrees($))
   const parents = new Map((await readParents($)).map(p => [p.id, p]))
   const woken = new Map((await readTakeovers($)).map(t => [t.id, t]))
@@ -38,14 +42,13 @@ export async function rosterText($: Engine, key?: string, isMain = true): Promis
     now,
   })
   // One worker in full, with as much of its last report as was kept.
-  if (key !== undefined && key.trim() !== '') {
-    const worker = findWorker(list, key)
-    if (worker === undefined)
+  if (isOne) {
+    if (one === undefined)
       return noWorker(
         key,
         list.map(x => x.address),
       )
-    return rosterRow(worker, factsOf(worker), FULL_ROW_CUT)
+    return rosterRow(one, factsOf(one), FULL_ROW_CUT)
   }
   const sorted = [...list].sort(byActivity)
   const reported = new Set(
