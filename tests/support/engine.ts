@@ -34,12 +34,14 @@ export type Seen = {
   opens?: string[]
 }
 
-// What a test's engine answers: the ids of new agents, the engine's list of
+// What a test's engine answers: the ids of new agents, the model a spawn
+// says its agent runs on (from the one asked for), the engine's list of
 // agents, what it records (`seen`), the account's rate limits, the context
 // window's fill, the usage probe's stdout, the store, the session id and the
 // host.
 export type EngineOptions = {
   nextId?: () => string
+  runsOn?: (asked: string | undefined) => string
   agents?: () => AgentInfo[]
   seen?: Seen
   rateLimits?: { kind: string; percentUsed: number }[]
@@ -53,6 +55,7 @@ export type EngineOptions = {
 export function engine(on: On, options: EngineOptions = {}) {
   const {
     nextId = () => 'agent-1',
+    runsOn = () => 'test-model',
     agents = (): AgentInfo[] => [],
     seen,
     rateLimits = [],
@@ -92,7 +95,7 @@ export function engine(on: On, options: EngineOptions = {}) {
     seen?.spawns?.push(e)
     seen?.prompts.push(e.prompt)
     seen?.models?.push(e.model)
-    return { model: 'test-model', agentId: nextId() }
+    return { model: runsOn(e.model), agentId: nextId() }
   })
   on('session.send', (_, e) => {
     seen?.sends.push(e.text)
