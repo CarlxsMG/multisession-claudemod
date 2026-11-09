@@ -3,7 +3,7 @@ import type { MatchedHook } from 'claude-code'
 
 import { messageWorker } from '../crew/message'
 import { clearFinished } from '../crew/sync'
-import { findWorker } from '../crew/workers'
+import { reachWorker } from '../crew/workers'
 import { quiet } from '../engine'
 import type { Engine } from '../engine'
 import { randomLookFor } from '../figure/look'
@@ -15,7 +15,7 @@ import { seeCommandColumns } from '../progress/status'
 import { crewReply } from '../prompts/commands'
 import { changeLook } from '../settings/look'
 import { setMode } from '../settings/notes'
-import { readIsOn, readLook, readWorkers, updateView } from '../state/atoms'
+import { readIsOn, readLook, updateView } from '../state/atoms'
 import { openPane } from '../ui/pane/index'
 
 type RunCrewCommandHook = MatchedHook<'command.run', { command: 'crew' }>
@@ -44,8 +44,9 @@ export async function runCrewCommand($: Engine, e: Parameters<RunCrewCommandHook
       // Only the worker is split off: the message keeps its lines and spacing.
       const who = rest.split(/\s+/)[0] ?? ''
       const said = rest.slice(who.length).trim()
-      const worker = findWorker(await readWorkers($), who)
-      if (worker === undefined || said === '') return { text: crewReply.msgUsage }
+      // Nothing to say brings nobody back from the shelf.
+      const worker = said === '' ? undefined : await reachWorker($, who)
+      if (worker === undefined) return { text: crewReply.msgUsage }
       await messageWorker($, worker, said)
       return { text: crewReply.sent(worker.name) }
     }

@@ -15,7 +15,7 @@ import { appendKept } from '../util/bounded'
 import { ORCH_ID, ROUTES_KEEP, gistOf, headOf, nameOf, say } from './feed'
 import { RELAYS_KEEP, isAgentOf, relaySoon } from './relay'
 import { takeOver } from './takeover'
-import { ACTIVE, findWorker, patchWorker } from './workers'
+import { ACTIVE, findWorker, patchWorker, reachWorker } from './workers'
 
 // Each worker's last SendMessage, the newest: kept in the state, as a
 // reload may come between the call and its send.
@@ -45,7 +45,9 @@ export async function onSend($: Engine, e: Parameters<OnSendHook>[1], next: Para
   // crew's name too, from that agent's loop.
   const ours = e.origin.kind === 'plugin' && e.origin.name === PLUGIN && e.agentId === undefined
   if (ours) return next(e)
-  const addressee = findWorker(await readWorkers($), e.to)
+  // A shelved addressee comes back first, so the send is to a free worker
+  // on the list.
+  const addressee = await reachWorker($, e.to)
   // Whoever sends it, a message to a worker that is not busy starts a run.
   const starts = addressee !== undefined && addressee.id !== e.agentId && !ACTIVE.has(addressee.status)
   const sender = e.agentId !== undefined ? findWorker(await readWorkers($), e.agentId) : undefined
