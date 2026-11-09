@@ -24,6 +24,8 @@ npx --yes prettier@3.9.10 --check .
   does. CI cannot run `tsc`, so a type error reaches `main` unless you run it before you push.
 - CI runs `validate` with `--strict --profile directory`, which also fails on warnings the plain
   command lets pass. Run that form when you add a file at the root or touch the manifest.
+- One full `test` run at a time: runs made at once time tests out at exactly 15 s. Rerun alone
+  before looking into such a failure (see [Checks](../CONTRIBUTING.md#checks)).
 - `--write` in place of `--check` fixes the layout. Prettier leaves out Markdown and the golden file.
 
 ## What the validator forces
