@@ -25,16 +25,18 @@ import {
 import { appendKept, setKept } from '../util/bounded'
 import { samePath } from '../util/path'
 import { cap, oneLine } from '../util/text'
-import { takeIntent } from './delegate'
+import { adoptHanded, takeIntent } from './delegate'
 import { ORCH_ID, enlist, say, setJob } from './feed'
 import { bareTitle, namedTitle } from './title'
 import { claimName, findWorker, makeWorker, matesOf, patchWorker, prune, shelve, takenNow, unclaimNames, unshelve } from './workers'
 
-// What an Agent call's model reads after its result when the crew named
-// its agent otherwise than the call did, by tool_use_id: the name its card
-// and the roster show, and the address SendMessage reaches it by.
+// What an Agent call's model reads after its result, by tool_use_id: when
+// the crew named its agent otherwise than the call did, the name its card
+// and the roster show and the address SendMessage reaches it by; when its
+// agent is the worker delegate handed over, what delegate's result would
+// have said of it.
 const agentCalls = runtime.spawn
-const RENAMED_KEEP = 50
+const NOTES_KEEP = 50
 // The Agent calls that asked for a worktree, by tool_use_id: their agent
 // works there, not in the repository the worktree was made from. Kept in
 // the state, as a reload may come between a call and its spawn (while the
@@ -58,10 +60,10 @@ async function takeIsolated($: Engine, toolUseId: string): Promise<boolean> {
   return true
 }
 
-/** The word for an Agent call whose agent the crew named otherwise, once. */
-export function takeRenamed(toolUseId: string): string | undefined {
-  const note = agentCalls.renamed.get(toolUseId)
-  agentCalls.renamed.delete(toolUseId)
+/** The crew's word for an Agent call on the agent it started, once. */
+export function takeNote(toolUseId: string): string | undefined {
+  const note = agentCalls.notes.get(toolUseId)
+  agentCalls.notes.delete(toolUseId)
   return note
 }
 
@@ -90,6 +92,9 @@ async function identify($: Engine, e: SpawnEvent) {
   // start, is the crew's to hand more work to.
   const { key, intent } = await takeIntent($, e.name, e.prompt, e.fork)
   const isCrew = intent !== undefined && !e.fork
+  // One delegate handed to the orchestrator to start is as its delegate
+  // call asked, whatever the Agent call says.
+  const handed = isCrew ? intent.handed : undefined
   // A worker's own spawn reports to it, and runs where it does.
   const parent = e.parentAgentId !== undefined ? list.find(w => w.id === e.parentAgentId) : undefined
   const reportsTo = parent?.name ?? look.name
@@ -101,7 +106,7 @@ async function identify($: Engine, e: SpawnEvent) {
   // name its call gave when that fits.
   const claim = intent !== undefined ? undefined : claimName(taken, e.name)
   const name = claim?.name ?? cap(e.name ?? key ?? '')
-  return { look, list, sessionCwd, intent, isCrew, parent, reportsTo, cwd, claim, name, taken }
+  return { look, list, sessionCwd, intent, isCrew, handed, parent, reportsTo, cwd, claim, name, taken }
 }
 
 type Identified = Awaited<ReturnType<typeof identify>>
@@ -127,13 +132,15 @@ async function briefFor($: Engine, e: SpawnEvent, who: Identified) {
 
 // Where and on which model its agent runs, beyond what its call says.
 function runOptions(e: SpawnEvent, who: Identified) {
-  const { intent, isCrew, cwd, sessionCwd } = who
+  const { intent, isCrew, handed, cwd, sessionCwd } = who
   // A crew worker runs on the session's model, even of a type whose own
   // definition names another. The Agent tool's `model` takes an alias only,
   // so the session's id goes as its family; one that names none is left to
-  // the agent's definition.
-  const inherited = intent !== undefined && !e.model ? modelAlias(e.parentModel) : undefined
-  const model = inherited !== undefined ? { model: inherited } : {}
+  // the agent's definition. One handed to the orchestrator runs on the model
+  // delegate was asked, which its Agent call may leave out or name otherwise.
+  const session = modelAlias(e.parentModel)
+  const wanted = handed !== undefined ? handed.asked || session : intent !== undefined && !e.model ? session : undefined
+  const model = wanted !== undefined ? { model: wanted } : {}
   // One the orchestrator started for delegate runs where delegate meant it
   // to, which its Agent call cannot say, and in the background as
   // delegate's own do.
@@ -143,11 +150,11 @@ function runOptions(e: SpawnEvent, who: Identified) {
 
 // Puts the started agent on the list and tells what it was given.
 async function record($: Engine, e: SpawnEvent, who: Identified, id: string, startedModel: string | undefined, worktree: boolean) {
-  const { intent, isCrew, parent, reportsTo, cwd, claim, name, taken } = who
+  const { intent, isCrew, handed, parent, reportsTo, cwd, claim, name, taken } = who
   // The name its call gave stays its address, unless another member has it.
   const address = e.name !== undefined && (claim === undefined || claim.isWantedFree) ? e.name : id
   if (e.name !== undefined && name.toLowerCase() !== e.name.toLowerCase()) {
-    setKept(agentCalls.renamed, e.tool_use_id, renamedAgent(e.name, name, address), RENAMED_KEEP)
+    setKept(agentCalls.notes, e.tool_use_id, renamedAgent(e.name, name, address), NOTES_KEEP)
   }
   const now = await $.clock.now()
   const task = bareTitle(e.description, name, taken) || oneLine(e.prompt, 60)
@@ -163,7 +170,9 @@ async function record($: Engine, e: SpawnEvent, who: Identified, id: string, sta
       type: intent?.type || e.subagentType || '',
       cwd,
       model: startedModel ?? '',
-      asked: isCrew ? (e.model ?? '') : null,
+      // What delegate was asked, which a later reuse compares with: its
+      // own spawn passes it on, and one it handed over kept it.
+      asked: isCrew ? (handed?.asked ?? e.model ?? '') : null,
     }
     return known !== undefined
       ? current.map(w => (w.id === id ? { ...w, ...fields, status: 'starting' as const } : w))
@@ -179,6 +188,10 @@ async function record($: Engine, e: SpawnEvent, who: Identified, id: string, sta
   await say($, { name: reportsTo, id: parent?.id ?? ORCH_ID }, { name, id }, task, parent ? 'worker' : 'orch')
   await setJob($, id, task)
   await beginRun($, id)
+  // The delegate call that handed it over answered before it started: its
+  // Agent call hears what that result could not say. A name the crew gave
+  // otherwise is none of delegate's, so the two notes never meet.
+  if (handed !== undefined) setKept(agentCalls.notes, e.tool_use_id, await adoptHanded($, handed, { id, name, address, cwd }, e.model), NOTES_KEEP)
 }
 
 /**
@@ -198,7 +211,11 @@ export async function onSpawn($: Engine, e: SpawnEvent, next: Parameters<OnSpawn
   const { prompt, worktree } = await briefFor($, e, who)
   // Claude Code's own list of agents shows the description: the crew's name
   // ahead of it tells its workers apart there.
-  const started = await next({ ...e, prompt, description: namedTitle(who.name, e.description, who.taken), ...runOptions(e, who) })
+  // The model its call named is not one delegate's handed-over worker takes:
+  // `runOptions` sets delegate's, or none where the session's has no alias.
+  const { model: called, ...unmodelled } = e
+  const asked = who.handed !== undefined && called !== undefined ? unmodelled : e
+  const started = await next({ ...asked, prompt, description: namedTitle(who.name, e.description, who.taken), ...runOptions(e, who) })
   if (started.agentId === undefined) {
     if (who.claim !== undefined) unclaimNames(who.name, ...(who.claim.isWantedFree && e.name !== undefined ? [e.name] : []))
     return started

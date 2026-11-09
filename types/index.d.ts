@@ -252,9 +252,17 @@ export type PendingRow = Pick<CheckIn, 'kind' | 'lines' | 'note'>
 /**
  * What delegate meant a new worker to be, by its address, until the spawn
  * hook reads it: where it works and its type, and the task of one delegate
- * handed to the orchestrator to start.
+ * handed to the orchestrator to start, with what its call asked.
  */
-export type Intent = { address: string; cwd: string; type: string; task?: string }
+export type Intent = { address: string; cwd: string; type: string; task?: string; handed?: Handed }
+
+/**
+ * What a worker handed to the orchestrator to start takes from its delegate
+ * call, as one delegate started has it: the task's title, the model asked
+ * for ('' for the session's), the result's clause for why a new worker, and
+ * the call's id, whose row names the worker.
+ */
+export type Handed = { title: string; asked: string; why: string; callId?: string }
 
 /**
  * A worker's last SendMessage, by its id: the head of its text, which its

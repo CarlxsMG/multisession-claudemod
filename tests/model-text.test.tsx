@@ -211,6 +211,21 @@ test("delegate's results when a spawn is refused, by auto mode's missing verdict
   expectText('result.autoModeWithModel', await delegate($, { task: 'Fix the styles', title: 'Styles', repo: '/work/api', model: 'sonnet' }))
 })
 
+test('what the Agent call that starts a worker delegate handed over hears', async ($, on) => {
+  let spawned = 0
+  engine(on, { nextId: () => `agent-${++spawned}`, seen: { ...recording(), refuse: NO_VERDICT } })
+  await start($)
+  const hears = async (toolUseId: string, agent: { prompt: string; description: string; name: string; model?: string }) => {
+    await spawnAgent($, { subagentType: 'general-purpose', parentModel: 'claude-opus-5-5', ...agent, tool_use_id: toolUseId })
+    const done = await $.tool.call({ tool: 'Agent', tool_use_id: toolUseId, ...agent } as never)
+    return (done as { context?: string[] }).context?.[0]
+  }
+  await delegate($, { task: 'Fix the login', title: 'Login', repo: '/work/api' })
+  expectText('note.handedStarted', await hears('toolu_1', { prompt: 'Fix the login', description: 'Login', name: 'pip' }))
+  await delegate($, { task: 'Fix the styles', title: 'Styles', repo: '/work/api', fresh: true })
+  expectText('note.handedStartedOtherModel', await hears('toolu_2', { prompt: 'Fix the styles', description: 'Styles', name: 'bolt', model: 'sonnet' }))
+})
+
 test('a refused spawn, said as the engine said it', async ($, on) => {
   engine(on, { seen: { ...recording(), refuse: 'Auto mode blocked this action: it deletes the repository.' } })
   await start($)

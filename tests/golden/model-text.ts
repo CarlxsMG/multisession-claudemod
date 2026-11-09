@@ -305,6 +305,11 @@ export const GOLDEN: Record<string, string> = {
   "result.autoMode": "crew: nothing started: auto mode reviews only calls you write, not the one delegate makes. Start Pip yourself now: Agent tool with name \"pip\", description \"Login\", subagent_type \"general-purpose\", and as prompt the task exactly as you gave delegate. The crew takes that agent as Pip, working in /work/api.",
   "result.autoModeWithModel": "crew: nothing started: auto mode reviews only calls you write, not the one delegate makes. Start Bolt yourself now: Agent tool with name \"bolt\", description \"Styles\", subagent_type \"general-purpose\", model \"sonnet\", and as prompt the task exactly as you gave delegate. The crew takes that agent as Bolt, working in /work/api.",
   "result.notStarted": "crew: could not start a worker: Auto mode blocked this action: it deletes the repository.",
+  "note.handedStarted": "[crew] This agent is Pip (address \"pip\", id agent-1), the worker delegate had you start, in /work/api: a new one, as no free worker of that type and model was there.",
+  "note.handedStartedOtherModel": [
+    "[crew] This agent is Bolt (address \"bolt\", id agent-2), the worker delegate had you start, in /work/api: a new one, as `fresh` asked. It runs on the session's model, as delegate was asked, not on \"sonnet\".",
+    "Heads-up: Pip is working in this repository; keep files apart or wait for its report.",
+  ].join('\n'),
   "result.renamedAgent": "[crew] The crew calls this agent Bolt, not \"researcher-auth\": a worker's name is 2 to 4 characters and no other worker's. SendMessage reaches it as \"researcher-auth\".",
   "result.failed": [
     "{",

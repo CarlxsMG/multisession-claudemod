@@ -194,7 +194,11 @@ holds no look, and is turned down as a bad code.
    and workers run on haiku only in a session on haiku.
 6. If auto mode refuses the spawn with no verdict (it reviews only calls a model writes), the
    result tells the orchestrator to start the worker itself with the Agent tool; the spawn hook
-   recognizes that agent by its name or task through `intents`.
+   recognizes that agent by its name or task through `intents`. The intent keeps what the call
+   asked (`handed`: title, model, the reason for a new worker, the call's id), so the worker is
+   as one `delegate` started: it runs on the model `delegate` was asked whatever the Agent call
+   names, `asked` records it, the delegate call's row names the worker, and the Agent call reads
+   after its result the reason and the heads-up (`adoptHanded`).
 7. The result names the worker and its address, and warns (`Heads-up: …`) when another worker
    is busy in the same repository.
 
@@ -491,7 +495,7 @@ is noticed in the debug log: `unrecognized($, kind, detail)` (`src/engine.ts`) w
   personality changed after the brief was frozen.
 - **toldBy.** The store's record, per conversation, of what its last `[crew]` note said.
 - **Intended (intent).** What `delegate` meant a new worker to be (where it works, its type, and
-  its task when handed to the orchestrator to start), by address, until the spawn hook reads it.
+  its task and what its call asked when handed to the orchestrator to start), by address, until the spawn hook reads it.
 - **Isolated.** An Agent call that asked for `isolation: "worktree"`: its agent works in its own
   worktree.
 - **Run.** One stretch of a worker's work, from the turn, task or message that starts it to its
