@@ -25,7 +25,7 @@ import {
 import { appendKept, setKept } from '../util/bounded'
 import { samePath } from '../util/path'
 import { cap, oneLine } from '../util/text'
-import { adoptHanded, takeIntent } from './delegate'
+import { adoptHanded, keepHandoff, takeIntent } from './delegate'
 import { ORCH_ID, enlist, say, setJob } from './feed'
 import { bareTitle, namedTitle } from './title'
 import { claimName, findWorker, makeWorker, matesOf, patchWorker, prune, shelve, takenNow, unclaimNames, unshelve } from './workers'
@@ -215,9 +215,21 @@ export async function onSpawn($: Engine, e: SpawnEvent, next: Parameters<OnSpawn
   // `runOptions` sets delegate's, or none where the session's has no alias.
   const { model: called, ...unmodelled } = e
   const asked = who.handed !== undefined && called !== undefined ? unmodelled : e
-  const started = await next({ ...asked, prompt, description: namedTitle(who.name, e.description, who.taken), ...runOptions(e, who) })
+  // One handed to the orchestrator whose Agent call starts nothing is still
+  // meant: the call may be written again, and the end of the turn lets go
+  // of its name and intent if it is not. Delegate's own spawn is delegate's
+  // to give up.
+  const handoff = who.isCrew && who.intent?.task !== undefined ? who.intent : undefined
+  let started: Awaited<ReturnType<typeof next>>
+  try {
+    started = await next({ ...asked, prompt, description: namedTitle(who.name, e.description, who.taken), ...runOptions(e, who) })
+  } catch (err) {
+    if (handoff !== undefined) await keepHandoff($, handoff)
+    throw err
+  }
   if (started.agentId === undefined) {
     if (who.claim !== undefined) unclaimNames(who.name, ...(who.claim.isWantedFree && e.name !== undefined ? [e.name] : []))
+    if (handoff !== undefined) await keepHandoff($, handoff)
     return started
   }
   await record($, e, who, started.agentId, started.model, worktree)

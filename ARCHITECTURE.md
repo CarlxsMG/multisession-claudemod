@@ -198,7 +198,11 @@ holds no look, and is turned down as a bad code.
    asked (`handed`: title, model, the reason for a new worker, the call's id), so the worker is
    as one `delegate` started: it runs on the model `delegate` was asked whatever the Agent call
    names, `asked` records it, the delegate call's row names the worker, and the Agent call reads
-   after its result the reason and the heads-up (`adoptHanded`).
+   after its result the reason and the heads-up (`adoptHanded`). A handoff stands for the turn
+   it was made in: an Agent call that starts nothing puts its intent back (`keepHandoff`), and
+   when the main conversation's turn ends the ones not started are let go, name and intent
+   (`lapseHandoffs`). Only the turn's end does that, as by then every Agent call of the turn has
+   spawned.
 7. The result names the worker and its address, and warns (`Heads-up: …`) when another worker
    is busy in the same repository.
 

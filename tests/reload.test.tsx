@@ -66,7 +66,9 @@ test('an agent the orchestrator starts for delegate after a reload is still take
   engine(on, { seen })
   const start = () => $.session.start({ cwd: '/work/main', surface: 'desktop', isInteractive: false })
   await start()
-  expect(String((await $.tool.call({ tool: DELEGATE, task: 'Run the tests', title: 'Tests', repo: '/work/api' })).result)).toMatch(/Start Pip yourself now/)
+  expect(String((await $.tool.call({ tool: DELEGATE, task: 'Run the tests', title: 'Tests', repo: '/work/api' })).result)).toMatch(
+    /Start Pip yourself before this turn ends/,
+  )
 
   await start()
   await spawnAgent($, {

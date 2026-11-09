@@ -380,8 +380,8 @@ export async function refuseWorker($: Engine, agentId: string): Promise<string> 
 // address: the engine may not carry a spawn's `cwd` or type through to its
 // own hooks. One delegate handed to the orchestrator to start keeps its
 // task, which tells its agent from others if the Agent call names none.
-// Kept in the state, as the orchestrator may start it after a reload; the
-// newest, as one it never starts stays.
+// Kept in the state, as the orchestrator may start it after a reload, and
+// until its turn ends: `lapseHandoffs`. The newest, as a turn may end unseen.
 const INTENTS_KEEP = 50
 
 function intend($: Engine, intent: Intent) {
@@ -390,6 +390,28 @@ function intend($: Engine, intent: Intent) {
 
 function unintend($: Engine, address: string) {
   return updateIntents($, list => list.filter(x => x.address !== address))
+}
+
+/**
+ * Puts back the intent of a handed-over worker whose Agent call started
+ * nothing: the orchestrator may write the call again before its turn ends.
+ */
+export function keepHandoff($: Engine, intent: Intent) {
+  return intend($, intent)
+}
+
+/**
+ * Lets go of the workers delegate handed to the orchestrator that it did not
+ * start: their names are free and nothing is meant under them. Called when
+ * the main conversation's turn ends, and only then: every Agent call the
+ * turn wrote has spawned by that time, in whichever response it came, so
+ * none loses its intent before its spawn reads it.
+ */
+export async function lapseHandoffs($: Engine) {
+  const lapsed = (await readIntents($)).filter(x => x.task !== undefined).map(x => x.address)
+  if (lapsed.length === 0) return
+  await updateIntents($, list => list.filter(x => !lapsed.includes(x.address)))
+  unclaimNames(...lapsed)
 }
 
 /**
