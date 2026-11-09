@@ -413,6 +413,32 @@ test('a free worker running on a full id of the family asked for is reused, what
   expect(await delegate({ task: 'Polish it', repo: '/work/api' })).toMatch(/^Given to Pip/)
 })
 
+test('among several free workers the one that ended a turn last is reused, whichever was touched last', async ($, on) => {
+  let spawned = 0
+  const clock = engine(on, { nextId: () => `agent-${++spawned}` })
+  await $.session.start({ cwd: '/work/main', surface: 'terminal', isInteractive: true })
+  const delegate = async (ask: Ask) => String((await $.tool.call({ tool: 'mcp__crew__delegate', ...ask })).result)
+  const done = (agentId: string, turnId: string) => $.turn.complete({ answer: 'Hecho', durationMs: 1000, isAborted: false, turnId, agentId, reason: 'answer' })
+
+  expect(await delegate({ task: 'List the routes', repo: '/work/api', fresh: true })).toMatch(/^Started Pip/)
+  expect(await delegate({ task: 'Check the queries', repo: '/work/api', fresh: true })).toMatch(/^Started Bolt/)
+  await clock.advance(1000)
+  await done('agent-1', 't1')
+  await clock.advance(1000)
+  await done('agent-2', 't2')
+  // A message to the one that ended first touches it, and it stays free.
+  await clock.advance(1000)
+  await $.session.send({ to: 'pip', text: 'Thanks', origin: { kind: 'model' } } as Parameters<typeof $.session.send>[0])
+  expect(await delegate({ task: 'Polish it', repo: '/work/api' })).toMatch(/^Given to Bolt/)
+
+  // Pip ends a turn after Bolt's task is over: it is the pick again.
+  await clock.advance(1000)
+  await done('agent-2', 't3')
+  await clock.advance(1000)
+  await done('agent-1', 't4')
+  expect(await delegate({ task: 'Count the lines', repo: '/work/api' })).toMatch(/^Given to Pip/)
+})
+
 const roster = async ($: Parameters<TestBody>[0]) => String((await $.tool.call({ tool: 'mcp__crew__roster' })).result)
 const rowOf = (text: string, name: string) => text.split('\n').find(line => line.startsWith(`- ${name}: `)) ?? ''
 

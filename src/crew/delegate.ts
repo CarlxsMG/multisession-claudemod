@@ -65,11 +65,12 @@ async function repoDir($: Engine, sessionCwd: string, repo: string): Promise<str
   return joinPath(sessionCwd, home ? home + repo.slice(1) : repo)
 }
 
-// The most recent free worker of that type the crew started there, on the
-// model asked for (none asked for: one started on the session's), however
-// long its history: it compacts. A failed one is never free. `model` is an
-// alias, and what a spawn answers may be a full id: both go by their family.
-function freeWorker(list: readonly Worker[], woken: ReadonlyMap<string, Takeover>, cwd: string, type: string, model: string): Worker | undefined {
+// The free workers of that type the crew started there, the one that ended
+// a turn last first, on the model asked for (none asked for: one started on
+// the session's), however long its history: it compacts. A failed one is
+// never free. `model` is an alias, and what a spawn answers may be a full
+// id: both go by their family.
+function freeWorkers(list: readonly Worker[], woken: ReadonlyMap<string, Takeover>, cwd: string, type: string, model: string): Worker[] {
   return list
     .filter(
       w =>
@@ -80,8 +81,13 @@ function freeWorker(list: readonly Worker[], woken: ReadonlyMap<string, Takeover
         w.asked !== null &&
         (model === '' ? w.asked === '' : modelAlias(w.asked) === model || modelAlias(w.model) === model),
     )
-    .sort((a, b) => b.updatedAt - a.updatedAt)[0]
+    .sort((a, b) => lastFree(b) - lastFree(a))
 }
+
+// When a free worker last ended a turn: the order of a reuse, which a
+// message to it or a sync must not change as they do `updatedAt`. One that
+// has ended none goes by when it started.
+const lastFree = (w: Worker): number => w.finishedAt ?? w.startedAt
 
 // What a delegate call asks for, read and resolved. `callId`: the main
 // conversation's call, which its row names the worker of.
@@ -203,7 +209,7 @@ async function delegate($: Engine, input: object, callId?: string): Promise<stri
 
   // A blank `worker` names no one: the task goes as if it had none.
   const isNamed = worker !== undefined && worker.trim() !== ''
-  const chosen = isNamed ? findWorker(list, worker) : isFresh ? undefined : freeWorker(list, woken, cwd, type, model)
+  const chosen = isNamed ? findWorker(list, worker) : isFresh ? undefined : freeWorkers(list, woken, cwd, type, model)[0]
   if (isNamed && chosen === undefined) {
     return noWorker(
       worker,

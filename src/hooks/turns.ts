@@ -54,7 +54,7 @@ export async function onTurnComplete($: Engine, e: Parameters<OnTurnCompleteHook
   if (worker === undefined) return next(e)
   const status: RunEndKind = e.isAborted ? 'stopped' : e.reason === 'error' || e.reason === 'refusal' ? 'failed' : 'done'
   const used = e.usage ? e.usage.input_tokens + e.usage.output_tokens + e.usage.cache_creation_input_tokens : 0
-  await patchWorker($, worker.id, x => ({ status, activity: '', answer: oneLine(e.answer, 1200), tokens: x.tokens + used }))
+  await patchWorker($, worker.id, (x, now) => ({ status, activity: '', answer: oneLine(e.answer, 1200), tokens: x.tokens + used, finishedAt: now }))
   await endRun($, worker.id, status)
   const look = await readLook($)
   const head = e.answer.split('\n').find(line => line.trim() !== '') ?? statusLabel(status)

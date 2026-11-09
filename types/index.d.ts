@@ -43,6 +43,11 @@ export type Worker = {
   tools: number
   startedAt: number
   updatedAt: number
+  /**
+   * When its last turn ended, which no message or sync moves as they do
+   * `updatedAt`; none for one that has ended no turn.
+   */
+  finishedAt?: number
   lastMsgAt: number
   lastMsgIn: boolean
   answer: string
