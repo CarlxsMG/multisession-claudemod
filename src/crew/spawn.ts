@@ -94,12 +94,14 @@ async function identify($: Engine, e: SpawnEvent) {
   const parent = e.parentAgentId !== undefined ? list.find(w => w.id === e.parentAgentId) : undefined
   const reportsTo = parent?.name ?? look.name
   const cwd = e.cwd ?? intent?.cwd ?? parent?.cwd ?? sessionCwd
+  // The crew's names, any of which may stand ahead of the title its call gave.
+  const taken = await takenNow($, list)
   // Delegate's own, or one it handed to the orchestrator to start, has the
   // name delegate gave it; any other takes one no other member has, the
   // name its call gave when that fits.
-  const claim = intent !== undefined ? undefined : claimName(await takenNow($, list), e.name)
+  const claim = intent !== undefined ? undefined : claimName(taken, e.name)
   const name = claim?.name ?? cap(e.name ?? key ?? '')
-  return { look, list, sessionCwd, intent, isCrew, parent, reportsTo, cwd, claim, name }
+  return { look, list, sessionCwd, intent, isCrew, parent, reportsTo, cwd, claim, name, taken }
 }
 
 type Identified = Awaited<ReturnType<typeof identify>>
@@ -141,14 +143,14 @@ function runOptions(e: SpawnEvent, who: Identified) {
 
 // Puts the started agent on the list and tells what it was given.
 async function record($: Engine, e: SpawnEvent, who: Identified, id: string, startedModel: string | undefined, worktree: boolean) {
-  const { intent, isCrew, parent, reportsTo, cwd, claim, name } = who
+  const { intent, isCrew, parent, reportsTo, cwd, claim, name, taken } = who
   // The name its call gave stays its address, unless another member has it.
   const address = e.name !== undefined && (claim === undefined || claim.isWantedFree) ? e.name : id
   if (e.name !== undefined && name.toLowerCase() !== e.name.toLowerCase()) {
     setKept(agentCalls.renamed, e.tool_use_id, renamedAgent(e.name, name, address), RENAMED_KEEP)
   }
   const now = await $.clock.now()
-  const task = bareTitle(e.description, name) || oneLine(e.prompt, 60)
+  const task = bareTitle(e.description, name, taken) || oneLine(e.prompt, 60)
   const out: Worker[] = []
   const saved = await updateWorkers($, current => {
     out.length = 0
@@ -196,7 +198,7 @@ export async function onSpawn($: Engine, e: SpawnEvent, next: Parameters<OnSpawn
   const { prompt, worktree } = await briefFor($, e, who)
   // Claude Code's own list of agents shows the description: the crew's name
   // ahead of it tells its workers apart there.
-  const started = await next({ ...e, prompt, description: namedTitle(who.name, e.description), ...runOptions(e, who) })
+  const started = await next({ ...e, prompt, description: namedTitle(who.name, e.description, who.taken), ...runOptions(e, who) })
   if (started.agentId === undefined) {
     if (who.claim !== undefined) unclaimNames(who.name, ...(who.claim.isWantedFree && e.name !== undefined ? [e.name] : []))
     return started
