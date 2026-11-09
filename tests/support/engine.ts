@@ -19,8 +19,9 @@ export function test(name: string, ...rest: TestRest) {
 // Nothing sits beneath the plugin: each hook here stands for the engine.
 // What the engine records, and how it answers sends and spawns: `tools`
 // the delegate descriptions registered, `specs` every tool registration,
-// `undelivered` the reason a send is not delivered, `refuse` auto mode's
-// refusal of the plugin's own spawns.
+// `undelivered` the reason a send is not delivered, `gone` that reason for
+// the sends to one agent, by its id, `refuse` auto mode's refusal of the
+// plugin's own spawns.
 export type Seen = {
   prompts: string[]
   sends: string[]
@@ -29,6 +30,7 @@ export type Seen = {
   specs?: { name: string; description: string; inputSchema: unknown }[]
   failSends?: boolean
   undelivered?: string
+  gone?: Record<string, string>
   spawns?: AgentSpawnInput[]
   refuse?: string
   opens?: string[]
@@ -101,6 +103,8 @@ export function engine(on: On, options: EngineOptions = {}) {
     seen?.sends.push(e.text)
     if (seen?.failSends === true) throw new Error('socket closed')
     if (seen?.undelivered !== undefined) return { isDelivered: false as const, reason: seen.undelivered }
+    const gone = seen?.gone?.[e.to]
+    if (gone !== undefined) return { isDelivered: false as const, reason: gone }
     return { isDelivered: true as const }
   })
   // TaskCreate answers with the id of the task it made, as the engine's does.

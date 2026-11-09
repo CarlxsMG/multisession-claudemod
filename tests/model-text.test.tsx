@@ -158,6 +158,26 @@ test("delegate's result for a free worker picked over others that were free", as
   expectText('result.givenOverOthers', await delegate($, { task: 'Add the tests', title: 'Tests', repo: '/work/api' }))
 })
 
+test("delegate's results when free workers could not be reached: the next one, and a new one when none is", async ($, on) => {
+  let spawned = 0
+  const seen = recording()
+  const clock = engine(on, { nextId: () => `agent-${++spawned}`, seen })
+  await start($)
+  for (const title of ['Login', 'Styles', 'Docs', 'Deploy', 'Search']) await delegate($, { task: `Build the ${title}`, title, repo: '/work/api', fresh: true })
+  for (let i = 1; i <= 5; i++) {
+    await clock.advance(1000)
+    await finish($, `agent-${i}`)
+  }
+  seen.gone = { 'agent-5': 'the agent is gone' }
+  expectText('result.givenAfterLost', await delegate($, { task: 'Add the tests', title: 'Tests', repo: '/work/api' }))
+  seen.gone = {
+    'agent-5': 'the agent is gone',
+    'agent-3': 'the agent is gone',
+    'agent-2': 'crew: the message may not have gone out; check before sending it again.',
+  }
+  expectText('result.startedAfterLostMany', await delegate($, { task: 'Tag the release', title: 'Release', repo: '/work/api' }))
+})
+
 test("delegate's results for a worker named while busy, and after a run that failed", async ($, on) => {
   let spawned = 0
   engine(on, { nextId: () => `agent-${++spawned}`, seen: recording() })
