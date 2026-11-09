@@ -53,19 +53,29 @@ export const renamedAgent = (asked: string, name: string, address: string): stri
 /**
  * Where auto mode reviews only the calls in the model's own response, the
  * orchestrator starts the worker itself, with the Agent call spelt out, in
- * the turn delegate answered in: the crew holds the name no longer.
+ * the turn delegate answered in: the crew holds the name no longer. The
+ * description carries the worker's name ahead, which tells the call from
+ * those of other handoffs however the rest is worded. `isFirst`: the
+ * session's first, which says how new workers start from here on, as the
+ * brief was written before the crew could know.
  */
-export function autoModeHandoff(name: string, address: string, title: string, type: string, model: string, cwd: string): string {
+export function autoModeHandoff(name: string, address: string, title: string, type: string, model: string, cwd: string, isFirst: boolean): string {
   // The name comes last and only where the tool takes one: it does not
   // everywhere, and the crew knows the agent without it, by the rest.
   const args = [
-    `description "${title}"`,
+    `description "(${name}) ${title}"`,
     `subagent_type "${type}"`,
     ...(model !== '' ? [`model "${model}"`] : []),
     `name "${address}" if the tool takes a name`,
   ]
-  return `crew: nothing started: auto mode reviews only calls you write, not the one delegate makes. Start ${name} yourself before this turn ends: Agent tool with ${args.join(', ')}, and as prompt the task exactly as you gave delegate. The crew takes that agent as ${name}, working in ${cwd}. Left for a later turn, the handoff lapses: delegate the task again then.`
+  const fromNowOn = isFirst
+    ? ' While this session is in auto mode, delegate hands every new worker over like this and still gives a task to a free one itself. For several new workers, make the delegate calls in one message and their Agent calls in the next, each with the description its handoff gives.'
+    : ''
+  return `${HANDED_OVER}, not the one delegate makes. Start ${name} yourself before this turn ends: Agent tool with ${args.join(', ')}, and as prompt the task exactly as you gave delegate. The crew takes that agent as ${name}, working in ${cwd}. Left for a later turn, the handoff lapses: delegate the task again then.${fromNowOn}`
 }
+
+// How a handoff's result starts, which its row reads back.
+const HANDED_OVER = 'crew: nothing started: auto mode reviews only calls you write'
 
 /**
  * What the Agent call that started a worker delegate handed over reads after
@@ -217,6 +227,8 @@ export type DelegateOutcome = { kind: 'reused' | 'new'; busy: string[] } | { kin
 export function readDelegate(text: string): DelegateOutcome | undefined {
   const isHeld = /^Held for \S+ \(address [^)]*\): \S+ is answering (\S+?),/.exec(text)
   if (isHeld !== null) return { kind: 'held', by: isHeld[1]! }
+  // A handoff's row is a crew row only once its worker started: a new one.
+  if (text.startsWith(HANDED_OVER)) return { kind: 'new', busy: [] }
   const isReused = text.startsWith(GIVEN)
   if (!isReused && !text.startsWith(STARTED)) return undefined
   const busy = /^Heads-up: (.+?) (?:is|are) working in this repository/m.exec(text)?.[1]?.split(', ') ?? []

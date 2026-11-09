@@ -25,6 +25,9 @@ export function bareTitle(title: string, name?: string, crew: ReadonlySet<string
   return rest
 }
 
+/** The name ahead of a title, in lowercase: "mika" for "(Mika) Fix the tests"; undefined for a bare one. */
+export const nameAhead = (title: string): string | undefined => NAMED.exec(title)?.[1]?.toLowerCase()
+
 /**
  * The title with `name` ahead, once, in place of any crew name ahead of it
  * (see `bareTitle`): "(Mika) Fix the tests". An empty one stays empty.

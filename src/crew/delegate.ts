@@ -51,7 +51,7 @@ import { oneLine } from '../util/text'
 import { deliver } from './deliver'
 import { ORCH_ID, markCall, setOrch } from './feed'
 import { release } from './takeover'
-import { bareTitle } from './title'
+import { bareTitle, nameAhead } from './title'
 import { ACTIVE, REUSABLE, claimName, findWorker, recallWorker, takenNow, unclaimNames } from './workers'
 
 // The heads-up of the tool's result, from the workers busy in the
@@ -209,11 +209,13 @@ const handoffs = runtime.handoffs
 
 // Hands the worker named `name` to the orchestrator to start: what it is
 // meant to be waits for its Agent call, and the result spells that call out.
-async function handOver($: Engine, { task, title, cwd, type, model, callId }: Asked, name: string, why: string): Promise<string> {
+// `isFirst`: the session's first, whose result also says how new workers
+// start from here on.
+async function handOver($: Engine, { task, title, cwd, type, model, callId }: Asked, name: string, why: string, isFirst: boolean): Promise<string> {
   const address = name.toLowerCase()
   const handed: Handed = { title, asked: model, why, ...(callId !== undefined ? { callId } : {}) }
   await intend($, { address, cwd, type, task, handed })
-  return autoModeHandoff(name, address, title, type, model, cwd)
+  return autoModeHandoff(name, address, title, type, model, cwd, isFirst)
 }
 
 /**
@@ -238,7 +240,7 @@ async function startWorker(
   const asked: Asked = { task, title, cwd, sessionCwd, type, model, callId }
   // The refusal does not change while the session stays in that mode: the
   // spawn is not made again to hear it.
-  if (handoffs.isUnreviewed) return handOver($, asked, name, why)
+  if (handoffs.isUnreviewed) return handOver($, asked, name, why, false)
   await intend($, { address, cwd, type })
   let spawned: Awaited<ReturnType<typeof $.agent.spawn>>
   try {
@@ -263,7 +265,7 @@ async function startWorker(
     // and the spawn hook takes its agent as this worker.
     if (UNREVIEWED.test(spawned.deny)) {
       handoffs.isUnreviewed = true
-      return handOver($, asked, name, why)
+      return handOver($, asked, name, why, true)
     }
     // Any other refusal is said as it came; one in auto mode's words may be
     // the unreviewed one, worded anew.
@@ -445,11 +447,15 @@ export type SpawnCall = { name: string | undefined; prompt: string; description:
 
 // The worker handed to the orchestrator that its Agent call starts, which
 // may name none (its tool may take no name) and reword what delegate spelt
-// out: the one with that task; else the only one with that title; else, for
-// a call with no name, the only one of that type. Two that fit alike are
-// none: a worker taken for another would get the wrong name, directory and
-// model.
+// out: the one whose name stands ahead of the call's description, as the
+// handoff gave it, which tells any number of handoffs apart; else the one
+// with that task; else the only one with that title; else, for a call with
+// no name, the only one of that type. Two that fit alike are none: a worker
+// taken for another would get the wrong name, directory and model.
 function handoffFor(pending: readonly Intent[], { name, prompt, description, type }: SpawnCall): Intent | undefined {
+  const ahead = nameAhead(description)
+  const byName = ahead !== undefined ? pending.find(x => x.address === ahead) : undefined
+  if (byName !== undefined) return byName
   const byTask = pending.find(x => x.task === prompt.trim())
   if (byTask !== undefined) return byTask
   const title = bareTitle(description).trim()

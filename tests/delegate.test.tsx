@@ -41,11 +41,11 @@ test("where auto mode reviews only the model's own calls, the orchestrator start
   const done = (agentId: string) => $.turn.complete({ answer: 'Hecho', durationMs: 1, isAborted: false, turnId: `t-${agentId}`, agentId, reason: 'answer' })
 
   expect(await delegate({ task: 'Run the tests', title: 'Tests', repo: '/work/api' })).toBe(
-    'crew: nothing started: auto mode reviews only calls you write, not the one delegate makes. Start Pip yourself before this turn ends: Agent tool with description "Tests", subagent_type "general-purpose", name "pip" if the tool takes a name, and as prompt the task exactly as you gave delegate. The crew takes that agent as Pip, working in /work/api. Left for a later turn, the handoff lapses: delegate the task again then.',
+    'crew: nothing started: auto mode reviews only calls you write, not the one delegate makes. Start Pip yourself before this turn ends: Agent tool with description "(Pip) Tests", subagent_type "general-purpose", name "pip" if the tool takes a name, and as prompt the task exactly as you gave delegate. The crew takes that agent as Pip, working in /work/api. Left for a later turn, the handoff lapses: delegate the task again then. While this session is in auto mode, delegate hands every new worker over like this and still gives a task to a free one itself. For several new workers, make the delegate calls in one message and their Agent calls in the next, each with the description its handoff gives.',
   )
   // Another in the same response is handed a name of its own.
   expect(await delegate({ task: 'Fix the login', title: 'Login', repo: '/work/web', model: 'sonnet' })).toMatch(
-    /Start Bolt yourself before this turn ends: Agent tool with description "Login", subagent_type "general-purpose", model "sonnet", name "bolt" if the tool takes a name, and as prompt/,
+    /Start Bolt yourself before this turn ends: Agent tool with description "\(Bolt\) Login", subagent_type "general-purpose", model "sonnet", name "bolt" if the tool takes a name, and as prompt/,
   )
   expect(seen.spawns).toHaveLength(0)
 
@@ -248,6 +248,45 @@ test('an Agent call that names no agent and rewords the handoff is still its wor
   await agent({ prompt: 'Do the queue work.', description: 'Queue', name: 'q1' })
   expect(last()).toEqual([queue, '/work/web'])
   expect(rowOf(await roster($), queue ?? '')).toMatch(/: address "q1", starting, repo \/work\/web, /)
+})
+
+test('several workers handed over in one response are each started by the Agent call whose description names it, however alike or reworded', async ($, on) => {
+  let spawned = 0
+  const seen: Seen = { prompts: [], sends: [], spawns: [], refuse: NO_VERDICT }
+  engine(on, { nextId: () => `agent-${++spawned}`, seen })
+  await $.session.start({ cwd: '/work/main', surface: 'desktop', isInteractive: false })
+  // Three of one type under one title, as parts of one job are.
+  const input = (repo: string) => ({ task: `Review ${repo}`, title: 'Review', repo, fresh: true })
+  const handoffs = await Promise.all(
+    ['/work/api', '/work/web', '/work/docs'].map(async (repo, i) =>
+      String((await $.tool.call({ tool: DELEGATE, tool_use_id: `toolu_d${i}`, ...input(repo) })).result),
+    ),
+  )
+  expect(handoffs.map(text => /Agent tool with description "([^"]*)"/.exec(text)?.[1])).toEqual(['(Pip) Review', '(Bolt) Review', '(Mika) Review'])
+  // Only the session's first says how new workers start from here on.
+  expect(handoffs.map(text => /For several new workers, make the delegate calls in one message/.test(text))).toEqual([true, false, false])
+
+  // The Agent calls of the next response, in another order and reworded.
+  for (const [i, name] of [
+    [2, 'Mika'],
+    [0, 'Pip'],
+    [1, 'Bolt'],
+  ] as const) {
+    await spawnAgent($, {
+      prompt: 'Please review the code there.',
+      description: `(${name}) Review`,
+      subagentType: 'general-purpose',
+      tool_use_id: `toolu_a${i}`,
+    })
+  }
+  expect(seen.prompts.map(p => /^\[crew\] You are (\w+),/.exec(p)?.[1])).toEqual(['Mika', 'Pip', 'Bolt'])
+  expect(seen.spawns?.map(s => s.cwd)).toEqual(['/work/docs', '/work/api', '/work/web'])
+
+  // Each delegate call's row is its worker's, a new one, as after a spawn delegate made.
+  const row = await mountRow($, toolRow(DELEGATE, 'toolu_d1', input('/work/web'), { output: handoffs[1] }))
+  expect(await row.find({ type: 'Text', text: /^╭─ Nova → Bolt · Review ─+╮$/ })).toBeDefined()
+  expect(await row.find({ type: 'Text', text: /^╰─ new ─+╯$/ })).toBeDefined()
+  await row.unmount()
 })
 
 test('a spawn auto mode gave no verdict for is not tried again in the session, until the session starts anew or leaves that mode', async ($, on) => {
