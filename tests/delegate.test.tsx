@@ -41,11 +41,11 @@ test("where auto mode reviews only the model's own calls, the orchestrator start
   const done = (agentId: string) => $.turn.complete({ answer: 'Hecho', durationMs: 1, isAborted: false, turnId: `t-${agentId}`, agentId, reason: 'answer' })
 
   expect(await delegate({ task: 'Run the tests', title: 'Tests', repo: '/work/api' })).toBe(
-    'crew: nothing started: auto mode reviews only calls you write, not the one delegate makes. Start Pip yourself before this turn ends: Agent tool with name "pip", description "Tests", subagent_type "general-purpose", and as prompt the task exactly as you gave delegate. The crew takes that agent as Pip, working in /work/api. Left for a later turn, the handoff lapses: delegate the task again then.',
+    'crew: nothing started: auto mode reviews only calls you write, not the one delegate makes. Start Pip yourself before this turn ends: Agent tool with description "Tests", subagent_type "general-purpose", name "pip" if the tool takes a name, and as prompt the task exactly as you gave delegate. The crew takes that agent as Pip, working in /work/api. Left for a later turn, the handoff lapses: delegate the task again then.',
   )
   // Another in the same response is handed a name of its own.
   expect(await delegate({ task: 'Fix the login', title: 'Login', repo: '/work/web', model: 'sonnet' })).toMatch(
-    /Start Bolt yourself before this turn ends: Agent tool with name "bolt", description "Login", subagent_type "general-purpose", model "sonnet", and as prompt/,
+    /Start Bolt yourself before this turn ends: Agent tool with description "Login", subagent_type "general-purpose", model "sonnet", name "bolt" if the tool takes a name, and as prompt/,
   )
   expect(seen.spawns).toHaveLength(0)
 
@@ -195,6 +195,61 @@ test('an Agent call for a handed-over worker that starts nothing leaves the hand
   expect(await delegate({ task: 'Fix the login', fresh: true })).toMatch(/Start Bolt yourself before this turn ends/)
 })
 
+test('an Agent call that names no agent and rewords the handoff is still its worker, by its title or as the only one of its type, and never when two fit', async ($, on) => {
+  let spawned = 0
+  const seen: Seen = { prompts: [], sends: [], spawns: [], refuse: NO_VERDICT }
+  engine(on, { nextId: () => `agent-${++spawned}`, seen })
+  await $.session.start({ cwd: '/work/main', surface: 'desktop', isInteractive: false })
+  const delegate = async (input: Record<string, unknown>) => String((await $.tool.call({ tool: DELEGATE, fresh: true, ...input })).result)
+  let calls = 0
+  const agent = (call: Partial<AgentSpawnInput> & Pick<AgentSpawnInput, 'prompt'>) =>
+    spawnAgent($, { subagentType: 'general-purpose', description: '', ...call, tool_use_id: `toolu_${++calls}` })
+  // Whether the agent last started is delegate's worker of that name, and
+  // where it was sent to run.
+  const last = () => {
+    const prompt = seen.prompts[seen.prompts.length - 1] ?? ''
+    return [/^\[crew\] You are (\w+), a worker in Nova's crew\./.exec(prompt)?.[1], seen.spawns?.[seen.spawns.length - 1]?.cwd]
+  }
+  const handed = async (input: Record<string, unknown>) => /Start (\w+) yourself/.exec(await delegate(input))?.[1]
+
+  // The task as delegate had it, under no name: the engine knows the agent
+  // by its id alone, which is its address.
+  expect(await handed({ task: 'Run the tests', title: 'Tests', repo: '/work/api' })).toBe('Pip')
+  await agent({ prompt: 'Run the tests', description: 'Tests' })
+  expect(last()).toEqual(['Pip', '/work/api'])
+  expect(rowOf(await roster($), 'Pip')).toMatch(/^- Pip: address "agent-1", starting, repo \/work\/api, /)
+
+  // The prompt reworded, the title kept, with two handoffs waiting.
+  expect(await handed({ task: 'Fix the login', title: 'Login', repo: '/work/web' })).toBe('Bolt')
+  expect(await handed({ task: 'Write the docs', title: 'Docs', repo: '/work/docs' })).toBe('Mika')
+  await agent({ prompt: 'Please write the documentation.', description: 'Docs' })
+  expect(last()).toEqual(['Mika', '/work/docs'])
+
+  // A worker's own agent is none of the orchestrator's handoffs; nor is a
+  // call of another type, or one under a name of its own that says nothing
+  // delegate did: each runs where its call says.
+  await agent({ prompt: 'Read the routes', description: 'Routes', parentAgentId: 'agent-1' })
+  expect(last()[1]).toBeUndefined()
+  await agent({ prompt: 'Read the routes', description: 'Routes', subagentType: 'Explore' })
+  expect(last()[1]).toBeUndefined()
+  await agent({ prompt: 'Read the routes', description: 'Routes', name: 'rex' })
+  expect(last()).toEqual(['Rex', undefined])
+  // Reworded whole, it is the only handoff of its type left.
+  await agent({ prompt: 'Please fix the login page.', description: 'Fix login' })
+  expect(last()).toEqual(['Bolt', '/work/web'])
+
+  // Two of a type and nothing to tell them by: neither is taken, and each
+  // is still there for the call that gives its title, under any name.
+  const cache = await handed({ task: 'Add the cache', title: 'Cache', repo: '/work/api' })
+  const queue = await handed({ task: 'Add the queue', title: 'Queue', repo: '/work/web' })
+  await agent({ prompt: 'Do the caching work.', description: 'Caching' })
+  expect(last()[1]).toBeUndefined()
+  expect([cache, queue]).not.toContain(last()[0])
+  await agent({ prompt: 'Do the queue work.', description: 'Queue', name: 'q1' })
+  expect(last()).toEqual([queue, '/work/web'])
+  expect(rowOf(await roster($), queue ?? '')).toMatch(/: address "q1", starting, repo \/work\/web, /)
+})
+
 test("a worker on the session's model is asked for it by the alias the Agent tool takes", async ($, on) => {
   let spawned = 0
   const seen = { prompts: [] as string[], sends: [] as string[], spawns: [] as AgentSpawnInput[], refuse: NO_VERDICT }
@@ -202,7 +257,7 @@ test("a worker on the session's model is asked for it by the alias the Agent too
   await $.session.start({ cwd: '/work/main', surface: 'desktop', isInteractive: false })
   const handOff = async (repo: string) => {
     const result = String((await $.tool.call({ tool: 'mcp__crew__delegate', task: 'Run the tests', title: 'Tests', repo })).result)
-    return /name "(\w+)"/.exec(result)![1]!
+    return /Start (\w+) yourself/.exec(result)![1]!.toLowerCase()
   }
   const start = (name: string | undefined, parentModel: string, id: string) =>
     spawnAgent($, {
@@ -233,7 +288,7 @@ test("a worker runs on the session's model, haiku in a session on haiku, and a h
   const start = async (repo: string, parentModel: string, model?: string) => {
     const result = String((await $.tool.call({ tool: 'mcp__crew__delegate', task: 'Run the tests', title: 'Tests', repo, ...(model ? { model } : {}) })).result)
     expect(result).not.toMatch(/model "/)
-    const name = /name "(\w+)"/.exec(result)![1]!
+    const name = /Start (\w+) yourself/.exec(result)![1]!.toLowerCase()
     await spawnAgent($, {
       prompt: 'Run the tests',
       description: 'Tests',

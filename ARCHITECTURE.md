@@ -194,7 +194,11 @@ holds no look, and is turned down as a bad code.
    and workers run on haiku only in a session on haiku.
 6. If auto mode refuses the spawn with no verdict (it reviews only calls a model writes), the
    result tells the orchestrator to start the worker itself with the Agent tool; the spawn hook
-   recognizes that agent by its name or task through `intents`. The intent keeps what the call
+   recognizes that agent through `intents`: by its name, else, as the Agent tool may take none
+   and the orchestrator may reword, by its task, by its title, or as the only handoff of its
+   type (`handoffFor`; two that fit alike are neither). It is the worker `delegate` named; its
+   address is the name its call gave, else its id, as the engine lets no hook name a spawn. The
+   intent keeps what the call
    asked (`handed`: title, model, the reason for a new worker, the call's id), so the worker is
    as one `delegate` started: it runs on the model `delegate` was asked whatever the Agent call
    names, `asked` records it, the delegate call's row names the worker, and the Agent call reads

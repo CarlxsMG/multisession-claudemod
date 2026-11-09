@@ -51,6 +51,7 @@ import { oneLine } from '../util/text'
 import { deliver } from './deliver'
 import { ORCH_ID, markCall, setOrch } from './feed'
 import { release } from './takeover'
+import { bareTitle } from './title'
 import { ACTIVE, REUSABLE, claimName, findWorker, recallWorker, takenNow, unclaimNames } from './workers'
 
 // The heads-up of the tool's result, from the workers busy in the
@@ -379,7 +380,7 @@ export async function refuseWorker($: Engine, agentId: string): Promise<string> 
 // Where and as what type delegate meant a new worker to work, by its
 // address: the engine may not carry a spawn's `cwd` or type through to its
 // own hooks. One delegate handed to the orchestrator to start keeps its
-// task, which tells its agent from others if the Agent call names none.
+// task and what its call asked, which tell its agent from others.
 // Kept in the state, as the orchestrator may start it after a reload, and
 // until its turn ends: `lapseHandoffs`. The newest, as a turn may end unseen.
 const INTENTS_KEEP = 50
@@ -414,22 +415,44 @@ export async function lapseHandoffs($: Engine) {
   unclaimNames(...lapsed)
 }
 
+/** A spawn as `takeIntent` reads it: `isOrchestrators` for one the main conversation's Agent call made. */
+export type SpawnCall = { name: string | undefined; prompt: string; description: string; type: string; isFork: boolean; isOrchestrators: boolean }
+
+// The worker handed to the orchestrator that its Agent call starts, which
+// may name none (its tool may take no name) and reword what delegate spelt
+// out: the one with that task; else the only one with that title; else, for
+// a call with no name, the only one of that type. Two that fit alike are
+// none: a worker taken for another would get the wrong name, directory and
+// model.
+function handoffFor(pending: readonly Intent[], { name, prompt, description, type }: SpawnCall): Intent | undefined {
+  const byTask = pending.find(x => x.task === prompt.trim())
+  if (byTask !== undefined) return byTask
+  const title = bareTitle(description).trim()
+  const byTitle = title === '' ? [] : pending.filter(x => x.handed?.title.trim() === title)
+  if (byTitle.length > 0) return byTitle.length === 1 ? byTitle[0] : undefined
+  const ofType = name === undefined ? pending.filter(x => x.type === type) : []
+  return ofType.length === 1 ? ofType[0] : undefined
+}
+
 /**
- * What delegate meant the agent a spawn starts to be, taken: by the name its
- * call gave, else, for one with no name that is no fork, by its task. `key`
- * is the address it was meant under, and nothing is meant under it any more.
+ * What delegate meant the agent a spawn starts to be, taken, so nothing is
+ * meant under its address any more: by the name its call gave, else, for the
+ * orchestrator's own call that is no fork, the handoff it answers (see
+ * `handoffFor`).
  */
-export async function takeIntent(
-  $: Engine,
-  name: string | undefined,
-  prompt: string,
-  isFork: boolean,
-): Promise<{ key: string | undefined; intent: Intent | undefined }> {
+export async function takeIntent($: Engine, call: SpawnCall): Promise<Intent | undefined> {
   const list = await readIntents($)
-  const key = name?.toLowerCase() ?? (name === undefined && !isFork ? list.find(x => x.task === prompt.trim())?.address : undefined)
-  const intent = key !== undefined ? list.find(x => x.address === key) : undefined
+  const named = call.name !== undefined ? list.find(x => x.address === call.name?.toLowerCase()) : undefined
+  const intent =
+    named ??
+    (call.isOrchestrators && !call.isFork
+      ? handoffFor(
+          list.filter(x => x.task !== undefined),
+          call,
+        )
+      : undefined)
   if (intent !== undefined) await unintend($, intent.address)
-  return { key, intent }
+  return intent
 }
 
 // The refusal of a spawn auto mode had no verdict for: it reviews the calls

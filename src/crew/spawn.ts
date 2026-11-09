@@ -3,6 +3,7 @@
 import type { HookFor } from 'claude-code'
 
 import type { ParentLink, Worker } from '../../types'
+import { DEFAULT_TYPE } from '../config'
 import type { Engine } from '../engine'
 import { modelAlias } from '../model-label'
 import { endOf } from '../progress/runs'
@@ -90,11 +91,19 @@ async function identify($: Engine, e: SpawnEvent) {
   const sessionCwd = await $.session.cwd()
   // Only a worker `delegate` started, or handed to the orchestrator to
   // start, is the crew's to hand more work to.
-  const { key, intent } = await takeIntent($, e.name, e.prompt, e.fork)
+  const intent = await takeIntent($, {
+    name: e.name,
+    prompt: e.prompt,
+    description: e.description,
+    type: e.subagentType || DEFAULT_TYPE,
+    isFork: e.fork,
+    isOrchestrators: e.parentAgentId === undefined,
+  })
   const isCrew = intent !== undefined && !e.fork
   // One delegate handed to the orchestrator to start is as its delegate
   // call asked, whatever the Agent call says.
-  const handed = isCrew ? intent.handed : undefined
+  const handoff = isCrew && intent.task !== undefined ? intent : undefined
+  const handed = handoff?.handed
   // A worker's own spawn reports to it, and runs where it does.
   const parent = e.parentAgentId !== undefined ? list.find(w => w.id === e.parentAgentId) : undefined
   const reportsTo = parent?.name ?? look.name
@@ -105,8 +114,8 @@ async function identify($: Engine, e: SpawnEvent) {
   // name delegate gave it; any other takes one no other member has, the
   // name its call gave when that fits.
   const claim = intent !== undefined ? undefined : claimName(taken, e.name)
-  const name = claim?.name ?? cap(e.name ?? key ?? '')
-  return { look, list, sessionCwd, intent, isCrew, handed, parent, reportsTo, cwd, claim, name, taken }
+  const name = claim?.name ?? cap(intent?.address ?? '')
+  return { look, list, sessionCwd, intent, isCrew, handoff, handed, parent, reportsTo, cwd, claim, name, taken }
 }
 
 type Identified = Awaited<ReturnType<typeof identify>>
@@ -150,10 +159,13 @@ function runOptions(e: SpawnEvent, who: Identified) {
 
 // Puts the started agent on the list and tells what it was given.
 async function record($: Engine, e: SpawnEvent, who: Identified, id: string, startedModel: string | undefined, worktree: boolean) {
-  const { intent, isCrew, handed, parent, reportsTo, cwd, claim, name, taken } = who
-  // The name its call gave stays its address, unless another member has it.
+  const { intent, isCrew, handoff, handed, parent, reportsTo, cwd, claim, name, taken } = who
+  // The name its call gave stays its address, unless another member has it:
+  // the engine knows the agent by no other, and a hook cannot change it. So
+  // a handed-over worker whose call named none is reached by its id.
   const address = e.name !== undefined && (claim === undefined || claim.isWantedFree) ? e.name : id
-  if (e.name !== undefined && name.toLowerCase() !== e.name.toLowerCase()) {
+  // A handed-over worker's own note says its name and address.
+  if (e.name !== undefined && handoff === undefined && name.toLowerCase() !== e.name.toLowerCase()) {
     setKept(agentCalls.notes, e.tool_use_id, renamedAgent(e.name, name, address), NOTES_KEEP)
   }
   const now = await $.clock.now()
@@ -219,7 +231,7 @@ export async function onSpawn($: Engine, e: SpawnEvent, next: Parameters<OnSpawn
   // meant: the call may be written again, and the end of the turn lets go
   // of its name and intent if it is not. Delegate's own spawn is delegate's
   // to give up.
-  const handoff = who.isCrew && who.intent?.task !== undefined ? who.intent : undefined
+  const { handoff } = who
   let started: Awaited<ReturnType<typeof next>>
   try {
     started = await next({ ...asked, prompt, description: namedTitle(who.name, e.description, who.taken), ...runOptions(e, who) })
