@@ -300,6 +300,52 @@ test('the result says why its worker got the task: named, the free one, or a new
   )
 })
 
+test('a free worker that cannot be reached gives way to the next free one, and a new one starts only when none is reached', async ($, on) => {
+  let spawned = 0
+  const seen: Seen = { prompts: [], sends: [] }
+  const clock = engine(on, { nextId: () => `agent-${++spawned}`, seen })
+  await $.session.start({ cwd: '/work/main', surface: 'terminal', isInteractive: true })
+  const delegate = async (input: Record<string, unknown>) => String((await $.tool.call({ tool: 'mcp__crew__delegate', repo: '/work/api', ...input })).result)
+  let turns = 0
+  const done = async (agentId: string) => {
+    await clock.advance(1000)
+    await $.turn.complete({ answer: 'Hecho', durationMs: 1, isAborted: false, turnId: `t-${++turns}`, agentId, reason: 'answer' })
+  }
+  const first = (result: string) => result.split('\n')[0]
+  const gone = (...ids: string[]) => Object.fromEntries(ids.map(id => [id, 'crew: the agent is gone.']))
+
+  // Four free workers, best first: Tito, Mika, Bolt, Pip.
+  for (const task of ['Map the API', 'Write the docs', 'Add the endpoint', 'Test the endpoint']) await delegate({ task, fresh: true })
+  for (const id of ['agent-1', 'agent-2', 'agent-3', 'agent-4']) await done(id)
+
+  // The first cannot be reached: the second takes the task, and no worker starts.
+  seen.gone = gone('agent-4')
+  expect(first(await delegate({ task: 'Review the endpoint' }))).toBe(
+    'Given to Mika (address "mika") in /work/api, the next free worker of that type and model there (also free: Bolt, Pip; name one with `worker` to pick it), as Tito could not be reached (the agent is gone); context kept.',
+  )
+  expect(spawned).toBe(4)
+  expect(seen.sends.slice(-2).map(text => text.split('\n')[0])).toEqual(['Review the endpoint', 'Review the endpoint'])
+  await done('agent-3')
+
+  // Two cannot be reached, in the order tried: Mika, Tito, then Bolt.
+  seen.gone = gone('agent-3', 'agent-4')
+  expect(first(await delegate({ task: 'Polish the endpoint' }))).toBe(
+    'Given to Bolt (address "bolt") in /work/api, the next free worker of that type and model there (also free: Pip; name one with `worker` to pick it), as Mika (the agent is gone) and Tito (the agent is gone) could not be reached; context kept.',
+  )
+  expect(spawned).toBe(4)
+  await done('agent-2')
+
+  // Three are tried and none is reached: a new worker starts, and its reason
+  // names them and the one that was not tried.
+  seen.gone = gone('agent-1', 'agent-2', 'agent-3', 'agent-4')
+  const sent = seen.sends.length
+  expect(first(await delegate({ task: 'Ship the endpoint' }))).toBe(
+    'Started Luna (address "luna", id ?) in /work/api, as Bolt (the agent is gone), Mika (the agent is gone) and Tito (the agent is gone), free there, could not be reached, and no more were tried (also free: Pip; name one with `worker` to pick it).',
+  )
+  expect(seen.sends.length).toBe(sent + 3)
+  expect(spawned).toBe(5)
+})
+
 test('a worker sent where another is busy hears of it', async ($, on) => {
   let spawned = 0
   engine(on, { nextId: () => `agent-${++spawned}` })

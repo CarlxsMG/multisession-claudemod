@@ -74,19 +74,46 @@ const ALSO_FREE = 3
  * `PICKED_FREE` with the free workers it was picked over, best first, so the
  * orchestrator can send the task to one of them by name instead.
  */
-export function pickedFree(others: readonly string[]): string {
-  if (others.length === 0) return PICKED_FREE
+export const pickedFree = (others: readonly string[]): string => PICKED_FREE + alsoFree(others)
+
+// The free workers a task did not go to, best first, and how to pick one; ''
+// when there is none.
+function alsoFree(others: readonly string[]): string {
+  if (others.length === 0) return ''
   const more = others.length - ALSO_FREE
   const names = others.slice(0, ALSO_FREE).join(', ') + (more > 0 ? ` and ${more} more` : '')
-  return `${PICKED_FREE} (also free: ${names}; name one with \`worker\` to pick it)`
+  return ` (also free: ${names}; name one with \`worker\` to pick it)`
 }
+
+/** A free worker a task was sent to and did not reach, with the reason its send gave. */
+export type Lost = { name: string; reason: string }
+
+// The free workers that could not be reached, each with its reason, up to
+// "could not be reached"; `aside` goes between the names and the verb.
+function notReached(lost: readonly Lost[], aside = ''): string {
+  const why = lost.map(l => l.reason.replace(/^crew: /, '').replace(/\.$/, ''))
+  if (lost.length === 1) return `${lost[0]!.name}${aside} could not be reached (${why[0]})`
+  const each = lost.map((l, i) => `${l.name} (${why[i]})`)
+  return `${each.slice(0, -1).join(', ')} and ${each[each.length - 1]}${aside} could not be reached`
+}
+
+/**
+ * Why a task went to a worker that existed: the free ones ahead of it, `lost`
+ * in the order tried, did not get it. `others` are the free ones after it.
+ */
+export const pickedNext = (lost: readonly Lost[], others: readonly string[]): string =>
+  `the next free worker of that type and model there${alsoFree(others)}, as ${notReached(lost)}`
 /** Why a new worker was started: none that was free would do. */
 export const NEW_NONE_FREE = 'as no free worker of that type and model was there'
 /** Why a new worker was started: the call asked for one. */
 export const NEW_FRESH = 'as `fresh` asked'
-/** Why a new worker was started: the free one the task went to first did not get it. */
-export const newAfterLost = (name: string, reason: string): string =>
-  `as ${name}, free there, could not be reached (${reason.replace(/^crew: /, '').replace(/\.$/, '')})`
+/**
+ * Why a new worker was started: the free ones the task was sent to, `lost` in
+ * the order tried, did not get it. `untried` are the free ones it was not sent
+ * to, as only so many are tried.
+ */
+export const newAfterLost = (lost: readonly Lost[], untried: readonly string[]): string =>
+  `as ${notReached(lost, ', free there,')}${untried.length > 0 ? `, and no more were tried${alsoFree(untried)}` : ''}`
 
 /**
  * `where` is the worker's repository, or "a worktree of" it; `why` the

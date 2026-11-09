@@ -297,6 +297,11 @@ export const GOLDEN: Record<string, string> = {
     "Started Mika (address \"mika\", id ?) in /work/api, as Bolt, free there, could not be reached (the agent is gone).",
     "Heads-up: Pip is working in this repository; keep files apart or wait for its report.",
   ].join('\n'),
+  "result.givenAfterLost": "Given to Tito (address \"tito\") in /work/api, the next free worker of that type and model there (also free: Mika, Bolt, Pip; name one with `worker` to pick it), as Luna could not be reached (the agent is gone); context kept.",
+  "result.startedAfterLostMany": [
+    "Started Rex (address \"rex\", id ?) in /work/api, as Luna (the agent is gone), Mika (the agent is gone) and Bolt (the message may not have gone out; check before sending it again), free there, could not be reached, and no more were tried (also free: Pip; name one with `worker` to pick it).",
+    "Heads-up: Tito is working in this repository; keep files apart or wait for its report.",
+  ].join('\n'),
   "result.autoMode": "crew: nothing started: auto mode reviews only calls you write, not the one delegate makes. Start Pip yourself now: Agent tool with name \"pip\", description \"Login\", subagent_type \"general-purpose\", and as prompt the task exactly as you gave delegate. The crew takes that agent as Pip, working in /work/api.",
   "result.autoModeWithModel": "crew: nothing started: auto mode reviews only calls you write, not the one delegate makes. Start Bolt yourself now: Agent tool with name \"bolt\", description \"Styles\", subagent_type \"general-purpose\", model \"sonnet\", and as prompt the task exactly as you gave delegate. The crew takes that agent as Bolt, working in /work/api.",
   "result.notStarted": "crew: could not start a worker: Auto mode blocked this action: it deletes the repository.",
