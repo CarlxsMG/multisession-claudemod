@@ -2,7 +2,7 @@
 // schemas. tests/golden/model-text.ts holds each spec as it is.
 import { COMPACT_GAP_MIN, ROSTER_FULL_REPORT_CUT, ROSTER_REPORT_CUT, ROSTER_REPORTS, ROSTER_ROWS } from '../config'
 
-const DELEGATE_ABOUT = `Hand a task to a crew worker: a named background subagent, general-purpose unless \`subagent_type\` says otherwise, that reports back when done. Goes to the worker you name; else to the most recent free worker this tool started in that repository, of that type and model (the session's unless you ask for one), which keeps its context; else to a new one. Returns at once: the worker's address, and who else is busy where it works.`
+const DELEGATE_ABOUT = `Hand a task to a crew worker: a named background subagent, general-purpose unless \`subagent_type\` says otherwise, that reports back when done. Goes to the worker you name; else to the free worker this tool started in that repository, of that type and on that model (the session's when unset), that last finished a task, or the next it can reach; it keeps its context; else to a new one. Returns at once: the worker's address, and who else is busy where it works.`
 
 /** The delegate tool's spec as the model reads it. */
 export const delegateSpec = (brief: string) => ({
