@@ -56,7 +56,14 @@ export const renamedAgent = (asked: string, name: string, address: string): stri
  * the turn delegate answered in: the crew holds the name no longer.
  */
 export function autoModeHandoff(name: string, address: string, title: string, type: string, model: string, cwd: string): string {
-  const args = [`name "${address}"`, `description "${title}"`, `subagent_type "${type}"`, ...(model !== '' ? [`model "${model}"`] : [])]
+  // The name comes last and only where the tool takes one: it does not
+  // everywhere, and the crew knows the agent without it, by the rest.
+  const args = [
+    `description "${title}"`,
+    `subagent_type "${type}"`,
+    ...(model !== '' ? [`model "${model}"`] : []),
+    `name "${address}" if the tool takes a name`,
+  ]
   return `crew: nothing started: auto mode reviews only calls you write, not the one delegate makes. Start ${name} yourself before this turn ends: Agent tool with ${args.join(', ')}, and as prompt the task exactly as you gave delegate. The crew takes that agent as ${name}, working in ${cwd}. Left for a later turn, the handoff lapses: delegate the task again then.`
 }
 
