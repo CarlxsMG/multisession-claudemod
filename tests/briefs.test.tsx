@@ -1,10 +1,11 @@
 import { expect } from 'claude-code/testing'
 import { DEFAULT_LOOK } from '../src/figure/look'
+import { DELEGATE_SPEC } from '../src/prompts/tools'
 import { lookCode } from '../src/figure/share-code'
 import { VIBES } from '../src/persona/vibes'
 import { COMMENT_LINE, COMPOSER, GIT_LINE, NOVA_OFF, NOVA_ON, PANE, composeBrief, crewCommand, engine, spawnAgent, startTold, test } from './support/crew'
 
-test('the brief is part of the system prompt and of the delegate tool', async ($, on) => {
+test('the brief is part of the system prompt, and its rules of the delegate tool', async ($, on) => {
   const seen = { prompts: [] as string[], sends: [] as string[], tools: [] as string[] }
   engine(on, { seen })
   on('prompt.compose', () => ({ sections: [{ id: 'intro', text: 'You are Claude Code.', scope: 'shared' as const }] }))
@@ -18,7 +19,10 @@ test('the brief is part of the system prompt and of the delegate tool', async ($
   expect(section?.text).toMatch(/Delegation OFF: do the work yourself; use the crew only when the user asks\./)
   expect(section?.text).not.toMatch(/If you are a subagent reading this/)
   expect(seen.tools).toHaveLength(1)
-  expect(seen.tools[0]!.endsWith(`\n\n${section?.text}`)).toBe(true)
+  const rules = section?.text.split('\n\n')[1]?.split('\nPersona:')[0] ?? ''
+  expect(rules).toMatch(/^- Delegate everything/)
+  expect(seen.tools[0]!.endsWith(`\n\n${rules}`)).toBe(true)
+  expect(seen.tools[0]).not.toMatch(/You are Nova|Persona:/)
   expect(section?.text).toMatch(/You are Nova/)
   expect(section?.text).toMatch(
     /- Delegate everything but answers from what you already know: reading files, running commands, edits, reviews, tests\. Doing it yourself looks quicker, but sessions run long/,
@@ -252,10 +256,10 @@ test('an agent a worktree worker starts works in that worktree too', async ($, o
   expect(started).not.toMatch(/Heads-up/)
 })
 
-// Claude Code cuts a tool description at 4096 characters: the delegate
-// tool's, which carries the brief, keeps a margin below that at its longest.
+// The tool list heads the prompt cache: a delegate description that held a
+// setting would end the cache's reuse from one session to the next.
 for (const isOn of [true, false]) {
-  test(`the delegate description fits under the cut with delegation ${isOn ? 'ON' : 'OFF'}, the longest name and persona`, async ($, on) => {
+  test(`the delegate description holds no setting and fits under the cut with delegation ${isOn ? 'ON' : 'OFF'}, the longest name and persona`, async ($, on) => {
     const seen = { prompts: [] as string[], sends: [] as string[], tools: [] as string[] }
     const vibe = Object.keys(VIBES).reduce((a, b) => (VIBES[b]!.prompt.length > VIBES[a]!.prompt.length ? b : a))
     // A name longer than any the look keeps.
@@ -263,9 +267,11 @@ for (const isOn of [true, false]) {
     engine(on, { seen, stored: { look, isOn } })
     await $.session.start({ cwd: '/work/main', surface: 'terminal', isInteractive: true })
     expect(seen.tools).toHaveLength(1)
+    expect(seen.tools[0]).toBe(DELEGATE_SPEC.description)
     expect(seen.tools[0]).toMatch(/mcp__crew__delegate calls in one message/)
-    expect(seen.tools[0]).toMatch(/Persona: N+ is /)
-    expect(seen.tools[0]!.includes(` is ${VIBES[vibe]!.prompt}. `)).toBe(true)
+    expect(seen.tools[0]).not.toMatch(/N{24}|Persona:|delegation was/)
+    expect(seen.tools[0]!.includes(VIBES[vibe]!.prompt)).toBe(false)
+    // Claude Code cuts a tool description at 4096 characters.
     expect(seen.tools[0]!.length).toBeLessThanOrEqual(3950)
   })
 }
@@ -302,9 +308,10 @@ test('a reload after the settings changed keeps the brief and the delegate tool 
 
   await $.session.start({ cwd: '/work/main', surface: 'terminal', isInteractive: true })
   expect((await composeBrief($))?.text).toBe(before)
+  expect(before).toMatch(/\nCrew: delegation was ON when this brief was written/)
+  expect(before).toMatch(/You are Nova/)
   expect(seen.tools).toHaveLength(2)
   expect(seen.tools[1]).toBe(seen.tools[0])
-  expect(seen.tools[1]).toMatch(/\nCrew: delegation was ON when this brief was written/)
 })
 
 test('the next message carries one "[crew]" note with the latest state, and the one after none', async ($, on) => {

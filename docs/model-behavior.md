@@ -13,13 +13,14 @@ still. Read this before changing what the models are told. The texts are not rep
   the engine's refusals and failed sends, passed on as they came.
 - **The brief is frozen per process.** `freezeBrief` (`src/settings/notes.ts`) builds it at the
   first `session.start` and keeps it in the `brief` atom; a later `session.start` (a reload, an
-  enable, a worker respawn) finds it there and keeps it. The system prompt and the `delegate`
-  tool's description both take it from there and neither changes for the rest of the process,
-  because a changed section or tool description rewrites the whole prompt cache. Later changes reach the
+  enable, a worker respawn) finds it there and keeps it. The system prompt takes it from there and
+  it does not change for the rest of the process, because a changed section rewrites the prompt
+  cache. The `delegate` tool's description holds no setting at all: it carries only the brief's
+  delegation rules, constant text, so the tool list is the same in every session. Later changes reach the
   model as a `[crew]` note. `tests/briefs.test.tsx` checks it.
-- **The `delegate` description stays under 3950 characters**, with the longest name and
-  personality. Claude Code cuts a tool description at 4096. The description holds the whole brief,
-  so a line added to the brief spends this room. `tests/briefs.test.tsx` checks it.
+- **The `delegate` description stays under 3950 characters.** Claude Code cuts a tool
+  description at 4096. The description holds the brief's delegation rules, so a rule added to the
+  brief spends this room. `tests/briefs.test.tsx` checks it.
 - **Each text is pinned.** `tests/model-text.test.tsx` makes the plugin send each text through the
   hook that sends it, and compares what comes out exactly with the golden file, so a change of
   wording fails it. [What the golden file does not hold](#what-the-golden-file-does-not-hold) lists
@@ -85,7 +86,7 @@ reading it to ignore it, and why the progress tool's description stays short.
 
 | Text | How it arrives | When | Built by | Golden keys |
 | --- | --- | --- | --- | --- |
-| The `delegate` tool's spec | Tool list | Every request of the load | `delegateSpec` (`src/prompts/tools.ts`), its description `DELEGATE_ABOUT` and the frozen brief | `spec.delegate.description.on`, `spec.delegate.description.off`, `spec.delegate.inputSchema` |
+| The `delegate` tool's spec | Tool list | Every request of the load | `DELEGATE_SPEC` (`src/prompts/tools.ts`), its description `DELEGATE_ABOUT` and `DELEGATION_RULES` (`src/prompts/orchestrator.ts`) | `spec.delegate.description`, `spec.delegate.inputSchema` |
 | The roster tool's spec | Tool list | Every request | `ROSTER_SPEC` (`src/prompts/tools.ts`) | `spec.roster` |
 | The progress tool's spec | Tool list | Every request | `PROGRESS_SPEC` (`src/prompts/tools.ts`) | `spec.progress` |
 | The compact tool's spec | Tool list | Every request | `COMPACT_SPEC` (`src/prompts/tools.ts`) | `spec.compact` |
@@ -149,8 +150,9 @@ the `/crew` command's line in the command menu.
 2. A result of `delegate` is also read back: `readDelegate` and `delegatedTo`, beside the builders
    in `src/prompts/results.ts`, parse it for the conversation's rows. Keep them in step;
    `tests/unit/results.test.ts` covers them.
-3. A setting the model must hear of during a load cannot go only in the brief or a tool's
-   description, which are frozen: it also goes in the `[crew]` note (`crewNote`, and `sameSettings`
-   in `src/settings/notes.ts`). A line added to the brief spends the `delegate` description's room.
+3. A setting the model must hear of during a load cannot go only in the brief, which is frozen,
+   and never goes in a tool's description: it also goes in the `[crew]` note (`crewNote`, and
+   `sameSettings` in `src/settings/notes.ts`). A rule added to the brief spends the `delegate`
+   description's room.
 4. A new text gets a golden key, an `expectText` in `tests/model-text.test.tsx` that goes through
    the hook that sends it, and a row here.

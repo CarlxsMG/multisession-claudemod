@@ -138,7 +138,7 @@ that live elsewhere. All of it is model behaviour, so:
   fails `tests/model-text.test.tsx`; update the golden file by hand in the same commit, and say in
   the commit message why the model should read the new text;
 - the `delegate` tool's description must stay under 3950 characters (Claude Code cuts a tool
-  description at 4096), even with the longest name and personality. A test checks it.
+  description at 4096) and holds no setting. A test checks it.
 
 Progress never reaches a model, apart from the progress tool's reply and an active worker's step
 in the roster. Keep it that way: the status line, the pane, the toasts and the placed rows are
