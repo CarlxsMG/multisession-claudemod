@@ -99,6 +99,9 @@ All notable changes to crew are written here. The format follows
 
 ### Fixed
 
+- A worker that finished a task is reused again. Since workers got an agent type of the crew's
+  own, one whose run had ended could not be woken, and every task meant for it started a new
+  worker.
 - In the desktop app the editor's palettes show their coloured cells, its steppers their ◀ ▶
   and its tabs the `▸` on the one open, and the pane's Delegate switch and Edit button read as on
   the terminal, instead of each showing the words meant for a screen reader (`Color: Cream`).

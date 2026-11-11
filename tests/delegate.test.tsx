@@ -1039,9 +1039,11 @@ test("a worker asked no type starts as the crew's own agent type, without the or
   )
   expect(spawned).toBe(3)
 
-  // The model is not offered the type; any other type is left as it is.
+  // The crew keeps no type from the model, its own included: the engine asks
+  // the same before it resumes an agent that ended, and a worker of a type
+  // kept from the model could not be woken again.
   const offer = (agent: string) => $.agent.offer({ agent, description: 'x', source: 'plugin', provider: { plugin: 'crew', tier: 'user' } } as never)
-  expect(await offer('crew:worker')).toEqual({ isOffered: false })
+  expect(await offer('crew:worker')).toEqual({ isOffered: true })
   expect(await offer('Explore')).toEqual({ isOffered: true })
 })
 
