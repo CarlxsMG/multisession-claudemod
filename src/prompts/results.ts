@@ -172,6 +172,20 @@ export const NEW_NONE_FREE = 'as no free worker of that type and model was there
  */
 export const newAfterIdle = (idle: readonly string[], warmMin: number): string =>
   `as no free worker of that type and model there finished a task in the last ${warmMin} min, so none has its context cached${alsoFree(idle)}`
+/**
+ * Why a new worker was started: the free ones that would do, `large`, best
+ * first, each hold over `maxK` thousand tokens, and one such is reused only
+ * when named.
+ */
+export const newAfterLarge = (large: readonly string[], maxK: number): string =>
+  `as every free worker of that type and model there holds over ${maxK}k tokens of context, which each of its requests sends again${alsoFree(large)}`
+/**
+ * Why a new worker was started: of the free ones that would do, `passed`,
+ * best first, some ended their last turn too long ago and the others hold
+ * too much.
+ */
+export const newAfterIdleOrLarge = (passed: readonly string[], warmMin: number, maxK: number): string =>
+  `as every free worker of that type and model there either finished its last task over ${warmMin} min ago or holds over ${maxK}k tokens of context${alsoFree(passed)}`
 /** Why a new worker was started: the call asked for one. */
 export const NEW_FRESH = 'as `fresh` asked'
 /**
@@ -185,11 +199,12 @@ export const newAfterLost = (lost: readonly Lost[], untried: readonly string[]):
 /**
  * What the context of a worker no call named holds, for `given`: the task it
  * last had, how long ago its last turn ended (`ago`, undefined for one that
- * ended none) and the tokens its turns used, as the roster words them. The
- * orchestrator did not choose this worker: it reads here what it got.
+ * ended none), the tokens its turns used and what its conversation holds
+ * (`context`, '' when not known), as the roster words them. The orchestrator
+ * did not choose this worker: it reads here what it got.
  */
-export const holds = (lastTask: string, ago: string | undefined, tokens: string): string =>
-  `: last task "${lastTask}"${ago === undefined ? '' : `, finished ${ago} ago`}, ${tokens} used`
+export const holds = (lastTask: string, ago: string | undefined, tokens: string, context = ''): string =>
+  `: last task "${lastTask}"${ago === undefined ? '' : `, finished ${ago} ago`}, ${tokens} used${context}`
 
 /**
  * `where` is the worker's repository, or "a worktree of" it; `why` the

@@ -2,7 +2,7 @@
 // free one of its kind in that repository, or a new one), the send or the
 // spawn, and a task held for a worker another one woke or until a run ends.
 import type { Handed, Intent, Takeover, Waiting, Worker } from '../../types'
-import { DEFAULT_TYPE, REUSE_WARM_MIN } from '../config'
+import { DEFAULT_TYPE, REUSE_CONTEXT_MAX, REUSE_WARM_MIN } from '../config'
 import { quiet, unrecognized } from '../engine'
 import type { Engine } from '../engine'
 import {
@@ -35,6 +35,8 @@ import {
   heldWentFirst,
   holds,
   newAfterIdle,
+  newAfterIdleOrLarge,
+  newAfterLarge,
   newAfterLost,
   noModel,
   noRepo,
@@ -53,7 +55,7 @@ import {
 } from '../prompts/results'
 import type { Lost } from '../prompts/results'
 import { modelAlias } from '../model-label'
-import { tokensText } from '../prompts/roster'
+import { contextText, tokensText } from '../prompts/roster'
 import { heldTasks, newMates, taskClose } from '../prompts/worker'
 import { runtime } from '../runtime'
 import {
@@ -73,6 +75,7 @@ import { fieldOf, rawStringArg, stringArg } from '../util/input'
 import { joinPath, samePath, under } from '../util/path'
 import { oneLine } from '../util/text'
 import { shortTime } from '../util/time'
+import { contextOf } from './context'
 import { deliver } from './deliver'
 import { editsInFlight } from './edits'
 import { ORCH_ID, markCall, setOrch } from './feed'
@@ -148,6 +151,16 @@ function freeWorkers(
     .sort((a, b) => lastFree(b) - lastFree(a))
 }
 
+// Why a new worker starts though free ones would do: each was passed over
+// for its age, for its size, or some for one and some for the other.
+function whyPassed(passed: readonly Worker[], now: number): string {
+  const names = passed.map(w => w.name)
+  const maxK = REUSE_CONTEXT_MAX / 1000
+  if (passed.every(w => !isWarm(w, now))) return newAfterIdle(names, REUSE_WARM_MIN)
+  if (passed.every(w => !isLight(w))) return newAfterLarge(names, maxK)
+  return newAfterIdleOrLarge(names, REUSE_WARM_MIN, maxK)
+}
+
 // When a free worker last ended a turn: the order of a reuse, which a
 // message to it or a sync must not change as they do `updatedAt`. One that
 // has ended none goes by when it started.
@@ -161,7 +174,11 @@ const isWarm = (w: Worker, now: number): boolean => now - lastFree(w) < REUSE_WA
 // What the context of a free worker holds, for the result of a call that
 // did not name it.
 const holding = (w: Worker, now: number): string =>
-  holds(oneLine(w.task, 48), w.finishedAt === undefined ? undefined : shortTime(now - w.finishedAt), tokensText(w.tokens))
+  holds(oneLine(w.task, 48), w.finishedAt === undefined ? undefined : shortTime(now - w.finishedAt), tokensText(w.tokens), contextText(contextOf(w)))
+
+// Whether a free worker's conversation is small enough to reuse without
+// being named (see `REUSE_CONTEXT_MAX`); one whose size is not known is.
+const isLight = (w: Worker): boolean => (contextOf(w) ?? 0) <= REUSE_CONTEXT_MAX
 
 // Where a worker in a worktree of its own works, as a result says it.
 const worktreeOf = (cwd: string): string => `a worktree of ${cwd}`
@@ -458,18 +475,19 @@ async function delegate($: Engine, input: object, callId?: string): Promise<stri
   // The free workers that would do, best first: the task goes to the first
   // it reaches, and the result names the ones it did not reach and the rest.
   // None has a mark, so each is a plain send. One that last worked too long
-  // ago to be in the prompt cache is not tried: the result names it among
-  // the rest, for a call that wants its context to name it.
+  // ago to be in the prompt cache, or that holds too much, is not tried: the
+  // result names it among the rest, for a call that wants its context to
+  // name it.
   // The session's model, which a call for none is matched with.
   const session = isFresh || model !== '' ? undefined : modelAlias(await $.session.model().catch(() => ''))
   const now = await $.clock.now()
   const able = isFresh ? [] : freeWorkers(list, woken, cwd, type, model, session)
-  const free = able.filter(w => isWarm(w, now))
-  const cold = able.filter(w => !isWarm(w, now))
+  const free = able.filter(w => isWarm(w, now) && isLight(w))
+  const passed = able.filter(w => !isWarm(w, now) || !isLight(w))
   const names = (workers: readonly Worker[]) => workers.map(w => w.name)
   const lost: Lost[] = []
   for (const candidate of free.slice(0, REUSE_TRIES)) {
-    const rest = names([...free.slice(lost.length + 1), ...cold])
+    const rest = names([...free.slice(lost.length + 1), ...passed])
     const why = lost.length === 0 ? pickedFree(rest) : pickedNext(lost, rest)
     const answer = await giveTask($, candidate, undefined, call, why, () => '', list, inWorktree, holding(candidate, now))
     if (typeof answer === 'string') return answer
@@ -480,11 +498,11 @@ async function delegate($: Engine, input: object, callId?: string): Promise<stri
   }
   const why =
     lost.length > 0
-      ? newAfterLost(lost, names([...free.slice(lost.length), ...cold]))
+      ? newAfterLost(lost, names([...free.slice(lost.length), ...passed]))
       : isFresh
         ? NEW_FRESH
-        : cold.length > 0
-          ? newAfterIdle(names(cold), REUSE_WARM_MIN)
+        : passed.length > 0
+          ? whyPassed(passed, now)
           : NEW_NONE_FREE
   return noWait(await startWorker($, call, why, list, inWorktree))
 }

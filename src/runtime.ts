@@ -53,6 +53,11 @@ function fresh() {
     workerType: { name: undefined as string | undefined },
     /** `src/crew/silence.ts`: when the crew was last looked over for quiet workers. */
     silence: { at: -Infinity },
+    /**
+     * `src/crew/context.ts`: what each agent's conversation held at its last
+     * response of this load, in tokens, by its id.
+     */
+    context: { last: new Map<string, number>() },
     /** `src/crew/workers.ts`: the names given in this load, the moment each is chosen. */
     names: { claimed: new Set<string>() },
     /** `src/progress/run-store.ts`: how long each worker's last run took. */

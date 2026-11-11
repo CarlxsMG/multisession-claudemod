@@ -1226,6 +1226,68 @@ test('among several free workers the one that ended a turn last is reused, which
   expect(await delegate({ task: 'Count the lines', repo: '/work/api' })).toMatch(/^Given to Pip/)
 })
 
+test('an unnamed call passes over a free worker whose conversation holds too much, names it, and the roster and the result say what each holds', async ($, on) => {
+  let spawned = 0
+  const clock = engine(on, { nextId: () => `agent-${++spawned}` })
+  // The engine's answer to a model request: no chunk, and the usage the response reported.
+  let read = 0
+  on('turn.step', async function* (_, e) {
+    return {
+      turnId: e.turnId,
+      index: e.index,
+      answer: '',
+      toolUses: [],
+      stopReason: 'end_turn' as const,
+      usage: { input_tokens: 10, output_tokens: 990, cache_read_input_tokens: read, cache_creation_input_tokens: 0, model: 'test-model' },
+    }
+  })
+  await $.session.start({ cwd: '/work/main', surface: 'terminal', isInteractive: true })
+  const delegate = async (input: Record<string, unknown>) =>
+    String((await $.tool.call({ tool: 'mcp__crew__delegate', repo: '/work/api', ...input })).result).split('\n')[0]
+  const roster = async (worker: string) => String((await $.tool.call({ tool: 'mcp__crew__roster', worker })).result).split('\n')[0]
+  let turns = 0
+  // A worker's turn: one request over `cached` tokens of conversation, then its end.
+  const turn = async (agentId: string, cached: number) => {
+    read = cached
+    const turnId = `t${++turns}`
+    const stream = $.turn.step({ turnId, index: 0, model: 'test-model', messageCount: 1, agentId })
+    for await (const chunk of stream) void chunk
+    await stream.result
+    await $.turn.complete({ answer: 'Hecho', durationMs: 1000, isAborted: false, turnId, agentId, reason: 'answer' })
+  }
+
+  await delegate({ task: 'Map the API', title: 'API map' })
+  // Before any response of it is seen, a row says nothing of its context.
+  expect(await roster('pip')).not.toMatch(/context/)
+  await turn('agent-1', 120_000)
+  expect(await roster('pip')).toMatch(/, 1 task, 0 tokens, context ~121k, last task "API map", finished 0s ago$/)
+
+  // Pip finished this moment, but holds 121k tokens: a new worker starts, and the reason names Pip.
+  expect(await delegate({ task: 'Write the docs', title: 'Docs' })).toBe(
+    'Started Bolt (address "bolt", id ?) in /work/api, as every free worker of that type and model there holds over 100k tokens of context, which each of its requests sends again (also free: Pip; name one with `worker` to pick it).',
+  )
+  // Named, it still takes the task.
+  expect(await delegate({ task: 'Recheck the map', worker: 'pip' })).toBe('Given to Pip (address "pip") in /work/api, as named; context kept.')
+
+  // Bolt holds 31k: the next unnamed call reuses it, and says so.
+  await turn('agent-2', 30_000)
+  expect(await delegate({ task: 'Add the endpoint', title: 'Endpoint' })).toBe(
+    'Given to Bolt (address "bolt") in /work/api, the free worker of that type and model there that last finished a task; context kept: last task "Docs", finished 0s ago, 0 tokens used, context ~31k.',
+  )
+  expect(spawned).toBe(2)
+
+  // One too long idle and one too large: the reason says both, and names them best first.
+  await turn('agent-2', 31_000)
+  await clock.advance(5 * 60_000)
+  await turn('agent-1', 125_000)
+  expect(await delegate({ task: 'Test the endpoint', title: 'Tests' })).toBe(
+    'Started Mika (address "mika", id ?) in /work/api, as every free worker of that type and model there either finished its last task over 4 min ago or holds over 100k tokens of context (also free: Pip, Bolt; name one with `worker` to pick it).',
+  )
+  // The size is the one of its last response: a worker that compacted is light again.
+  await turn('agent-1', 20_000)
+  expect(await delegate({ task: 'One more' })).toMatch(/^Given to Pip \(address "pip"\) in \/work\/api, .*, context ~21k\.$/)
+})
+
 test('an unnamed call passes over a free worker whose last turn ended too long ago to be cached, names it, and says what its pick holds', async ($, on) => {
   let spawned = 0
   const clock = engine(on, { nextId: () => `agent-${++spawned}` })

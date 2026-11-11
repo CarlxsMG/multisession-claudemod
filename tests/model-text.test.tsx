@@ -197,6 +197,42 @@ test("delegate's result when every free worker last worked too long ago to reuse
   expectText('result.startedAfterIdle', await delegate($, { task: 'Add the tests', title: 'Tests', repo: '/work/api' }))
 })
 
+test("delegate's results and the roster's row for workers whose context is known: reused, too large, and too large or too long idle", async ($, on) => {
+  let spawned = 0
+  const clock = engine(on, { nextId: () => `agent-${++spawned}`, seen: recording() })
+  let read = 0
+  on('turn.step', async function* (_, e) {
+    return {
+      turnId: e.turnId,
+      index: e.index,
+      answer: '',
+      toolUses: [],
+      stopReason: 'end_turn' as const,
+      usage: { input_tokens: 10, output_tokens: 990, cache_read_input_tokens: read, cache_creation_input_tokens: 0, model: 'test-model' },
+    }
+  })
+  await start($)
+  let turns = 0
+  const turn = async (agentId: string, cached: number) => {
+    read = cached
+    const turnId = `step-${++turns}`
+    const stream = $.turn.step({ turnId, index: 0, model: 'test-model', messageCount: 1, agentId })
+    for await (const chunk of stream) void chunk
+    await stream.result
+    await finish($, agentId)
+  }
+  await delegate($, { task: 'Build the Login', title: 'Login', repo: '/work/api' })
+  await turn('agent-1', 37_000)
+  expectText('roster.oneContext', await roster($, { worker: 'pip' }))
+  expectText('result.givenHolding', await delegate($, { task: 'Add the tests', title: 'Tests', repo: '/work/api' }))
+  await turn('agent-1', 140_000)
+  expectText('result.startedAfterLarge', await delegate($, { task: 'Write the docs', title: 'Docs', repo: '/work/api' }))
+  await turn('agent-2', 12_000)
+  await clock.advance(5 * 60_000)
+  await turn('agent-1', 141_000)
+  expectText('result.startedAfterIdleOrLarge', await delegate($, { task: 'Ship it', title: 'Ship', repo: '/work/api' }))
+})
+
 test("delegate's results when free workers could not be reached: the next one, and a new one when none is", async ($, on) => {
   let spawned = 0
   const seen = recording()
