@@ -167,7 +167,7 @@ test('held tasks a send fails to deliver are kept, the orchestrator hears of it 
   expect(contexts).toHaveLength(2)
   expect(contexts[0]).toEqual([
     expect.stringMatching(
-      /^\[crew\] The task held for Bolt \(address "agent-2"\) did not reach it: the agent is gone\. It goes with the next task you give Bolt, or give it to another worker\.$/,
+      /^\[crew\] The task held for Bolt \(address "agent-2"\) did not reach it: the agent is gone\. It goes with the next task you give Bolt; or give it to another worker word for word, which takes it off Bolt\.$/,
     ),
   ])
   expect(contexts[1] ?? []).toEqual([])
@@ -219,8 +219,89 @@ test('a delegate call that sends held tasks which fail says so in its result, an
   const output = await delegate({ task: 'Style the login page', title: 'Login styles', repo: '/work/web' })
   expect(output).toMatch(/^Started \S+ \(address /)
   expect(output).toMatch(
-    /\ncrew: the task held for Bolt \(address "agent-2"\) did not reach it: the message may not have gone out; check before sending it again\. It goes with the next task you give Bolt, or give it to another worker\.$/,
+    /\ncrew: the task held for Bolt \(address "agent-2"\) did not reach it: the message may not have gone out; check before sending it again\. It goes with the next task you give Bolt; or give it to another worker word for word, which takes it off Bolt\.$/,
   )
+})
+
+test('a held task that missed its worker and is given to another, word for word, is let go: it is not sent again, and the roster says no more of it', async ($, on) => {
+  const { seen, clock, delegate, roster, done } = await wokenCrew($, on)
+  await $.tool.call({ tool: 'Read', file_path: '/work/api/src/bus.ts', agentId: 'agent-2' })
+  expect(await delegate({ task: 'Record the event.', title: 'Session bus', worker: 'bolt' })).toMatch(/^Held for Bolt /)
+  expect(await delegate({ task: 'Update the component doc.', title: 'Docs', worker: 'bolt' })).toMatch(/^Held for Bolt /)
+  seen.undelivered = 'the agent is gone'
+  await done('agent-2')
+  await clock.advance(400)
+  expect(await roster('bolt')).toMatch(/, 2 tasks waiting, not delivered: the agent is gone, /)
+
+  // One of the two goes to another worker as it was written: Bolt keeps the other.
+  seen.undelivered = undefined
+  const first = await delegate({ task: 'Record the event.', title: 'Session bus', repo: '/work/web' })
+  expect(first).toMatch(/^Started Mika \(address "mika"/)
+  expect(first).toMatch(/\ncrew: the task held for Bolt \(address "agent-2"\) is let go: Mika has it now\.$/)
+  expect(await roster('bolt')).toMatch(/, 1 task waiting, not delivered: the agent is gone, /)
+
+  // A task worded otherwise lets go of nothing.
+  expect(await delegate({ task: 'Update the doc of the component.', title: 'Docs', repo: '/work/web', fresh: true })).not.toMatch(/let go/)
+  expect(await roster('bolt')).toMatch(/, 1 task waiting, not delivered: /)
+
+  // The other goes too: the mark has no task left, and goes with it.
+  expect(await delegate({ task: 'Update the component doc.', title: 'Docs', repo: '/work/web', fresh: true })).toMatch(
+    /\ncrew: the task held for Bolt .* is let go: \S+ has it now\.$/,
+  )
+  expect(await roster('bolt')).not.toMatch(/waiting|not delivered/)
+
+  // Named again, Bolt gets its new task alone.
+  const sends = seen.sends.length
+  expect(await delegate({ task: 'Then tag the release.', title: 'Release', worker: 'bolt' })).not.toMatch(/went first/)
+  expect(seen.sends.slice(sends)).toEqual([expect.stringMatching(/^Then tag the release\.\n/)])
+})
+
+test('a worker its held tasks miss again for the same reason, and that the engine lists no more, is let go of with them, said once by title', async ($, on) => {
+  const contexts: (readonly string[] | undefined)[] = []
+  on('prompt.submit', (_, e) => {
+    contexts.push(e.context)
+    return { text: e.text }
+  })
+  const { seen, clock, delegate, roster, done } = await wokenCrew($, on)
+  await $.tool.call({ tool: 'Read', file_path: '/work/api/src/bus.ts', agentId: 'agent-2' })
+  expect(await delegate({ task: 'Record the event.', title: 'Session bus', worker: 'bolt' })).toMatch(/^Held for Bolt /)
+  seen.undelivered = 'the agent is gone'
+  await done('agent-2')
+  await clock.advance(400)
+
+  // Another reason: the tasks are kept, as after the first miss.
+  seen.undelivered = 'its transcript is locked'
+  expect(await delegate({ task: 'Update the component doc.', title: 'Docs', worker: 'bolt' })).toMatch(
+    /^crew: the 2 tasks held for Bolt \(address "agent-2"\) did not reach it: its transcript is locked\. They go with the next task you give Bolt; /,
+  )
+  expect(await roster('bolt')).toMatch(/, 2 tasks waiting, not delivered: its transcript is locked, /)
+
+  // The same reason again: nothing reaches it, so nothing is kept for it.
+  expect(await delegate({ task: 'Then tag the release.', title: 'Release', worker: 'bolt' })).toBe(
+    'crew: Bolt (address "agent-2") could not be reached again: its transcript is locked. The 3 tasks held for it are let go, this one included: "Session bus", "Docs", "Release". Give them to another worker.',
+  )
+  expect(await roster('bolt')).not.toMatch(/waiting|not delivered/)
+  await $.prompt.submit({ text: 'How is it going?', wait: false, origin: COMPOSER })
+  expect(contexts[0] ?? []).toEqual([])
+})
+
+test('a worker the engine still lists keeps its held tasks however often they miss it', async ($, on) => {
+  const states = new Map<string, AgentInfo['status']>()
+  const agents = (): AgentInfo[] =>
+    [...states].map(([id, status]) => ({ id, name: id === 'agent-1' ? 'pip' : 'bolt', description: 'x', type: 'general-purpose', status }))
+  const { seen, clock, delegate, roster, done } = await wokenCrew($, on, agents)
+  await $.tool.call({ tool: 'Read', file_path: '/work/api/src/bus.ts', agentId: 'agent-2' })
+  expect(await delegate({ task: 'Record the event.', title: 'Session bus', worker: 'bolt' })).toMatch(/^Held for Bolt /)
+  seen.undelivered = 'its transcript is locked'
+  await done('agent-2')
+  states.set('agent-2', 'completed')
+  await clock.advance(400)
+  for (const count of [2, 3]) {
+    expect(await delegate({ task: `Step ${count}.`, title: `Step ${count}`, worker: 'bolt' })).toMatch(
+      new RegExp(`^crew: the ${count} tasks held for Bolt \\(address "agent-2"\\) did not reach it: its transcript is locked\\. `),
+    )
+  }
+  expect(await roster('bolt')).toMatch(/, 3 tasks waiting, not delivered: its transcript is locked, /)
 })
 
 test('a message that fails on its way is sent once only', async ($, on) => {

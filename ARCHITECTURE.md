@@ -259,7 +259,10 @@ own spawns, and one it handed to the orchestrator to start, keep the name delega
   before a delegate). Held tasks whose send fails stay on the takeover with why (`missed`), and
   nothing tries again on its own: they go first with the next task the orchestrator gives that
   agent. The orchestrator hears of it in the next delegate result, in the roster, or else once
-  in a `[crew]` note on the person's next message.
+  in a `[crew]` note on the person's next message. A missed task leaves its mark when the
+  orchestrator gives it to another worker word for word (`letGoElsewhere`), and all of them do
+  when the next send to that agent fails for the same reason and the engine lists it no more:
+  the result names them by title. A mark left with no task goes.
 
 Every send is recorded after it goes (inside `quiet`): the feed line, both workers' last message,
 the route a reply is matched by, the run the send starts, and a placed line for a message between
@@ -368,7 +371,7 @@ The orchestrator asks for a compaction with `mcp__crew__compact` (`focus`, `afte
 threshold (read with `$.session.usage({ breakdown: 'summary' })` once a minute; the fill itself is
 free to read). A turn cannot compact itself, so the ask waits in `compactAsk`, and the progress tick
 runs it (`compactWhenSafe`) while the main turn is not under way, no worker is busy, no row is due
-and no takeover stands; `after: "reports"` also waits for the round to close and for a main turn
+and no takeover's run is under way (one whose tasks missed their worker holds nothing back); `after: "reports"` also waits for the round to close and for a main turn
 since the last run ended. It also runs only within 4 minutes of the main turn's end
 (`COMPACT_WARM_MIN`): the summary request reads the whole transcript again, and past the prompt
 cache's 5 minutes it is billed uncached, so an ask that misses the window stays queued until the
@@ -541,7 +544,8 @@ is noticed in the debug log: `unrecognized($, kind, detail)` (`src/engine.ts`) w
   the worker. The mark lasts until the run ends.
 - **Held task.** A task the orchestrator gave a worker under a takeover. It waits, and goes from
   the main conversation once the run ends (**release**). One whose send fails stays, **missed**,
-  and goes with the next task given to that worker.
+  and goes with the next task given to that worker, unless it is given to another word for word
+  or that worker cannot be reached again.
 - **Relay.** A worker's message to a free teammate, sent on from the main conversation at the
   next tick.
 - **Route.** Where a worker's message went, by the head of its text, so a reply is matched.
