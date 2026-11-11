@@ -45,6 +45,9 @@ All notable changes to crew are written here. The format follows
 - A worker given a new task is told, in one line, of the teammates that joined since it was last
   told who is there, so it can message them without looking at the roster or asking the
   orchestrator. Nothing is added when nobody is new.
+- A worker with a plan of three steps or more calls the progress tool as each step starts, from
+  step 1; the call that only declared the plan, step 0, is no longer asked of it, which saves a
+  request per task. A plan declared at step 0 still works.
 
 ### Fixed
 

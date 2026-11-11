@@ -133,7 +133,7 @@ test('an agent a worker starts reports to that worker, and the roster says whose
   await $.session.start({ cwd: '/work/main', surface: 'terminal', isInteractive: true })
   await $.tool.call({ tool: 'mcp__crew__delegate', task: 'Investigate the checkout, then split it', title: 'Checkout', repo: '/work/shop' })
   expect(seen.prompts[0]).toMatch(
-    /\n- Parallel parts, once you have read what they need: fork yourself once per part \(Agent tool, `subagent_type: "fork"`\)\. Each starts from your context, so give it only its part and files; report the whole once they report\.\n- 3\+ steps: declare your plan with mcp__crew__progress, step 0 of N \(the N steps you will actually take\), then call it as you start each step, 1 to N, in the same message as that step's first tool call\.\n- In a git repository: /,
+    /\n- Parallel parts, once you have read what they need: fork yourself once per part \(Agent tool, `subagent_type: "fork"`\)\. Each starts from your context, so give it only its part and files; report the whole once they report\.\n- 3\+ steps: call mcp__crew__progress as you start each step, 1 to N \(the N steps you will actually take\), in the same message as that step's first tool call\.\n- In a git repository: /,
   )
 
   const fork = { prompt: 'Do the frontend', description: 'Frontend', subagentType: 'fork', fork: true, parentAgentId: 'agent-1' }
@@ -206,7 +206,7 @@ test("with delegation off, delegate's workers still hear the preamble and the Ag
   await done('agent-1')
   await done('agent-2')
   expect(await delegate({ task: 'Now the login' })).toMatch(/^Given to Pip/)
-  expect(seen.sends[0]).toBe('Now the login\n\nReport as before. 3+ steps: mcp__crew__progress again from step 0.')
+  expect(seen.sends[0]).toBe('Now the login\n\nReport as before. 3+ steps: mcp__crew__progress again from step 1.')
   // The Agent tool's agent never heard how to report, nor who is there: it is told in full.
   expect(await delegate({ task: 'Look further', worker: 'agent-2' })).toMatch(/^Given to Bolt/)
   expect(seen.sends[1]).toMatch(
@@ -225,7 +225,7 @@ test('a reused worker is told the teammates it was not told of, once, and nothin
   const delegate = (input: Record<string, unknown>) => $.tool.call({ tool: 'mcp__crew__delegate', repo: '/work/api', ...input })
   const done = (agentId: string, n = 0) =>
     $.turn.complete({ answer: 'Done', durationMs: 1, isAborted: false, turnId: `t-${agentId}-${n}`, agentId, reason: 'answer' })
-  const AGAIN = 'Report as before. 3+ steps: mcp__crew__progress again from step 0.'
+  const AGAIN = 'Report as before. 3+ steps: mcp__crew__progress again from step 1.'
 
   await delegate({ task: 'Fix the login' })
   expect(seen.prompts[0]).toMatch(/Teammates you can reach with SendMessage: none yet\./)

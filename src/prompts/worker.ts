@@ -16,8 +16,8 @@ const REPORT_RULE =
   "report the outcome first, then only facts: branch and commits or files changed, check results, blockers, decisions needed. Don't restate the task or narrate your steps; no pleasantries, headings or diffs; quote a line only when a decision depends on it."
 
 // What closes a new task for a worker that heard the preamble: its plan
-// starts again with the task, so it is declared again.
-const AGAIN = `Report as before. 3+ steps: ${PROGRESS} again from step 0.`
+// starts again with the task, at its first step.
+const AGAIN = `Report as before. 3+ steps: ${PROGRESS} again from step 1.`
 
 /**
  * How a new task for a worker ends: one the crew started heard the preamble
@@ -91,7 +91,7 @@ ${where}
 - Someone waits on you: SendMessage it as soon as you have what it needs.
 - You keep this context after you report: ${reportsTo}'s follow-ups carry only what is new.
 - Run only commands that end: no \`tail -f\`, \`watch\`, \`--watch\` modes or unbounded \`while true\`. Background only what must outlive a call; TaskStop every background shell and Monitor you started before your final report, and name in it any server left running, with its port.
-${forks}- 3+ steps: declare your plan with ${PROGRESS}, step 0 of N (the N steps you will actually take), then call it as you start each step, 1 to N, in the same message as that step's first tool call.
+${forks}- 3+ steps: call ${PROGRESS} as you start each step, 1 to N (the N steps you will actually take), in the same message as that step's first tool call.
 ${git}- Your final message goes back into ${reportsTo}'s conversation, which must stay small: ${REPORT_RULE}
 
 Task:

@@ -83,8 +83,7 @@ export const ROSTER_SPEC = {
  */
 export const PROGRESS_SPEC = {
   name: 'progress',
-  description:
-    "A crew worker's progress, shown to the user: step 0 of N declares the plan, then each step 1 to N is called as it starts, with what it is. Workers only.",
+  description: "A crew worker's progress, shown to the user: called as each step starts, 1 to N, with what it is; the first call sets the plan. Workers only.",
   inputSchema: {
     type: 'object',
     properties: { step: { type: 'integer' }, total: { type: 'integer' }, doing: { type: 'string' } },

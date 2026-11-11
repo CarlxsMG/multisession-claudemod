@@ -259,7 +259,8 @@ export const PROGRESS_NO_RUN = 'crew: no run of yours to note it on.'
 
 /**
  * What the progress tool answers the worker: the call it owes next, so a
- * plan declared at step 0 is followed through to its last step.
+ * plan is followed through to its last step, whether its first call was at
+ * step 1 or declared it at step 0.
  */
 export function progressReply(p: Pick<Plan, 'step' | 'total'>): string {
   if (p.step >= p.total) return 'ok; last step.'

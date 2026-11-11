@@ -527,8 +527,9 @@ is noticed in the debug log: `unrecognized($, kind, detail)` (`src/engine.ts`) w
   turn's end. Its time, calls, phase and plan belong to it.
 - **Phase.** What a run is busy with, read off its tool calls: thinking, reading, editing,
   running, testing, web, delegating, waiting.
-- **Plan, step.** What a worker declared with the progress tool (`step 0 of N`, then each step as
-  it starts), or read off its todo list.
+- **Plan, step.** What a worker declared with the progress tool (each step of N as it starts; the
+  first call sets the plan, and a call at step 0 that only declares it is still taken), or read
+  off its todo list.
 - **Round.** The stretch from the first worker starting while none ran to the last one ending.
 - **Check-in.** A row placed in the conversation every interval during a round, when something
   changed, with a line per worker. The newest follows the round in place; the earlier ones fold
