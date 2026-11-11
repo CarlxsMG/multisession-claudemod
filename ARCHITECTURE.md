@@ -43,7 +43,7 @@ the debug log. Its `unrecognized` logs there an engine text the crew reads in no
 | --- | --- |
 | `hooks/register.tsx` | Every hook, each matcher written inline. Nothing else. |
 | `src/hooks/` | The hook bodies: the session's events (`session.ts`), the `/crew` command (`commands.ts`), the crew's tools (`tools.ts`), every tool call watched (`watch.ts`), turn starts and ends (`turns.ts`), the system prompt and the user's messages (`prompt.ts`), compaction (`compact.ts`). |
-| `src/crew/` | The crew itself: the worker list and its statuses (`workers.ts`), `delegate` (`delegate.ts`), the spawn hook (`spawn.ts`) and the name it puts ahead of an agent's title (`title.ts`) and of a worker's background shell or Monitor (`shell-title.ts`), the send hook (`sends.ts`), relays (`relay.ts`), takeovers and held tasks (`takeover.ts`), compactions the crew starts (`compaction.ts`), one way to send and record (`deliver.ts`), the sync with the engine's agents (`sync.ts`), the user's message to a worker (`message.ts`), what the pane and the rows are drawn from (`feed.ts`), and the roster's data (`roster.ts`). |
+| `src/crew/` | The crew itself: the worker list and its statuses (`workers.ts`), `delegate` (`delegate.ts`), the spawn hook (`spawn.ts`) and the name it puts ahead of an agent's title (`title.ts`) and of a worker's background shell or Monitor (`shell-title.ts`), the send hook (`sends.ts`), relays (`relay.ts`), takeovers and held tasks (`takeover.ts`), tasks that wait for a run to end (`waiting.ts`), compactions the crew starts (`compaction.ts`), one way to send and record (`deliver.ts`), the sync with the engine's agents (`sync.ts`), the user's message to a worker (`message.ts`), what the pane and the rows are drawn from (`feed.ts`), and the roster's data (`roster.ts`). |
 | `src/guard/runaway.ts` | The guard on Bash and PowerShell calls: it refuses a command that would not end (`tail -f`, `watch`, a watch mode, an endless loop), the main session's and every worker's. |
 | `src/prompts/` | Nearly every text a model reads ([docs/model-behavior.md](docs/model-behavior.md) lists them all): the orchestrator's brief and `[crew]` note (`orchestrator.ts`), the workers' preamble and the texts the crew sends them (`worker.ts`), the tool specs (`tools.ts`), the tool results and their parsers (`results.ts`), the roster's text (`roster.ts`), and what the `/crew` command answers (`commands.ts`). |
 | `src/progress/` | Progress, which no model reads: `run-store.ts` is the only module that records runs with the engine, `calls.ts` holds tool calls for the pane's next frame, `todos.ts` reads a plan off a todo list, `status.ts` pins the status line, `placed.ts` places the rows and keeps the check-in interval, and `tick.ts` is the progress tick; `runs.ts`, `round.ts`, `plan.ts`, `phase.ts`, `check-in.ts` are pure; `text/` builds the status line, the team view, the cards and the placed rows. |
@@ -109,6 +109,7 @@ under, so it never changes even where the code name differs.
 | `noteFirst` | `noteFirst` | `noteFirst-1` | What each end-of-task row was first drawn with, up to 300 |
 | `background` | `background` | `background-1` | Shells and Monitors left running in the background, whose each is, its process and when its owner's turn ended, up to 100 |
 | `compactAsk` | `compaction` | `compactAsk-1` | The compaction the orchestrator or `compactAt` asked for, until a safe moment runs it, and when the crew last ran one |
+| `waiting` | `waiting` | `waiting-1` | Tasks a delegate call's `after` holds until a worker's run ends, and those not given, until the orchestrator is told |
 
 The last five hold what a call under way leaves for the hooks that follow it, which a reload of
 the plugin's code may come between: a spawn auto mode handed to the orchestrator, an Agent call
@@ -177,7 +178,8 @@ holds no look, and is turned down as a bad code.
    (`delegateInTurn`), so two never read the same crew and take the same name or worker. A
    worker's call is refused: it should fork itself with the Agent tool instead. Each call first
    lifts any takeover whose run ended (`release`); held tasks that did not arrive are reported
-   at the end of its result.
+   at the end of its result. The tasks that waited for a run that ended go first too
+   (`releaseWaiting`, from `delegateTool`), and the ones that could not be given are said last.
 2. `delegate` reads the input, resolves `repo` against the session's directory (Windows forms
    included) and refuses a `fork` type.
 3. It picks the worker: the one named, else (without `fresh`) the most recent free worker that
@@ -380,7 +382,7 @@ The orchestrator asks for a compaction with `mcp__crew__compact` (`focus`, `afte
 threshold (read with `$.session.usage({ breakdown: 'summary' })` once a minute; the fill itself is
 free to read). A turn cannot compact itself, so the ask waits in `compactAsk`, and the progress tick
 runs it (`compactWhenSafe`) while the main turn is not under way, no worker is busy, no row is due
-and no takeover's run is under way (one whose tasks missed their worker holds nothing back); `after: "reports"` also waits for the round to close and for a main turn
+and no takeover's run is under way (one whose tasks missed their worker holds nothing back) nor a task waiting for a run to end; `after: "reports"` also waits for the round to close and for a main turn
 since the last run ended. It also runs only within 4 minutes of the main turn's end
 (`COMPACT_WARM_MIN`): the summary request reads the whole transcript again, and past the prompt
 cache's 5 minutes it is billed uncached, so an ask that misses the window stays queued until the
@@ -556,6 +558,18 @@ is noticed in the debug log: `unrecognized($, kind, detail)` (`src/engine.ts`) w
   the main conversation once the run ends (**release**). One whose send fails stays, **missed**,
   and goes with the next task given to that worker, unless it is given to another word for word
   or that worker cannot be reached again.
+- **Waiting task.** A task a delegate call gave with `after`, the name of a busy worker: it is
+  kept in `waiting` and given from the main conversation when that worker's run ends
+  (`releaseWaiting`, `src/crew/waiting.ts`: at the tick after the turn's end, at the next sync,
+  or before a delegate), to that worker, to the one the call named, or to a new one
+  (`startBehind`). A new worker starts only from a hook of the main conversation, when its next
+  turn starts (which the run's report opens) or at its next delegate call: a spawn made from the
+  timer goes past the crew's own `agent.spawn` hook, and its agent would have no brief. Several for one worker go together, in order; one whose own worker is busy
+  then waits for that worker's run instead. When the run it waited for failed or was stopped,
+  its worker is not reached, or no worker can start (auto mode has no turn to hand it over in),
+  it is not given: it stays only until the orchestrator is told, in a delegate result or a
+  `[crew]` note on the person's next message, and nothing tries again. A queued compaction waits
+  while one is held.
 - **Relay.** A worker's message to a free teammate, sent on from the main conversation at the
   next tick.
 - **Route.** Where a worker's message went, by the head of its text, so a reply is matched.

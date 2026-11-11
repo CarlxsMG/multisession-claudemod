@@ -4,6 +4,8 @@ import type { MatchedHook } from 'claude-code'
 import { askCompaction } from '../crew/compaction'
 import { delegateInTurn, refuseWorker } from '../crew/delegate'
 import { rosterText } from '../crew/roster'
+import { releaseWaiting, tellWaiting } from '../crew/waiting'
+import { quiet } from '../engine'
 import type { Engine } from '../engine'
 import { declarePlan } from '../progress/plan'
 import { COMPACT_NOT_FOR_WORKERS } from '../prompts/compact'
@@ -20,7 +22,11 @@ type CrewToolCall = Parameters<CrewToolHook>[1]
 export async function delegateTool($: Engine, e: CrewToolCall) {
   // The orchestrator's tool: a worker splits its own task by forking.
   if (e.agentId !== undefined) return { result: await refuseWorker($, e.agentId) }
-  return { result: await delegateInTurn($, e, e.tool_use_id) }
+  // The tasks that waited for a run that ended go first, as they were asked
+  // first; the ones that could not be given, this result says.
+  await quiet($, releaseWaiting($, true), 'waiting')
+  const result = await delegateInTurn($, e, e.tool_use_id)
+  return { result: [result, ...((await quiet($, tellWaiting($), 'waiting told')) ?? [])].join('\n') }
 }
 
 /** The roster tool: the crew as the model reads it, or one worker in full. */

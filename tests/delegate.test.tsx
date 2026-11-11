@@ -3,7 +3,7 @@ import type { TestBody } from 'claude-code/testing'
 import type { AgentSpawnInput } from 'claude-code'
 import { WORKER_NAMES } from '../src/persona/names'
 import { SEND_UNSURE } from '../src/prompts/results'
-import { DELEGATE, NO_VERDICT, PANE, SURFACES, USAGE, crewCommand, engine, mountRow, spawnAgent, test, toolRow } from './support/crew'
+import { COMPOSER, DELEGATE, NO_VERDICT, PANE, SURFACES, USAGE, crewCommand, engine, mountRow, spawnAgent, test, toolRow } from './support/crew'
 import type { Ask, Seen } from './support/crew'
 
 test('a haiku request asks the Agent tool for no model, as one with none does', async ($, on) => {
@@ -643,6 +643,171 @@ test('a worker whose last run was stopped is reused with a word on it, named or 
     'Given to Pip (address "pip") in /work/api, the free worker of that type and model there that last finished a task; context kept: last task "Seed the data again", finished 0s ago, 0 tokens used.',
   )
   expect(spawned).toBe(1)
+})
+
+test('a task that names a busy worker in `after` is held, and goes to it from here when its run ends, as a task of its own', async ($, on) => {
+  let spawned = 0
+  const seen: Seen = { prompts: [], sends: [] }
+  const clock = engine(on, { nextId: () => `agent-${++spawned}`, seen })
+  const start = () => $.session.start({ cwd: '/work/main', surface: 'terminal', isInteractive: true })
+  await start()
+  const delegate = async (input: Record<string, unknown>) => String((await $.tool.call({ tool: 'mcp__crew__delegate', repo: '/work/api', ...input })).result)
+  const pip = async () => String((await $.tool.call({ tool: 'mcp__crew__roster', worker: 'pip' })).result)
+  const tail = ' If that run fails or is stopped, the task is not given and you are told.'
+
+  expect(await delegate({ task: 'Migrate the schema', title: 'Schema' })).toMatch(/^Started Pip/)
+  const input = { task: 'Seed the data', title: 'Seeds', after: 'pip' }
+  const output = await delegate({ ...input, tool_use_id: 'toolu_a1' })
+  expect(output).toBe(`Held for Pip (address "pip"): it gets this task when its run ends ("Schema"), as a task of its own, and reports to you.${tail}`)
+  expect(await delegate({ task: 'Add the indexes', title: 'Indexes', worker: 'pip', after: 'pip' })).toBe(
+    `Held for Pip (address "pip"): it gets this task when its run ends ("Schema"), as a task of its own, and reports to you.${tail} 2 tasks held behind Pip; they go in order.`,
+  )
+  // Nothing reached Pip in the middle of its task, and its row says what waits.
+  expect(seen.sends).toHaveLength(0)
+  expect(await pip()).toMatch(/^- Pip: address "pip", \w+, 2 tasks held behind its run, repo \/work\/api, .*\b1 task, .*last task "Schema"/)
+  const row = await mountRow($, toolRow(DELEGATE, 'toolu_a1', input, { output }))
+  expect(await row.find({ type: 'Text', text: /^╰─ waiting · after Pip ─+╯$/ })).toBeDefined()
+
+  // A reload of the plugin loses neither.
+  await start()
+  await clock.advance(5000)
+  expect(seen.sends).toHaveLength(0)
+
+  // Its run ends: both go at the next tick, together and in order, as a run of their own.
+  await $.turn.complete({ answer: 'Hecho', durationMs: 1, isAborted: false, turnId: 't1', agentId: 'agent-1', reason: 'answer' })
+  await clock.advance(400)
+  expect(seen.sends).toEqual([
+    expect.stringMatching(/^2 tasks, in order:\n\n## 1\. Seeds\nSeed the data\n\n## 2\. Indexes\nAdd the indexes\n\nReport as before\./),
+  ])
+  expect(await pip()).toMatch(/^- Pip: address "pip", working, repo \/work\/api, .*\b3 tasks, .*last task "Indexes"/)
+  await clock.advance(5000)
+  expect(seen.sends).toHaveLength(1)
+
+  // Free, it has nothing to wait for: the task goes at once, and the result says so.
+  await $.turn.complete({ answer: 'Hecho', durationMs: 1, isAborted: false, turnId: 't2', agentId: 'agent-1', reason: 'answer' })
+  expect(await delegate({ task: 'Tag the release', title: 'Release', after: 'pip' })).toBe(
+    'Given to Pip (address "pip") in /work/api, as named; context kept.\nNothing waited: Pip, named in `after`, is not busy.',
+  )
+  expect(await delegate({ task: 'Tag it again', after: 'nobody' })).toBe('crew: no worker "nobody". Workers: pip.')
+})
+
+test('a task held behind a run goes to the worker the call names, waiting for that one too while it is busy, or to a new worker', async ($, on) => {
+  let spawned = 0
+  const seen: Seen = { prompts: [], sends: [] }
+  on('turn.start', (_, e) => ({ turnId: e.turnId }))
+  const clock = engine(on, { nextId: () => `agent-${++spawned}`, seen })
+  await $.session.start({ cwd: '/work/main', surface: 'terminal', isInteractive: true })
+  const delegate = async (input: Record<string, unknown>) => String((await $.tool.call({ tool: 'mcp__crew__delegate', repo: '/work/api', ...input })).result)
+  const roster = async (worker: string) => String((await $.tool.call({ tool: 'mcp__crew__roster', worker })).result)
+  let turns = 0
+  const done = (agentId: string) => $.turn.complete({ answer: 'Hecho', durationMs: 1, isAborted: false, turnId: `t-${++turns}`, agentId, reason: 'answer' })
+
+  expect(await delegate({ task: 'Migrate the schema', title: 'Schema' })).toMatch(/^Started Pip/)
+  expect(await delegate({ task: 'Write the docs', title: 'Docs', fresh: true })).toMatch(/^Started Bolt/)
+  expect(await delegate({ task: 'Review the schema', title: 'Review', worker: 'bolt', after: 'pip' })).toMatch(
+    /^Held for Bolt \(address "bolt"\): it gets this task when Pip's run ends \("Schema"\), as a task of its own, and reports to you\./,
+  )
+  expect(await delegate({ task: 'Test the schema', title: 'Tests', fresh: true, after: 'pip' })).toMatch(
+    /^Held for a new worker: it starts with this task when Pip's run ends \("Schema"\), .* 2 tasks held behind Pip; they go in order\.$/,
+  )
+  expect(spawned).toBe(2)
+
+  // Pip's run ends. The timer starts no worker: one it spawned would go past the crew's own
+  // spawn hook, and have no brief. The orchestrator's next turn, which Pip's report opens, does.
+  await done('agent-1')
+  await clock.advance(5000)
+  expect(spawned).toBe(2)
+  await $.turn.start({ text: '', turnId: 'm1' })
+  expect(spawned).toBe(3)
+  expect(seen.prompts[2]).toMatch(/^\[crew\] You are Mika, a worker in Nova's crew\.[^]*\nTask:\nTest the schema$/)
+  expect(await roster('mika')).toMatch(/^- Mika: address "mika", \w+, repo \/work\/api, .*last task "Tests"/)
+  // Bolt is still on its own task: what waited for Pip's run for it waits for Bolt's.
+  expect(seen.sends).toHaveLength(0)
+  expect(await roster('pip')).not.toMatch(/held behind/)
+  expect(await roster('bolt')).toMatch(/^- Bolt: address "bolt", \w+, 1 task held behind its run, /)
+  await done('agent-2')
+  await clock.advance(400)
+  expect(seen.sends).toEqual([expect.stringMatching(/^Review the schema\n\nReport as before\./)])
+  expect(await roster('bolt')).toMatch(/^- Bolt: address "bolt", working, repo \/work\/api, .*\b2 tasks, .*last task "Review"/)
+})
+
+test('a task held behind a run that fails or is stopped, or that does not reach its worker, is not given, and the orchestrator hears of it once', async ($, on) => {
+  const contexts: (readonly string[] | undefined)[] = []
+  on('prompt.submit', (_, e) => {
+    contexts.push(e.context)
+    return { text: e.text }
+  })
+  const toasts: string[] = []
+  on('ui.toast', (_, e) => {
+    toasts.push(e.text)
+    return { value: undefined }
+  })
+  let spawned = 0
+  const seen: Seen = { prompts: [], sends: [] }
+  const clock = engine(on, { nextId: () => `agent-${++spawned}`, seen })
+  await $.session.start({ cwd: '/work/main', surface: 'terminal', isInteractive: true })
+  const delegate = async (input: Record<string, unknown>) => String((await $.tool.call({ tool: 'mcp__crew__delegate', repo: '/work/api', ...input })).result)
+  const roster = async (worker: string) => String((await $.tool.call({ tool: 'mcp__crew__roster', worker })).result)
+  const ends = (agentId: string, how: 'answer' | 'error' | 'aborted') =>
+    $.turn.complete({ answer: '', durationMs: 1, isAborted: how === 'aborted', turnId: `t-${agentId}-${how}`, agentId, reason: how })
+  for (const task of ['Migrate the schema', 'Write the docs', 'Map the API']) await delegate({ task, title: task.split(' ')[2], fresh: true })
+
+  // A run that failed: what was to build on it is not sent, and the next delegate result says so, once.
+  await delegate({ task: 'Seed the data', title: 'Seeds', after: 'pip' })
+  await ends('agent-1', 'error')
+  await clock.advance(400)
+  expect(seen.sends).toHaveLength(0)
+  expect(toasts).toContain('"Seeds" was not given: Pip\'s run failed')
+  expect(await roster('pip')).not.toMatch(/held behind/)
+  expect(await delegate({ task: 'Fix the footer', repo: '/work/web' })).toMatch(
+    /^Started \S+ .*\ncrew: the task "Seeds", held behind Pip, was not given: Pip's run failed\. Give it again if it still stands\.$/,
+  )
+  expect(await delegate({ task: 'Fix the header', repo: '/work/web', fresh: true })).not.toMatch(/was not given/)
+
+  // A run that was stopped, with no crew tool called since: the user's next message carries it, once.
+  await delegate({ task: 'Review the docs', title: 'Review', after: 'bolt' })
+  await ends('agent-2', 'aborted')
+  await clock.advance(400)
+  await $.prompt.submit({ text: 'How is it going?', wait: false, origin: COMPOSER })
+  await $.prompt.submit({ text: 'And now?', wait: false, origin: COMPOSER })
+  expect(contexts[0]).toEqual(['[crew] The task "Review", held behind Bolt, was not given: Bolt\'s run was stopped. Give it again if it still stands.'])
+  expect(contexts[1] ?? []).toEqual([])
+
+  // A send that does not arrive: said with its reason, and not tried again.
+  await delegate({ task: 'List the routes', title: 'Routes', after: 'mika' })
+  seen.gone = { 'agent-3': 'crew: the agent is gone.' }
+  await ends('agent-3', 'answer')
+  await clock.advance(400)
+  const sends = seen.sends.length
+  await clock.advance(10_000)
+  expect(seen.sends).toHaveLength(sends)
+  expect(await delegate({ task: 'Fix the sidebar', repo: '/work/web', fresh: true })).toMatch(
+    /\ncrew: the task "Routes", held behind Mika, was not given: it did not reach Mika: the agent is gone\. Give it again if it still stands\.$/,
+  )
+})
+
+test('where auto mode reviews only the model’s own calls, a task held for a new worker is told when none could start, and none is held once that is known', async ($, on) => {
+  let spawned = 0
+  const seen: Seen = { prompts: [], sends: [] }
+  const clock = engine(on, { nextId: () => `agent-${++spawned}`, seen })
+  await $.session.start({ cwd: '/work/main', surface: 'desktop', isInteractive: false })
+  const delegate = async (input: Record<string, unknown>) => String((await $.tool.call({ tool: 'mcp__crew__delegate', repo: '/work/api', ...input })).result)
+
+  expect(await delegate({ task: 'Migrate the schema', title: 'Schema' })).toMatch(/^Started Pip/)
+  expect(await delegate({ task: 'Test the schema', title: 'Tests', fresh: true, after: 'pip' })).toMatch(/^Held for a new worker: /)
+  seen.refuse = NO_VERDICT
+  await $.turn.complete({ answer: 'Hecho', durationMs: 1, isAborted: false, turnId: 't1', agentId: 'agent-1', reason: 'answer' })
+  await clock.advance(400)
+  expect(spawned).toBe(1)
+  expect(await delegate({ task: 'Fix the footer', title: 'Footer', worker: 'pip' })).toBe(
+    'Given to Pip (address "pip") in /work/api, as named; context kept.\ncrew: the task "Tests", held behind Pip, was not given: no worker could start: auto mode reviews only calls you write. Give it again if it still stands.',
+  )
+  // The refusal is known: a new worker behind a run is not held to fail later.
+  expect(await delegate({ task: 'Test the footer', title: 'Tests', fresh: true, after: 'pip' })).toBe(
+    "crew: nothing held: auto mode reviews only calls you write, so a new worker cannot start on its own when Pip's run ends. Give the task once Pip reports, or name a worker for it with `worker`.",
+  )
+  // A worker that exists still gets its task when the run ends.
+  expect(await delegate({ task: 'Polish the footer', title: 'Polish', after: 'pip' })).toMatch(/^Held for Pip /)
 })
 
 test('a worker sent where another is busy hears of it', async ($, on) => {

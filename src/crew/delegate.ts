@@ -1,11 +1,12 @@
 // The delegate tool: the worker a task goes to (a named one, the most recent
 // free one of its kind in that repository, or a new one), the send or the
-// spawn, and a task held for a worker another one woke.
-import type { Handed, Intent, Takeover, Worker } from '../../types'
+// spawn, and a task held for a worker another one woke or until a run ends.
+import type { Handed, Intent, Takeover, Waiting, Worker } from '../../types'
 import { DEFAULT_TYPE, REUSE_WARM_MIN } from '../config'
 import { quiet, unrecognized } from '../engine'
 import type { Engine } from '../engine'
 import {
+  AFTER_UNREVIEWED,
   FORK_REFUSED,
   OWN_MODEL,
   SESSION_MODEL,
@@ -15,6 +16,8 @@ import {
   PICKED_NAMED,
   SEND_UNSURE,
   TASK_REQUIRED,
+  afterNeedsWorker,
+  afterOver,
   autoModeHandoff,
   delegatedTo,
   given,
@@ -24,6 +27,7 @@ import {
   handedModel,
   handedStarted,
   headsUp,
+  heldAfter,
   heldDropped,
   heldFor,
   heldLetGo,
@@ -52,7 +56,18 @@ import { modelAlias } from '../model-label'
 import { tokensText } from '../prompts/roster'
 import { heldTasks, newMates, taskClose } from '../prompts/worker'
 import { runtime } from '../runtime'
-import { readDropped, readIntents, readLook, readParents, readTakeovers, readWorkers, readWorktrees, updateIntents, updateTakeovers } from '../state/atoms'
+import {
+  readDropped,
+  readIntents,
+  readLook,
+  readParents,
+  readTakeovers,
+  readWorkers,
+  readWorktrees,
+  updateIntents,
+  updateTakeovers,
+  updateWaiting,
+} from '../state/atoms'
 import { appendKept } from '../util/bounded'
 import { fieldOf, rawStringArg, stringArg } from '../util/input'
 import { joinPath, samePath } from '../util/path'
@@ -81,6 +96,7 @@ function readDelegateInput(input: object) {
     asked: stringArg(input, 'model'),
     askedType: stringArg(input, 'subagent_type'),
     worker: rawStringArg(input, 'worker'),
+    after: rawStringArg(input, 'after'),
     isFresh: fieldOf(input, 'fresh') === true,
   }
 }
@@ -360,10 +376,14 @@ export async function adoptHanded($: Engine, handed: Handed, worker: Pick<Worker
 }
 
 async function delegate($: Engine, input: object, callId?: string): Promise<string> {
-  const { task, title, repo, asked, askedType, worker, isFresh } = readDelegateInput(input)
+  const { task, title, repo, asked, askedType, worker: called, after, isFresh } = readDelegateInput(input)
   if (task === '') return TASK_REQUIRED
-  // A blank `worker` names no one: the task goes as if it had none.
-  const isNamed = worker !== undefined && worker.trim() !== ''
+  // A blank `worker` names no one, as a blank `after` does: the task goes as
+  // if it had none. A task that waits for a run and asks for no other worker
+  // is for the worker whose run it is.
+  const isAfter = after !== undefined && after.trim() !== ''
+  const worker = called !== undefined && called.trim() !== '' ? called : isAfter && !isFresh ? after : undefined
+  const isNamed = worker !== undefined
   // A named worker takes the task whatever else the call asks: what would
   // only shape a new worker or a reuse is not checked, and the result notes
   // what the worker is not.
@@ -386,6 +406,18 @@ async function delegate($: Engine, input: object, callId?: string): Promise<stri
   const woken = new Map((await readTakeovers($)).map(t => [t.id, t]))
 
   const call: Asked = { task, title, cwd, sessionCwd, type, model, callId }
+  // The worker whose run the task waits for, while it is busy; one that is
+  // not has nothing to wait for, and the result says so.
+  const named = isAfter ? (findWorker(list, after) ?? findWorker(await readDropped($), after)) : undefined
+  if (isAfter && named === undefined) {
+    return noWorker(
+      after,
+      list.map(w => w.address),
+    )
+  }
+  const behind = named !== undefined && ACTIVE.has(named.status) ? named : undefined
+  const noWait = (result: string) =>
+    named !== undefined && behind === undefined && delegatedTo(result) !== undefined ? result + afterOver(named.name) : result
   if (isNamed) {
     // One the list let go is still the crew's: named, it comes back from the shelf.
     const chosen = findWorker(list, worker) ?? (await recallWorker($, worker))
@@ -399,12 +431,18 @@ async function delegate($: Engine, input: object, callId?: string): Promise<stri
     // task waits, and goes from here then.
     const mark = woken.get(chosen.id)
     const notes = (where: string) => unappliedTo(chosen, where, { repo, cwd, askedType, asked, isFresh })
-    if (mark !== undefined && mark.missed === undefined) {
-      return hold($, chosen, mark, task, title, notes(inWorktree.has(chosen.id) ? worktreeOf(chosen.cwd) : chosen.cwd), callId)
+    const where = inWorktree.has(chosen.id) ? worktreeOf(chosen.cwd) : chosen.cwd
+    // Woken, it gets the task when the run it answers with ends, which is
+    // the run a call for it alone waits for.
+    if (mark !== undefined && mark.missed === undefined && (behind === undefined || behind.id === chosen.id)) {
+      return hold($, chosen, mark, task, title, notes(where), callId)
     }
+    if (behind !== undefined) return waitBehind($, behind, chosen, call, notes(where))
     const answer = await giveTask($, chosen, mark, call, PICKED_NAMED, notes, list, inWorktree)
-    return typeof answer === 'string' ? answer : unreachable(chosen.name, answer.lost)
+    return typeof answer === 'string' ? noWait(answer) : unreachable(chosen.name, answer.lost)
   }
+  // Only `fresh` brings a call with `after` here: a new worker, once that run ends.
+  if (behind !== undefined) return handoffs.isUnreviewed ? afterNeedsWorker(behind.name) : waitBehind($, behind, undefined, call, '')
 
   // The free workers that would do, best first: the task goes to the first
   // it reaches, and the result names the ones it did not reach and the rest.
@@ -437,7 +475,83 @@ async function delegate($: Engine, input: object, callId?: string): Promise<stri
         : cold.length > 0
           ? newAfterIdle(names(cold), REUSE_WARM_MIN)
           : NEW_NONE_FREE
-  return startWorker($, call, why, list, inWorktree)
+  return noWait(await startWorker($, call, why, list, inWorktree))
+}
+
+// The tasks kept until a run ends, the newest: far more than a session holds at once.
+const WAITING_KEEP = 50
+
+// Keeps a task until the run of `behind` ends, for `to` or, with none, for a
+// new worker as the call asked, and says so.
+async function waitBehind($: Engine, behind: Worker, to: Worker | undefined, { task, title, cwd, type, model, callId }: Asked, notes: string): Promise<string> {
+  const now = await $.clock.now()
+  let waiting = 0
+  await updateWaiting($, list => {
+    const seq = Math.max(now, ...list.map(w => w.seq + 1))
+    const kept: Waiting = {
+      seq,
+      after: behind.id,
+      behind: behind.name,
+      to: to?.id ?? null,
+      task,
+      title,
+      cwd,
+      type,
+      model,
+      ...(callId !== undefined ? { callId } : {}),
+    }
+    const next = appendKept(list, [kept], WAITING_KEEP)
+    waiting = next.filter(w => w.after === behind.id && w.missed === undefined).length
+    return next
+  })
+  await setOrch($, 'delegating', to !== undefined ? `${title} → ${to.name}` : title)
+  await markCall($, callId, to?.id)
+  return heldAfter(to, behind.name, oneLine(behind.task, 48), waiting, notes)
+}
+
+/**
+ * Starts a new worker for a task that waited for a run, from the timer or
+ * from a call of the main conversation. No turn of the orchestrator's is
+ * there to hand the worker over in, so where auto mode reviews only the
+ * model's own calls none starts. Answers the worker's id, or why none
+ * started as `lost`.
+ */
+export async function startBehind(
+  $: Engine,
+  asked: Pick<Waiting, 'task' | 'title' | 'cwd' | 'type' | 'model' | 'callId'>,
+): Promise<{ id: string | undefined } | { lost: string }> {
+  if (handoffs.isUnreviewed) return { lost: AFTER_UNREVIEWED }
+  const { name } = claimName(await takenNow($, await readWorkers($)))
+  const address = name.toLowerCase()
+  const sessionCwd = await $.session.cwd()
+  await intend($, { address, cwd: asked.cwd, type: asked.type })
+  const giveUp = async (lost: string) => {
+    await unintend($, address)
+    unclaimNames(name)
+    return { lost }
+  }
+  let spawned: Awaited<ReturnType<typeof $.agent.spawn>>
+  try {
+    spawned = await $.agent.spawn({
+      prompt: asked.task,
+      description: asked.title,
+      name: address,
+      subagentType: asked.type,
+      ...(!samePath(asked.cwd, sessionCwd) ? { cwd: asked.cwd } : {}),
+      ...(asked.model !== '' ? { model: asked.model } : {}),
+    })
+  } catch (err) {
+    return giveUp(err instanceof Error ? err.message : String(err))
+  }
+  if (spawned.deny !== undefined) {
+    if (!UNREVIEWED.test(spawned.deny)) return giveUp(spawned.deny)
+    handoffs.isUnreviewed = true
+    return giveUp(AFTER_UNREVIEWED)
+  }
+  // The spawn hook has put it on the list by its address.
+  const id = spawned.agentId ?? (await readWorkers($)).find(w => w.address === address)?.id
+  if (id !== undefined) await markCall($, asked.callId, id)
+  return { id }
 }
 
 // Keeps a task for a woken worker until its run ends, and says so.
