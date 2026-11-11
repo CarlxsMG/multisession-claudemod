@@ -92,7 +92,11 @@ All notable changes to crew are written here. The format follows
   worker that did it. A worker stops and reports, `PARTIAL` or `BLOCKED` with its question, when a
   decision is yours to make or the task proves far larger than its brief, instead of guessing and
   going on.
-
+- The orchestrator and the workers are told one thing about git. A worker that edits makes a
+  worktree and a `crew/*` branch of its own unless its brief names the branch or says you allowed
+  the main branch, and the orchestrator is told to put either in the brief, so a project's own
+  branch names are followed and your go-ahead reaches the worker. The orchestrator's rules no
+  longer say "never on the main branch" nor point at the Agent tool's `isolation`.
 ### Fixed
 
 - In the desktop app the editor's palettes show their coloured cells, its steppers their ◀ ▶

@@ -41,10 +41,15 @@ test('the brief is part of the system prompt, and the delegation rules of the de
   expect(description).not.toMatch(/more than a couple of tool calls|run the tests, a diffstat/)
   expect(description).toMatch(/several mcp__crew__delegate calls in one message, each `fresh` or naming its own free worker/)
   expect(description).toMatch(
-    /or give each a git worktree \(Agent tool, `isolation: "worktree"`\)\.\n- Reuse context: a worker keeps all it read, also after it reports\. /,
+    /Never two workers on the same files at once: split the parts by file\.\n- Reuse context: a worker keeps all it read, also after it reports\. /,
   )
   expect(description).toMatch(/goes to the worker that knows it, named with `worker`, once its report is back; unrelated work goes to a `fresh` one\.\n/)
-  expect(description).toMatch(/\n- Git: workers commit their own work, never on the main branch; merge into it, or push, only once the user says so\.\n/)
+  // What the worker does by default, and what a brief must say to change it:
+  // the worker's own git rule says the same from its side.
+  expect(description).toMatch(
+    /\n- Git: a worker that edits commits in a worktree and branch of its own \(`crew\/<name>-<topic>`, beside the repository\) unless its brief names the branch or says the user allowed the main branch: say either in the brief\. Merge or push only once the user says so\.\n/,
+  )
+  expect(description).not.toMatch(/never on the main branch|isolation: "worktree"/)
   expect(description).toMatch(/\n- Workers are models: write to them tersely, with no pleasantries, persona or prose; `task` says what a brief holds\.\n/)
   expect(description).toMatch(
     /A fork \(Agent tool, `subagent_type: "fork"`\) inherits and rereads this whole conversation, so its prompt is just the directive: /,
@@ -134,7 +139,9 @@ test('a fork of the main session hears how to report and the git rules', async (
     /^\[crew\] Your final message goes back into Nova's conversation, which must stay small: open with DONE, PARTIAL or BLOCKED and the outcome, in one line of 120 characters at most \(the roster's list shows only that much\); then only facts: branch and commits or files changed/,
   )
   expect(seen.prompts[0]).toMatch(GIT_LINE)
-  expect(seen.prompts[0]).toMatch(/`git worktree add \.\.\/main-pip -b crew\/pip-<topic>`/)
+  expect(seen.prompts[0]).toMatch(
+    /`git worktree add \.\.\/main-pip -b crew\/pip-<topic>` unless your task names the branch, its base or the path, and ask in your report to merge it\.\n/,
+  )
   expect(seen.prompts[0]).toMatch(COMMENT_LINE)
   expect(seen.prompts[0]).toMatch(/no commented-out code\.\n\nDraft the migration plan$/)
   expect(seen.prompts[0]).not.toMatch(/a worker in Nova's crew|Teammates/)
@@ -166,7 +173,7 @@ test('a worker hears the git rules, with a worktree of its own named after it an
   const [pip, bolt] = seen.prompts as [string, string]
   expect(pip).toMatch(GIT_LINE)
   expect(pip).toMatch(
-    /The user wants you to commit your own work as you go: one logical change per commit, a message saying why, only your own paths \(never `add -A`, `\.` or `commit -a`\)\. Push only when your task says the user asked, and the same goes for committing or merging on the main branch \(`origin\/HEAD`'s, else main, master, trunk or develop\): otherwise work in a worktree of your own, `git worktree add \.\.\/main-pip -b crew\/pip-<topic>`, and ask in your report to merge it\.\n/,
+    /The user wants you to commit your own work as you go: one logical change per commit, a message saying why, only your own paths \(never `add -A`, `\.` or `commit -a`\)\. Push only when your task says the user asked, and the same goes for committing or merging on the main branch \(`origin\/HEAD`'s, else main, master, trunk or develop\): otherwise work in a worktree of your own, `git worktree add \.\.\/main-pip -b crew\/pip-<topic>` unless your task names the branch, its base or the path, and ask in your report to merge it\.\n/,
   )
   expect(pip).toMatch(COMMENT_LINE)
   // Just before how to report.

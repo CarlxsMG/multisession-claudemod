@@ -37,8 +37,8 @@ falla en tiempo real.
 - **Workers que informan breve y trabajan con cuidado.** Cada worker sabe que su informe vuelve a
   una conversación que debe quedarse pequeña: primero `DONE`, `PARTIAL` o `BLOCKED` y el resultado,
   luego los hechos, distinguiendo lo que comprobó de lo que no. En un
-  repositorio git hace commit de su trabajo en una rama o worktree `crew/*`, nunca en la rama
-  principal salvo que lo hayas pedido.
+  repositorio git hace commit de su trabajo en un worktree propio, en una rama `crew/*` o en la que
+  indique el encargo del orquestador, nunca en la rama principal salvo que lo hayas pedido.
 - **Los workers hablan entre sí.** Un mensaje a un compañero ocupado le llega en su siguiente
   llamada a una herramienta; uno a un compañero libre lo despierta, y sale desde la conversación
   principal para que su informe vuelva al orquestador. Una tarea para un worker al que acaba de
