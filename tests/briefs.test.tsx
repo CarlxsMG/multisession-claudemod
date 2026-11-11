@@ -1,7 +1,8 @@
 import { expect } from 'claude-code/testing'
 import { DEFAULT_LOOK } from '../src/figure/look'
+import { ROSTER_FULL_REPORT_CUT, ROSTER_REPORTS, ROSTER_REPORT_CUT, ROSTER_ROWS } from '../src/config'
 import { DELEGATION_RULES } from '../src/prompts/orchestrator'
-import { DELEGATE_SPEC } from '../src/prompts/tools'
+import { DELEGATE_SPEC, ROSTER_SPEC } from '../src/prompts/tools'
 import { lookCode } from '../src/figure/share-code'
 import { VIBES } from '../src/persona/vibes'
 import { COMMENT_LINE, COMPOSER, GIT_LINE, NOVA_OFF, NOVA_ON, PANE, composeBrief, crewCommand, engine, spawnAgent, startTold, test } from './support/crew'
@@ -63,6 +64,18 @@ test('the brief is part of the system prompt, and the delegation rules of the de
   expect(args.subagent_type.description).toMatch(/`Explore` for a read-only search across many files, `Plan` for a design/)
   expect(args.task.description).toMatch(/Complete in facts, as a new worker has not seen this conversation/)
   expect(args.fresh.description).toBe('Start a new worker instead of reusing a free one.')
+})
+
+test('the roster tool states its limits as the config has them', async () => {
+  const limit = `up to ${ROSTER_FULL_REPORT_CUT} characters`
+  expect(ROSTER_SPEC.inputSchema.properties.worker.description.includes(limit)).toBe(true)
+  expect(ROSTER_SPEC.description.includes(`at most ${ROSTER_ROWS} rows`)).toBe(true)
+  expect(ROSTER_SPEC.description.includes(`The ${ROSTER_REPORTS} latest workers not busy show their last report cut to ${ROSTER_REPORT_CUT} characters`)).toBe(
+    true,
+  )
+  // The one number a text may hold of each limit is the config's.
+  const numbers = `${ROSTER_SPEC.description} ${ROSTER_SPEC.inputSchema.properties.worker.description}`.match(/\d+/g) ?? []
+  expect(numbers.sort()).toEqual([ROSTER_ROWS, ROSTER_REPORTS, ROSTER_REPORT_CUT, ROSTER_FULL_REPORT_CUT].map(String).sort())
 })
 
 test('workers are told to report in a few lines, and who to talk to', async ($, on) => {

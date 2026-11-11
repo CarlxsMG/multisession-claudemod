@@ -61,16 +61,20 @@ export const DELEGATE_SPEC = {
   isDeferred: false,
 } as const
 
-/** The roster tool's spec. */
+/**
+ * The roster tool's spec. A row says its own fields, so the description holds
+ * only what a row does not: which statuses are free, what its marks mean, and
+ * the limits.
+ */
 export const ROSTER_SPEC = {
   name: 'roster',
-  description: `List the crew, busy workers first, then the most recent, at most ${ROSTER_ROWS} rows. Each row: name, SendMessage address, status (starting, working or waiting while busy; idle, done or stopped when free to take a task; failed), "fork of" or "started by" the worker that started it, repository or "worktree of" it for a worker in a git worktree, agent type when not general-purpose, model, tasks, tokens and last task; a busy worker also shows what it is doing, and an agent the worker that started it woke with a message shows "answering <name>" and how many of your tasks wait for it; "not delivered: <why>" means they did not reach it, and go with the next task you give it. The ${ROSTER_REPORTS} latest workers not busy (failed included) show their last report cut to ${ROSTER_REPORT_CUT} characters; pass \`worker\` for one worker with its last report at more length (up to ${ROSTER_FULL_REPORT_CUT} characters). A worker taken off the list comes back when it works again. Use it to pick the worker that should continue earlier work, to find an address for SendMessage or TaskStop, or to see who is busy where.`,
+  description: `List the crew, busy workers first, then the most recent, at most ${ROSTER_ROWS} rows: each worker's name, SendMessage address, status, where it works, last task and, while busy, what it is doing. Idle, done and stopped workers are free to take a task. One "answering <name>" was woken by that worker, and your tasks wait for it; tasks "not delivered" go with the next one you give it. The ${ROSTER_REPORTS} latest workers not busy show their last report cut to ${ROSTER_REPORT_CUT} characters; \`worker\` shows one alone, with more of it. Use it to pick the worker that should continue earlier work, to find an address for SendMessage or TaskStop, or to see who is busy where.`,
   inputSchema: {
     type: 'object',
     properties: {
       worker: {
         type: 'string',
-        description: 'Name or address of one worker to show alone, with its last report at more length (up to 1200 characters), instead of the list.',
+        description: `Name or address of one worker to show alone, with its last report at more length (up to ${ROSTER_FULL_REPORT_CUT} characters), instead of the list.`,
       },
     },
   },

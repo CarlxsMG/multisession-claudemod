@@ -36,8 +36,9 @@ All notable changes to crew are written here. The format follows
   scrolling; when not every message fits, the oldest are the ones left out.
 - The orchestrator reads its delegation rules once, in the `delegate` tool's description, and no
   longer a second time in its system prompt, which now says who it is and points there. Rules that
-  repeated what an argument's description says were cut. About 2,900 characters less in every
-  request of the orchestrator, and about 300 less in every request of each worker.
+  repeated what an argument's description says were cut, and the roster tool's description says
+  only what its rows do not. About 3,300 characters less in every request of the orchestrator, and
+  about 700 less in every request of each worker.
 
 ### Fixed
 
