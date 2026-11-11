@@ -131,6 +131,8 @@ async function briefFor($: Engine, e: SpawnEvent, who: Identified) {
   // Delegate's workers hear the crew's preamble in either mode; with
   // delegation off, the Agent tool's agents start as they were asked.
   const briefed = isCrew || (await readIsOn($))
+  // The teammates its preamble names, which a later task does not tell again.
+  const mates = briefed && !e.fork ? matesOf(list, name, cwd) : undefined
   const prompt = !briefed
     ? e.prompt
     : e.fork
@@ -140,13 +142,13 @@ async function briefFor($: Engine, e: SpawnEvent, who: Identified) {
           look.name,
           reportsTo,
           cwd,
-          matesOf(list, name, cwd),
+          mates ?? [],
           own ? 'own' : shared ? 'parent' : undefined,
           inWorktree,
           // Its type as delegate asked it, which the engine may not carry through.
           READ_ONLY_TYPES.has(intent?.type || e.subagentType),
         ) + e.prompt
-  return { prompt, worktree: own || shared }
+  return { prompt, worktree: own || shared, told: mates?.map(w => w.address) }
 }
 
 // Where and on which model its agent runs, beyond what its call says.
@@ -168,7 +170,7 @@ function runOptions(e: SpawnEvent, who: Identified) {
 }
 
 // Puts the started agent on the list and tells what it was given.
-async function record($: Engine, e: SpawnEvent, who: Identified, id: string, startedModel: string | undefined, worktree: boolean) {
+async function record($: Engine, e: SpawnEvent, who: Identified, id: string, startedModel: string | undefined, worktree: boolean, told: string[] | undefined) {
   const { intent, isCrew, handoff, handed, parent, reportsTo, cwd, claim, name, taken } = who
   // The name its call gave stays its address, unless another member has it:
   // the engine knows the agent by no other, and a hook cannot change it. So
@@ -195,6 +197,7 @@ async function record($: Engine, e: SpawnEvent, who: Identified, id: string, sta
       // What delegate was asked, which a later reuse compares with: its
       // own spawn passes it on, and one it handed over kept it.
       asked: isCrew ? (handed?.asked ?? e.model ?? '') : null,
+      ...(told === undefined ? {} : { mates: told }),
     }
     return known !== undefined
       ? current.map(w => (w.id === id ? { ...w, ...fields, status: 'starting' as const } : w))
@@ -232,7 +235,7 @@ export async function onSpawn($: Engine, e: SpawnEvent, next: Parameters<OnSpawn
   // The main conversation's mode, which delegate cannot read for itself.
   if (e.parentAgentId === undefined) noteSpawnMode(e.permissionMode)
   const who = await identify($, e)
-  const { prompt, worktree } = await briefFor($, e, who)
+  const { prompt, worktree, told } = await briefFor($, e, who)
   // Claude Code's own list of agents shows the description: the crew's name
   // ahead of it tells its workers apart there.
   // The model its call named is not one delegate's handed-over worker takes:
@@ -256,6 +259,6 @@ export async function onSpawn($: Engine, e: SpawnEvent, next: Parameters<OnSpawn
     if (handoff !== undefined) await keepHandoff($, handoff)
     return started
   }
-  await record($, e, who, started.agentId, started.model, worktree)
+  await record($, e, who, started.agentId, started.model, worktree, told)
   return started
 }

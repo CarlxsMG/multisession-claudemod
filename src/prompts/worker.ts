@@ -25,6 +25,19 @@ const AGAIN = `Report as before. 3+ steps: ${PROGRESS} again from step 0.`
  */
 export const taskClose = (asked: string | null | undefined): string => (asked !== null ? AGAIN : `When done, ${REPORT_RULE}`)
 
+// Teammates as a worker reads them: each one's name, its address and where
+// it works. `apart` holds the ids of those in a worktree of their own.
+const namedMates = (mates: readonly Worker[], apart: ReadonlySet<string>): string =>
+  mates.map(w => `${w.name} ("${w.address}", ${apart.has(w.id) ? 'own worktree of ' : ''}${basename(w.cwd)})`).join(', ')
+
+/**
+ * The line a new task carries, ahead of how it ends, of the teammates the
+ * worker was not told of, as the caller chose them; '' for none. `knowsSome`:
+ * it was told of teammates before, in its preamble, so these are new to it.
+ */
+export const newMates = (mates: readonly Worker[], apart: ReadonlySet<string>, knowsSome: boolean): string =>
+  mates.length === 0 ? '' : `${knowsSome ? 'New teammates' : 'Teammates'} you can reach with SendMessage: ${namedMates(mates, apart)}.\n`
+
 /** The tasks that waited for a woken worker, sent as one once its run ends. */
 export const heldTasks = (held: readonly { task: string; title: string }[]): string =>
   held.length === 1 ? held[0]!.task : `${held.length} tasks, in order:\n\n${held.map((h, i) => `## ${i + 1}. ${h.title}\n${h.task}`).join('\n\n')}`
@@ -57,7 +70,7 @@ export function workerPreamble(
   apart: ReadonlySet<string>,
   isReadOnly: boolean,
 ) {
-  const named = mates.map(w => `${w.name} ("${w.address}", ${apart.has(w.id) ? 'own worktree of ' : ''}${basename(w.cwd)})`).join(', ')
+  const named = namedMates(mates, apart)
   const where =
     worktree === 'own'
       ? `- You work in your own git worktree of ${cwd}, where your shell starts: stay in it, not in ${cwd}. Finish the task there, commit on its branch, and give its path and branch in your report.`

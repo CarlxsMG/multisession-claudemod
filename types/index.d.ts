@@ -60,6 +60,11 @@ export type Worker = {
    * never reused.
    */
   asked: string | null
+  /**
+   * The addresses of the teammates it was told of, in its preamble and with
+   * the tasks given to it since; absent for one that was told of none.
+   */
+  mates?: string[]
   /** Tasks given to it. */
   tasks: number
   /** The tokens its turns used. */

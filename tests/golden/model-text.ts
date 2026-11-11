@@ -277,6 +277,7 @@ export const GOLDEN: Record<string, string> = {
   "task.reused": [
     "Add the tests",
     "",
+    "New teammates you can reach with SendMessage: Bolt (\"bolt\", api).",
     "Report as before. 3+ steps: mcp__crew__progress again from step 0.",
   ].join('\n'),
   "result.noTask": "crew: `task` is required.",

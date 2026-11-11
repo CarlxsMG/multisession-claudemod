@@ -42,6 +42,9 @@ All notable changes to crew are written here. The format follows
   alone. After a compaction the orchestrator can read a long report again, a list of files or of
   check results included, without waking the worker that wrote it. The roster's list is as short
   as before.
+- A worker given a new task is told, in one line, of the teammates that joined since it was last
+  told who is there, so it can message them without looking at the roster or asking the
+  orchestrator. Nothing is added when nobody is new.
 
 ### Fixed
 
