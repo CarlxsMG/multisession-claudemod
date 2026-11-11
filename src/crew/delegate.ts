@@ -2,7 +2,7 @@
 // free one of its kind in that repository, or a new one), the send or the
 // spawn, and a task held for a worker another one woke.
 import type { Handed, Intent, Takeover, Worker } from '../../types'
-import { DEFAULT_TYPE } from '../config'
+import { DEFAULT_TYPE, REUSE_WARM_MIN } from '../config'
 import { quiet, unrecognized } from '../engine'
 import type { Engine } from '../engine'
 import {
@@ -29,6 +29,8 @@ import {
   heldLetGo,
   heldMissed,
   heldWentFirst,
+  holds,
+  newAfterIdle,
   newAfterLost,
   noModel,
   noRepo,
@@ -47,6 +49,7 @@ import {
 } from '../prompts/results'
 import type { Lost } from '../prompts/results'
 import { modelAlias } from '../model-label'
+import { tokensText } from '../prompts/roster'
 import { heldTasks, newMates, taskClose } from '../prompts/worker'
 import { runtime } from '../runtime'
 import { readDropped, readIntents, readLook, readParents, readTakeovers, readWorkers, readWorktrees, updateIntents, updateTakeovers } from '../state/atoms'
@@ -54,6 +57,7 @@ import { appendKept } from '../util/bounded'
 import { fieldOf, rawStringArg, stringArg } from '../util/input'
 import { joinPath, samePath } from '../util/path'
 import { oneLine } from '../util/text'
+import { shortTime } from '../util/time'
 import { deliver } from './deliver'
 import { ORCH_ID, markCall, setOrch } from './feed'
 import { release } from './takeover'
@@ -92,8 +96,9 @@ async function repoDir($: Engine, sessionCwd: string, repo: string): Promise<str
 // a turn last first, on the model a new worker would get, the one asked for
 // or else the session's, however their own call named it: one asked for none
 // is on the session's, and one asked for a model, or that a spawn answered a
-// model for, is on that. However long its history: it compacts. A failed
-// one is never free. `model` and `session` are aliases, and what a spawn
+// model for, is on that. However long its history: it compacts; how long ago
+// it last worked is the caller's to weigh (`isWarm`). A failed one is never
+// free. `model` and `session` are aliases, and what a spawn
 // answers may be a full id: all go by their family. A session whose model
 // names no family has only the workers asked for none.
 function freeWorkers(
@@ -122,6 +127,16 @@ function freeWorkers(
 // message to it or a sync must not change as they do `updatedAt`. One that
 // has ended none goes by when it started.
 const lastFree = (w: Worker): number => w.finishedAt ?? w.startedAt
+
+// Whether a free worker ended its last turn so lately that its conversation
+// is still in the prompt cache: only such a one is reused without being
+// named (see `REUSE_WARM_MIN`).
+const isWarm = (w: Worker, now: number): boolean => now - lastFree(w) < REUSE_WARM_MIN * 60_000
+
+// What the context of a free worker holds, for the result of a call that
+// did not name it.
+const holding = (w: Worker, now: number): string =>
+  holds(oneLine(w.task, 48), w.finishedAt === undefined ? undefined : shortTime(now - w.finishedAt), tokensText(w.tokens))
 
 // Where a worker in a worktree of its own works, as a result says it.
 const worktreeOf = (cwd: string): string => `a worktree of ${cwd}`
@@ -155,7 +170,7 @@ type Asked = { task: string; title: string; cwd: string; sessionCwd: string; typ
 // Gives the task to a worker that exists, which any mark on it allows; its
 // answer, or why it was lost when the worker could not be reached, which
 // leaves the task to the caller. `why` is the result's clause for how it was
-// picked.
+// picked, and `held` what its context holds, for a worker no call named.
 async function giveTask(
   $: Engine,
   chosen: Worker,
@@ -165,6 +180,7 @@ async function giveTask(
   notes: (where: string) => string,
   list: readonly Worker[],
   inWorktree: ReadonlySet<string>,
+  held = '',
 ): Promise<string | { lost: string }> {
   const look = await readLook($)
   // Tasks held for it that once did not reach it go first, together.
@@ -229,7 +245,7 @@ async function giveTask(
     const own = inWorktree.has(chosen.id)
     const where = own ? worktreeOf(chosen.cwd) : chosen.cwd
     const warn = own ? '' : busyHere(list, chosen.cwd, inWorktree, chosen.id)
-    return given(chosen, where, why, notes(where) + state + (before.length > 0 ? heldWentFirst(before.length) : '') + warn)
+    return given(chosen, where, why, notes(where) + state + (before.length > 0 ? heldWentFirst(before.length) : '') + warn, held)
   }
   return { lost: sent.reason }
 }
@@ -392,23 +408,35 @@ async function delegate($: Engine, input: object, callId?: string): Promise<stri
 
   // The free workers that would do, best first: the task goes to the first
   // it reaches, and the result names the ones it did not reach and the rest.
-  // None has a mark, so each is a plain send.
+  // None has a mark, so each is a plain send. One that last worked too long
+  // ago to be in the prompt cache is not tried: the result names it among
+  // the rest, for a call that wants its context to name it.
   // The session's model, which a call for none is matched with.
   const session = isFresh || model !== '' ? undefined : modelAlias(await $.session.model().catch(() => ''))
-  const free = isFresh ? [] : freeWorkers(list, woken, cwd, type, model, session)
+  const now = await $.clock.now()
+  const able = isFresh ? [] : freeWorkers(list, woken, cwd, type, model, session)
+  const free = able.filter(w => isWarm(w, now))
+  const cold = able.filter(w => !isWarm(w, now))
   const names = (workers: readonly Worker[]) => workers.map(w => w.name)
   const lost: Lost[] = []
   for (const candidate of free.slice(0, REUSE_TRIES)) {
-    const rest = names(free.slice(lost.length + 1))
+    const rest = names([...free.slice(lost.length + 1), ...cold])
     const why = lost.length === 0 ? pickedFree(rest) : pickedNext(lost, rest)
-    const answer = await giveTask($, candidate, undefined, call, why, () => '', list, inWorktree)
+    const answer = await giveTask($, candidate, undefined, call, why, () => '', list, inWorktree, holding(candidate, now))
     if (typeof answer === 'string') return answer
     // A send that failed on its way may have arrived: given to another
     // worker too, the task would be done twice.
     if (answer.lost === SEND_UNSURE) return unsureSend(candidate, lost)
     lost.push({ name: candidate.name, reason: answer.lost })
   }
-  const why = lost.length > 0 ? newAfterLost(lost, names(free.slice(lost.length))) : isFresh ? NEW_FRESH : NEW_NONE_FREE
+  const why =
+    lost.length > 0
+      ? newAfterLost(lost, names([...free.slice(lost.length), ...cold]))
+      : isFresh
+        ? NEW_FRESH
+        : cold.length > 0
+          ? newAfterIdle(names(cold), REUSE_WARM_MIN)
+          : NEW_NONE_FREE
   return startWorker($, call, why, list, inWorktree)
 }
 

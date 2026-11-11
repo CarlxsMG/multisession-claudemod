@@ -165,6 +165,13 @@ export const pickedNext = (lost: readonly Lost[], others: readonly string[]): st
   `the next free worker of that type and model there${alsoFree(others)}, as ${notReached(lost)}`
 /** Why a new worker was started: none that was free would do. */
 export const NEW_NONE_FREE = 'as no free worker of that type and model was there'
+/**
+ * Why a new worker was started: the free ones that would do, `idle`, best
+ * first, ended their last turn over `warmMin` minutes ago, and one such is
+ * reused only when named.
+ */
+export const newAfterIdle = (idle: readonly string[], warmMin: number): string =>
+  `as no free worker of that type and model there finished a task in the last ${warmMin} min, so none has its context cached${alsoFree(idle)}`
 /** Why a new worker was started: the call asked for one. */
 export const NEW_FRESH = 'as `fresh` asked'
 /**
@@ -176,12 +183,22 @@ export const newAfterLost = (lost: readonly Lost[], untried: readonly string[]):
   `as ${notReached(lost, ', free there,')}${untried.length > 0 ? `, and no more were tried${alsoFree(untried)}` : ''}`
 
 /**
+ * What the context of a worker no call named holds, for `given`: the task it
+ * last had, how long ago its last turn ended (`ago`, undefined for one that
+ * ended none) and the tokens its turns used, as the roster words them. The
+ * orchestrator did not choose this worker: it reads here what it got.
+ */
+export const holds = (lastTask: string, ago: string | undefined, tokens: string): string =>
+  `: last task "${lastTask}"${ago === undefined ? '' : `, finished ${ago} ago`}, ${tokens} used`
+
+/**
  * `where` is the worker's repository, or "a worktree of" it; `why` the
  * clause that says how it was picked; `notes` the sentences that follow, each
- * with its leading space, then any heads-up.
+ * with its leading space, then any heads-up; `held` what `holds` says of a
+ * worker no call named, '' for one named.
  */
-export const given = (w: Pick<Worker, 'name' | 'address'>, where: string, why: string, notes: string): string =>
-  `${GIVEN}${w.name} (address "${w.address}") in ${where}, ${why}; context kept.${notes}`
+export const given = (w: Pick<Worker, 'name' | 'address'>, where: string, why: string, notes: string, held = ''): string =>
+  `${GIVEN}${w.name} (address "${w.address}") in ${where}, ${why}; context kept${held}.${notes}`
 
 /**
  * What a task given to a worker named while busy adds: it arrived inside the

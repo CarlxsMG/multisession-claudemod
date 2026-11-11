@@ -1,9 +1,9 @@
 // The crew's tools as the models see them: names, descriptions and input
 // schemas. tests/golden/model-text.ts holds each spec as it is.
-import { COMPACT_GAP_MIN, ROSTER_FULL_REPORT_CUT, ROSTER_REPORT_CUT, ROSTER_REPORTS, ROSTER_ROWS } from '../config'
+import { COMPACT_GAP_MIN, REUSE_WARM_MIN, ROSTER_FULL_REPORT_CUT, ROSTER_REPORT_CUT, ROSTER_REPORTS, ROSTER_ROWS } from '../config'
 import { DELEGATION_RULES } from './orchestrator'
 
-const DELEGATE_ABOUT = `Hand a task to a crew worker: a named background subagent, general-purpose unless \`subagent_type\` says otherwise, that reports back when done. Goes to the worker you name; else to the free worker this tool started in that repository, of that type and on that model (the session's when unset), that last finished a task, or the next it can reach; it keeps its context; else to a new one. Returns at once: the worker's address, and who else is busy where it works.`
+const DELEGATE_ABOUT = `Hand a task to a crew worker: a named background subagent, general-purpose unless \`subagent_type\` says otherwise, that reports back when done. Goes to the worker you name; else to the free worker this tool started in that repository, of that type and on that model (the session's when unset), that last finished a task, if it did within ${REUSE_WARM_MIN} min (its context is still cached), or the next such it can reach; it keeps its context; else to a new one. Returns at once: the worker's address, and who else is busy where it works.`
 
 // Policy plugins can keep out a system section but not a tool description, so
 // the rules ride here and nowhere else, for the orchestrator alone and only
