@@ -158,6 +158,19 @@ test("delegate's results: started, given, busy repositories, and what it turns d
   expectText('result.startedAfterLost', await delegate($, { task: 'Polish it', title: 'Polish', repo: '/work/api' }))
 })
 
+test('the heads-up of a busy worker that has edited files, and what a worker reads on a file another has edited', async ($, on) => {
+  let spawned = 0
+  engine(on, { nextId: () => `agent-${++spawned}`, seen: recording() })
+  await start($)
+  await delegate($, { task: 'Fix the login', title: 'Login', repo: '/work/api' })
+  await delegate($, { task: 'Fix the styles', title: 'Styles', repo: '/work/api', fresh: true })
+  for (const name of ['session', 'token', 'login', 'logout', 'signup'])
+    await $.tool.call({ tool: 'Edit', file_path: `/work/api/src/auth/${name}.ts`, agentId: 'agent-1' } as never)
+  const edited = (await $.tool.call({ tool: 'Edit', file_path: '/work/api/src/auth/login.ts', agentId: 'agent-2' } as never)) as { context?: string[] }
+  expectText('edit.sameFile', edited.context?.join('\n'))
+  expectText('result.startedBesideEdits', await delegate($, { task: 'Write the docs', title: 'Docs', repo: '/work/api', fresh: true }))
+})
+
 test("delegate's result for a free worker picked over others that were free", async ($, on) => {
   let spawned = 0
   const clock = engine(on, { nextId: () => `agent-${++spawned}`, seen: recording() })

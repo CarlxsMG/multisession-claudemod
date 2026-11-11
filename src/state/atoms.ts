@@ -61,8 +61,10 @@ const opened = atom({ plugin: 'crew', key: 'opened' } as const, [], { shape: 'op
 // shows ('' until read).
 const mainModel = atom({ plugin: 'crew', key: 'model' } as const, '', { shape: 'model-1' })
 // Each worker's current or latest run, the round the runs make up, and the
-// rows placed in the conversation about them. Only the pane's team view and
-// the placed rows read these: none of it reaches a model.
+// rows placed in the conversation about them. The pane's team view and the
+// placed rows read these; of it all a model reads an active worker's step,
+// in the roster, and the files a run in flight has edited, in a delegate
+// result's heads-up and in the word a worker reads on another's file.
 const runs = atom({ plugin: 'crew', key: 'runs' } as const, [], { shape: 'runs-1' })
 const round = atom({ plugin: 'crew', key: 'round' } as const, NO_ROUND, { shape: 'round-1' })
 const checkins = atom({ plugin: 'crew', key: 'checkins' } as const, [], { shape: 'checkins-1' })

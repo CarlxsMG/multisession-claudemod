@@ -117,7 +117,7 @@ test('a worker the orchestrator starts for delegate is as delegate asked: its mo
   const second = await agent('toolu_a2', { prompt: 'Fix the login', description: 'Login', name: 'bolt', model: 'sonnet' })
   expect(seen.spawns[1]?.model).toBe('opus')
   expect(second.context).toEqual([
-    '[crew] This agent is Bolt (address "bolt", id agent-2), the worker delegate had you start, in /work/api: a new one, as `fresh` asked. It runs on the session\'s model, as delegate was asked, not on "sonnet".\nHeads-up: Pip is working in this repository; keep files apart or wait for its report.',
+    '[crew] This agent is Bolt (address "bolt", id agent-2), the worker delegate had you start, in /work/api: a new one, as `fresh` asked. It runs on the session\'s model, as delegate was asked, not on "sonnet".\nHeads-up: Pip is working in this repository; keep files apart or wait for its report.\nFiles edited so far: Pip: none yet.',
   ])
 
   // Each is reused for the model delegate was asked, not the one its Agent call named.
@@ -452,7 +452,7 @@ test('a failed worker is never taken unnamed, and is when named', async ($, on) 
   expect(String((await $.tool.call({ tool: 'mcp__crew__roster', worker: 'pip' })).result)).toMatch(/^- Pip: address "pip", failed, /)
   expect(await delegate({ task: 'Seed the data' })).toMatch(/^Started Bolt/)
   expect(await delegate({ task: 'Try the migration again', worker: 'pip' })).toBe(
-    'Given to Pip (address "pip") in /work/api, as named; context kept. Pip\'s last run failed: if this task builds on that one, have it check what was left undone.\nHeads-up: Bolt is working in this repository; keep files apart or wait for its report.',
+    'Given to Pip (address "pip") in /work/api, as named; context kept. Pip\'s last run failed: if this task builds on that one, have it check what was left undone.\nHeads-up: Bolt is working in this repository; keep files apart or wait for its report.\nFiles edited so far: Bolt: none yet.',
   )
 })
 
@@ -819,8 +819,78 @@ test('a worker sent where another is busy hears of it', async ($, on) => {
   expect(await delegate({ task: 'Refactor the router', repo: '/work/api' })).not.toMatch(/Heads-up/)
   const second = await delegate({ task: 'Update the docs', repo: '/work/api' })
   expect(second).toMatch(/^Started Bolt \(address "bolt", id [^)]+\) in \/work\/api, as no free worker of that type and model was there\.\nHeads-up: /)
-  expect(second).toMatch(/\nHeads-up: Pip is working in this repository; keep files apart or wait for its report\.$/)
+  expect(second).toMatch(/\nHeads-up: Pip is working in this repository; keep files apart or wait for its report\.\nFiles edited so far: Pip: none yet\.$/)
   expect(await delegate({ task: 'Fix the styles', repo: '/work/web' })).not.toMatch(/Heads-up/)
+})
+
+test('the heads-up names the files each busy worker has edited so far, as seen from the repository', async ($, on) => {
+  let spawned = 0
+  const clock = engine(on, { nextId: () => `agent-${++spawned}` })
+  await $.session.start({ cwd: '/work/main', surface: 'terminal', isInteractive: true })
+  const delegate = async (ask: Record<string, unknown>) => String((await $.tool.call({ tool: 'mcp__crew__delegate', ...ask })).result)
+  const edit = (agentId: string, tool: string, input: Record<string, unknown>) => $.tool.call({ tool, agentId, ...input } as never)
+  const headsUp = (result: string) => result.split('\n').slice(1)
+
+  await delegate({ task: 'Refactor the router', repo: '/work/api' })
+  await delegate({ task: 'Update the docs', repo: '/work/api', fresh: true })
+  // Pip edits two files, one of them twice and one read only; Bolt none.
+  await edit('agent-1', 'Edit', { file_path: '/work/api/src/router.ts' })
+  await edit('agent-1', 'Read', { file_path: '/work/api/src/app.ts' })
+  await edit('agent-1', 'Write', { file_path: '/work/api/src/routes/users.ts' })
+  await edit('agent-1', 'Edit', { file_path: '/work/api/src/router.ts' })
+  expect(headsUp(await delegate({ task: 'Fix the styles', repo: '/work/api', fresh: true }))).toEqual([
+    'Heads-up: Pip, Bolt are working in this repository; keep files apart or wait for their reports.',
+    'Files edited so far: Pip: src/router.ts, src/routes/users.ts; Bolt: none yet.',
+  ])
+
+  // Written with the pane's frame, the edits are still the run's; past four, the earlier ones are counted.
+  await clock.advance(1000)
+  for (const name of ['a', 'b', 'c']) await edit('agent-1', 'Edit', { file_path: `/work/api/src/${name}.ts` })
+  // A file outside the repository reads whole, and a notebook is a file too.
+  await edit('agent-2', 'NotebookEdit', { notebook_path: '/work/api-bolt/notes.ipynb' })
+  expect(headsUp(await delegate({ task: 'Add the tests', repo: '/work/api', fresh: true }))).toEqual([
+    'Heads-up: Pip, Bolt, Mika are working in this repository; keep files apart or wait for their reports.',
+    'Files edited so far: Pip: src/routes/users.ts, src/a.ts, src/b.ts, src/c.ts and 1 more; Bolt: /work/api-bolt/notes.ipynb; Mika: none yet.',
+  ])
+
+  // A run that ended has no edits in flight; the worker's next run starts with none.
+  await $.turn.complete({ answer: 'Done', durationMs: 1, isAborted: false, turnId: 't1', agentId: 'agent-1', reason: 'answer' })
+  await delegate({ task: 'Now the middleware', worker: 'pip' })
+  const after = headsUp(await delegate({ task: 'Write the changelog', repo: '/work/api', fresh: true }))
+  expect(after[1]).toMatch(/^Files edited so far: Pip: none yet; Bolt: \/work\/api-bolt\/notes\.ipynb; /)
+})
+
+test('a worker that edits a file another worker has edited in its task in flight is told who, once', async ($, on) => {
+  let spawned = 0
+  engine(on, { nextId: () => `agent-${++spawned}` })
+  await $.session.start({ cwd: '/work/main', surface: 'terminal', isInteractive: true })
+  const delegate = async (ask: Ask) => String((await $.tool.call({ tool: 'mcp__crew__delegate', ...ask })).result)
+  const edit = async (agentId: string, file_path: string, tool = 'Edit') =>
+    ((await $.tool.call({ tool, agentId, file_path } as never)) as { context?: string[] }).context
+  const WORD =
+    '[crew] Pip ("pip") has edited router.ts in its task in flight. Before you change this file again, settle with Pip who does (SendMessage): two workers on one file overwrite each other.'
+
+  await delegate({ task: 'Refactor the router', repo: '/work/api' })
+  await delegate({ task: 'Update the docs', repo: '/work/api', fresh: true })
+  // The first to edit a file hears nothing, nor does one that edits its own again.
+  expect(await edit('agent-1', '/work/api/src/router.ts')).toBeUndefined()
+  expect(await edit('agent-1', '/work/api/src/router.ts')).toBeUndefined()
+  // The second hears who has it, after its own edit's result, and only once.
+  expect(await edit('agent-2', '/work/api/src/router.ts', 'Write')).toEqual([WORD])
+  expect(await edit('agent-2', '/work/api/src/router.ts')).toBeUndefined()
+  // Reading it, or editing the same name in another worktree, is no overlap.
+  expect(await edit('agent-2', '/work/api/src/router.ts', 'Read')).toBeUndefined()
+  expect(await edit('agent-2', '/work/api-bolt/src/router.ts')).toBeUndefined()
+  // Pip, the first there, now hears of Bolt, who edited it since.
+  expect(await edit('agent-1', '/work/api/src/router.ts')).toEqual([
+    '[crew] Bolt ("bolt") has edited router.ts in its task in flight. Before you change this file again, settle with Bolt who does (SendMessage): two workers on one file overwrite each other.',
+  ])
+
+  // A run that ended holds no file: a third worker editing what only Pip's ended run edited hears nothing.
+  await delegate({ task: 'Fix the styles', repo: '/work/api', fresh: true })
+  await edit('agent-1', '/work/api/src/app.ts')
+  await $.turn.complete({ answer: 'Done', durationMs: 1, isAborted: false, turnId: 't1', agentId: 'agent-1', reason: 'answer' })
+  expect(await edit('agent-3', '/work/api/src/app.ts')).toBeUndefined()
 })
 
 test('a worker named for a task hears of who is busy in its own repository', async ($, on) => {
@@ -839,7 +909,7 @@ test('a worker named for a task hears of who is busy in its own repository', asy
   for (const extra of [{}, { repo: '/work/web' }]) {
     const given = await delegate({ task: 'Add the endpoint', worker: 'pip', ...extra })
     expect(given).toMatch(/^Given to Pip \(address "pip"\) in \/work\/api, as named; context kept\.( Not applied|\n|$)/)
-    expect(given).toMatch(/\nHeads-up: Bolt is working in this repository; .*its report\.$/)
+    expect(given).toMatch(/\nHeads-up: Bolt is working in this repository; .*its report\.\nFiles edited so far: Bolt: none yet\.$/)
     expect(given).not.toMatch(/Mika/)
     await done('agent-1')
   }
@@ -948,7 +1018,7 @@ test('an agent in a worktree of its own is not busy in the repository, and says 
   expect(first).toMatch(/^Started Bolt/)
   expect(first).not.toMatch(/Heads-up/)
   const second = await delegate('Fix the styles')
-  expect(second).toMatch(/\nHeads-up: Bolt is working in this repository; keep files apart or wait for its report\.$/)
+  expect(second).toMatch(/\nHeads-up: Bolt is working in this repository; keep files apart or wait for its report\.\nFiles edited so far: Bolt: none yet\.$/)
   expect(second).not.toMatch(/Pip/)
   expect(seen.prompts[2]).toMatch(/Pip \("agent-1", own worktree of main\)/)
   expect(seen.prompts[2]).toMatch(/Bolt \("bolt", main\)/)

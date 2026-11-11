@@ -9,13 +9,23 @@ export const basename = (path: string): string =>
     .split(/[\\/]/)
     .pop() || path
 
-// The same directory however it was spelled: Windows ignores case and slashes.
+// The same directory, or file, however it was spelled: Windows ignores case and slashes.
 const pathKey = (path: string): string => (isWinPath(path) ? path.replace(/\//g, '\\').replace(/\\+$/, '').toLowerCase() : path.replace(/(.)\/+$/, '$1'))
 /**
- * Whether two paths name the same directory: a Windows one in any case and
- * either slash, a trailing slash aside.
+ * Whether two paths name the same directory or file: a Windows one in any
+ * case and either slash, a trailing slash aside.
  */
 export const samePath = (a: string, b: string): boolean => pathKey(a) === pathKey(b)
+
+/**
+ * `path` as seen from the directory `base` when it lies under it, with `/`
+ * between its parts; any other path as it is.
+ */
+export function under(base: string, path: string): string {
+  const root = base.replace(/[\\/]+$/, '')
+  const sep = isWinPath(root) ? '\\' : '/'
+  return pathKey(path).startsWith(pathKey(root) + sep) ? path.slice(root.length + 1).replace(/\\/g, '/') : path
+}
 
 /** `rel` resolved against `base`, as a path of their kind. */
 export function joinPath(base: string, rel: string): string {

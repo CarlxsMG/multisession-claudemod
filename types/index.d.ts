@@ -240,7 +240,9 @@ export type Plan = { step: number; total: number; done: number; first: number; d
  * A worker's current or latest run, by its id: from the start of a turn to
  * its end, so a reused worker's time starts again. `phaseAt` is the last
  * call of the phase's kind, `touchedAt` the last sign of life, `plan` absent
- * while the worker has declared none.
+ * while the worker has declared none. `edited` holds the files its editing
+ * tools changed, each once in the order first edited, the latest kept;
+ * absent while it has edited none.
  */
 export type Run = {
   id: string
@@ -252,6 +254,7 @@ export type Run = {
   phaseAt: number
   touchedAt: number
   plan?: Plan
+  edited?: string[]
 }
 
 /**

@@ -77,6 +77,11 @@ All notable changes to crew are written here. The format follows
   looks like, the files it owns or only reads, the checks to run, what you allowed in git and what
   the report must answer. It also says the worker already knows how to report and the git and
   progress rules, so briefs stop repeating them.
+- When a task goes to a repository where other workers are busy, the heads-up now names the files
+  each of them has edited so far, or says it has edited none yet, where it only named the
+  workers. And a worker that edits a file another worker has edited in its task in flight is told
+  who, once, so the two settle it between them. Only the editing tools are seen: a file changed
+  through the shell is not.
 
 ### Fixed
 
