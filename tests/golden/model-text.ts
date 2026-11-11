@@ -274,6 +274,7 @@ export const GOLDEN: Record<string, string> = {
   "result.heldUnapplied": "Held for Bolt (address \"agent-2\"): Bolt is answering Pip, whose message woke it. It gets this task when that run ends, and reports to you. Not applied, as a named worker stays as it is: `fresh` (it is not a new worker).",
   "result.givenWhileBusy": "Given to Pip (address \"pip\") in /work/api, as named; context kept. Pip is busy: the task reached it as a message in the middle of \"Login\", which it may finish first or set aside.",
   "result.givenAfterFailure": "Given to Pip (address \"pip\") in /work/api, as named; context kept. Pip's last run failed: if this task builds on that one, have it check what was left undone.",
+  "result.givenAfterStop": "Given to Pip (address \"pip\") in /work/api, the free worker of that type and model there that last finished a task; context kept. Pip's last run was stopped: if this task builds on that one, have it check what was left undone.",
   "task.reused": [
     "Add the tests",
     "",
@@ -292,9 +293,11 @@ export const GOLDEN: Record<string, string> = {
   ].join('\n'),
   "result.givenAfterLost": "Given to Tito (address \"tito\") in /work/api, the next free worker of that type and model there (also free: Mika, Bolt, Pip; name one with `worker` to pick it), as Luna could not be reached (the agent is gone); context kept.",
   "result.startedAfterLostMany": [
-    "Started Rex (address \"rex\", id ?) in /work/api, as Luna (the agent is gone), Mika (the agent is gone) and Bolt (the message may not have gone out; check before sending it again), free there, could not be reached, and no more were tried (also free: Pip; name one with `worker` to pick it).",
+    "Started Rex (address \"rex\", id ?) in /work/api, as Luna (the agent is gone), Mika (the agent is gone) and Bolt (the agent is gone), free there, could not be reached, and no more were tried (also free: Pip; name one with `worker` to pick it).",
     "Heads-up: Tito is working in this repository; keep files apart or wait for its report.",
   ].join('\n'),
+  "result.unsureSend": "crew: the task may have reached Luna (address \"luna\"): its send failed on its way, so no other worker was tried and none started. See whether Luna is working (mcp__crew__roster with `worker` \"luna\"): if it is, it has the task and reports to you; if not, give the task again.",
+  "result.unsureSendAfterLost": "crew: the task may have reached Mika (address \"mika\"): its send failed on its way, so no other worker was tried and none started. Before it, Luna could not be reached (the agent is gone). See whether Mika is working (mcp__crew__roster with `worker` \"mika\"): if it is, it has the task and reports to you; if not, give the task again.",
   "result.autoMode": "crew: nothing started: auto mode reviews only calls you write, not the one delegate makes. Start Pip yourself before this turn ends: Agent tool with description \"(Pip) Login\", subagent_type \"general-purpose\", name \"pip\" if the tool takes a name, and as prompt the task exactly as you gave delegate. The crew takes that agent as Pip, working in /work/api. Left for a later turn, the handoff lapses: delegate the task again then. While this session is in auto mode, delegate hands every new worker over like this and still gives a task to a free one itself. For several new workers, make the delegate calls in one message and their Agent calls in the next, each with the description its handoff gives.",
   "result.autoModeWithModel": "crew: nothing started: auto mode reviews only calls you write, not the one delegate makes. Start Bolt yourself before this turn ends: Agent tool with description \"(Bolt) Styles\", subagent_type \"general-purpose\", model \"sonnet\", name \"bolt\" if the tool takes a name, and as prompt the task exactly as you gave delegate. The crew takes that agent as Bolt, working in /work/api. Left for a later turn, the handoff lapses: delegate the task again then.",
   "result.notStarted": "crew: could not start a worker: Auto mode blocked this action: it deletes the repository.",
