@@ -62,7 +62,10 @@ test('the brief is part of the system prompt, and the delegation rules of the de
   expect(description).not.toMatch(/haiku|`title`|"Explore"|A comment says why|A brief is complete in facts/)
   const args = DELEGATE_SPEC.inputSchema.properties
   expect(args.subagent_type.description).toMatch(/`Explore` for a read-only search across many files, `Plan` for a design/)
-  expect(args.task.description).toMatch(/Complete in facts, as a new worker has not seen this conversation/)
+  expect(args.task.description).toMatch(
+    /To a new worker, which has not seen this conversation: the goal; what done looks like; the files it owns, or that it only reads; the checks to run; what the user allowed in git \(a branch name, pushing, the main branch\); what the report must answer\./,
+  )
+  expect(args.task.description).toMatch(/To a worker that keeps its context, only what is new\.$/)
   expect(args.fresh.description).toBe('Start a new worker instead of reusing a free one.')
 })
 
@@ -90,6 +93,14 @@ test('workers are told to report in a few lines, and who to talk to', async ($, 
   expect(seen.prompts[0]).toMatch(/you do the hands-on work\. All you send goes to models: terse, facts only, nothing the reader already knows\.\n/)
   expect(seen.prompts[0]).toMatch(/Teammates you can reach with SendMessage: none yet\./)
   expect(seen.prompts[0]).toMatch(/You keep this context after you report/)
+  // The `task` argument tells the orchestrator not to repeat these in a
+  // brief: that holds only while the preamble gives each of them.
+  expect(DELEGATE_SPEC.inputSchema.properties.task.description).toMatch(
+    /The worker's preamble already gives the report format and the git, progress and messaging rules: don't repeat them\./,
+  )
+  expect(seen.prompts[0]).toMatch(GIT_LINE)
+  expect(seen.prompts[0]).toMatch(/\n- 3\+ steps: call mcp__crew__progress as you start each step/)
+  expect(seen.prompts[0]).toMatch(/\n- A message reaches a busy teammate at its next tool call/)
 
   await $.turn.complete({ answer: 'Hecho', durationMs: 1000, isAborted: false, turnId: 't1', agentId: 'agent-1', reason: 'answer' })
   await $.tool.call({ tool: 'mcp__crew__delegate', task: 'Now the login', repo: '/work/api' })

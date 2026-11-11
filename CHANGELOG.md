@@ -65,6 +65,10 @@ All notable changes to crew are written here. The format follows
   is passed over and named in the result, and still takes a task when the orchestrator names it.
   The result of an unnamed reuse says what the worker holds (its last task, when it finished, the
   tokens it used), and the roster says when each free worker finished.
+- The `delegate` tool tells the orchestrator what a new worker's brief holds: the goal, what done
+  looks like, the files it owns or only reads, the checks to run, what you allowed in git and what
+  the report must answer. It also says the worker already knows how to report and the git and
+  progress rules, so briefs stop repeating them.
 - When a task goes to a repository where other workers are busy, the heads-up now names the files
   each of them has edited so far, or says it has edited none yet, where it only named the
   workers. And a worker that edits a file another worker has edited in its task in flight is told
