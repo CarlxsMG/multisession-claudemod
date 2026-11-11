@@ -46,6 +46,11 @@ function fresh() {
      * then, without what changes at every call ('' before the first look).
      */
     persist: { isDue: false, at: -Infinity, signature: '' },
+    /**
+     * `src/crew/worker-type.ts`: the full name of the crew's agent type once
+     * the engine registered it, undefined until then and when it refused.
+     */
+    workerType: { name: undefined as string | undefined },
     /** `src/crew/silence.ts`: when the crew was last looked over for quiet workers. */
     silence: { at: -Infinity },
     /** `src/crew/workers.ts`: the names given in this load, the moment each is chosen. */

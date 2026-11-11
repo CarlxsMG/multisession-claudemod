@@ -43,7 +43,7 @@ the debug log. Its `unrecognized` logs there an engine text the crew reads in no
 | --- | --- |
 | `hooks/register.tsx` | Every hook, each matcher written inline. Nothing else. |
 | `src/hooks/` | The hook bodies: the session's events (`session.ts`), the `/crew` command (`commands.ts`), the crew's tools (`tools.ts`), every tool call watched (`watch.ts`), turn starts and ends (`turns.ts`), the system prompt and the user's messages (`prompt.ts`), compaction (`compact.ts`). |
-| `src/crew/` | The crew itself: the worker list and its statuses (`workers.ts`), `delegate` (`delegate.ts`), the spawn hook (`spawn.ts`) and the name it puts ahead of an agent's title (`title.ts`) and of a worker's background shell or Monitor (`shell-title.ts`), the send hook (`sends.ts`), relays (`relay.ts`), takeovers and held tasks (`takeover.ts`), workers that end with no report or go quiet (`silence.ts`), tasks that wait for a run to end (`waiting.ts`), compactions the crew starts (`compaction.ts`), one way to send and record (`deliver.ts`), the sync with the engine's agents (`sync.ts`), the user's message to a worker (`message.ts`), what the pane and the rows are drawn from (`feed.ts`), the roster's data (`roster.ts`), and the files runs in flight have edited (`edits.ts`). |
+| `src/crew/` | The crew itself: the worker list and its statuses (`workers.ts`), `delegate` (`delegate.ts`), the crew's own agent type (`worker-type.ts`), the spawn hook (`spawn.ts`) and the name it puts ahead of an agent's title (`title.ts`) and of a worker's background shell or Monitor (`shell-title.ts`), the send hook (`sends.ts`), relays (`relay.ts`), takeovers and held tasks (`takeover.ts`), workers that end with no report or go quiet (`silence.ts`), tasks that wait for a run to end (`waiting.ts`), compactions the crew starts (`compaction.ts`), one way to send and record (`deliver.ts`), the sync with the engine's agents (`sync.ts`), the user's message to a worker (`message.ts`), what the pane and the rows are drawn from (`feed.ts`), the roster's data (`roster.ts`), and the files runs in flight have edited (`edits.ts`). |
 | `src/guard/runaway.ts` | The guard on Bash and PowerShell calls: it refuses a command that would not end (`tail -f`, `watch`, a watch mode, an endless loop), the main session's and every worker's. |
 | `src/prompts/` | Nearly every text a model reads ([docs/model-behavior.md](docs/model-behavior.md) lists them all): the orchestrator's brief and `[crew]` note (`orchestrator.ts`), the workers' preamble and the texts the crew sends them (`worker.ts`), the tool specs (`tools.ts`), the tool results and their parsers (`results.ts`), the roster's text (`roster.ts`), and what the `/crew` command answers (`commands.ts`). |
 | `src/progress/` | Progress, which no model reads: `run-store.ts` is the only module that records runs with the engine, `calls.ts` holds tool calls for the pane's next frame, `todos.ts` reads a plan off a todo list, `status.ts` pins the status line, `placed.ts` places the rows and keeps the check-in interval, and `tick.ts` is the progress tick; `runs.ts`, `round.ts`, `plan.ts`, `phase.ts`, `check-in.ts` are pure; `text/` builds the status line, the team view, the cards and the placed rows. |
@@ -127,7 +127,7 @@ the names given, the agents the engine listed, the check-in interval, the status
 widths and the run times, the tool calls, the files edited and the end-of-task rows' first drawings held for the next
 frame (a drawing may not write the state), the usage probe's permission and time, the pane's
 frame, the look it last showed, rasters and the redraws it owes, the last `[crew]` check, the mood lines asked for, and
-the kinds of engine wording logged, the workers told of another's edit of a file, and whether a compaction the crew started is under way, when the main turn last ended and the auto-compaction threshold as last read. It is one typed object
+the kinds of engine wording logged, the crew's agent type as the engine registered it, the workers told of another's edit of a file, and whether a compaction the crew started is under way, when the main turn last ended and the auto-compaction threshold as last read. It is one typed object
 in parts, each read and written only by the module its comment names; another module goes
 through that module's functions. It imports types only.
 
@@ -249,6 +249,30 @@ preamble, a fork's shorter one, the git rules), records its parent (`fork of`, `
 it where its parent runs or in its worktree (`isolated`), and sets its model. Only workers
 `delegate` started (or handed to the orchestrator to start) are reused without being named; an
 adopted agent has `asked: null`. A resumed agent's run starts afresh.
+
+### The crew's agent type
+
+At `session.start` the crew registers an agent type of its own with `$.agent.register`,
+`crew:worker` (`WORKER_AGENT`, `src/prompts/worker.ts`): a general-purpose worker without
+`mcp__crew__delegate` and `mcp__crew__compact`, the two tools a worker is refused and whose
+descriptions it would otherwise carry in every request. A worker `delegate` starts with no type
+asked, or asked `general-purpose`, is spawned as that type (`spawnTypeOf`,
+`src/crew/worker-type.ts`); the spawn hook states it again from the intent, as the engine may not
+carry a spawn's type through.
+
+- An agent type's prompt stands where the engine's own text for a general-purpose agent would
+  (who it is, how to search, when to create a file, not to hand the task on), so `WORKER_ROLE`
+  says that in the crew's words. What the engine adds to every agent comes after it as before: its
+  notes, the environment, the skills and the tool list.
+- To the orchestrator and to the crew the worker stays general-purpose: its `type` is the one
+  asked, which a reuse compares, the roster leaves unsaid and a named call notes. Only the spawn
+  names the crew's type.
+- The model is not offered the type (`hideWorkerType`, on `agent.offer`): a worker starts through
+  `delegate`, which briefs it and puts it on the list. So a worker handed to the orchestrator to
+  start in auto mode is the general-purpose agent its Agent call names, with every tool.
+- An engine that refuses the registration leaves the workers general-purpose agents.
+- The type sets neither `maxTurns` nor `autoCompactWindow`: a run that meets its turn limit is cut
+  with no report, and a task of a few hundred requests is an honest one.
 
 ### Names
 
