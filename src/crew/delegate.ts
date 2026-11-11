@@ -78,6 +78,7 @@ import { editsInFlight } from './edits'
 import { ORCH_ID, markCall, setOrch } from './feed'
 import { release } from './takeover'
 import { bareTitle, nameAhead } from './title'
+import { spawnTypeOf } from './worker-type'
 import { ACTIVE, REUSABLE, apartIds, claimName, findWorker, recallWorker, takenNow, toldMates, unclaimNames, untoldMatesOf } from './workers'
 
 // The heads-up of the tool's result, from the workers busy in the
@@ -331,7 +332,9 @@ async function startWorker(
       prompt: task,
       description: title,
       name: address,
-      subagentType: type,
+      // The type it is to the orchestrator and the crew stays the one asked,
+      // which the intent holds and a reuse compares.
+      subagentType: spawnTypeOf(type),
       ...(!samePath(cwd, sessionCwd) ? { cwd } : {}),
       ...(model !== '' ? { model } : {}),
     })

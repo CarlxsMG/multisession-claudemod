@@ -29,6 +29,7 @@ import { cap, oneLine } from '../util/text'
 import { adoptHanded, keepHandoff, noteSpawnMode, takeIntent } from './delegate'
 import { ORCH_ID, enlist, say, setJob } from './feed'
 import { bareTitle, namedTitle } from './title'
+import { spawnTypeOf } from './worker-type'
 import { apartIds, claimName, findWorker, makeWorker, matesOf, patchWorker, prune, shelve, takenNow, unclaimNames, unshelve } from './workers'
 
 // What an Agent call's model reads after its result, by tool_use_id: when
@@ -168,7 +169,12 @@ function runOptions(e: SpawnEvent, who: Identified) {
   // to, which its Agent call cannot say, and in the background as
   // delegate's own do.
   const intendedRun = isCrew && intent?.task !== undefined ? { background: true, ...(e.cwd === undefined && !samePath(cwd, sessionCwd) ? { cwd } : {}) } : {}
-  return { ...model, ...intendedRun }
+  // Delegate's own spawn is of the type delegate meant, the crew's own for
+  // the default one, whether or not the engine carried it through. One the
+  // orchestrator started keeps the type its Agent call named: the model is
+  // not offered the crew's.
+  const typed = isCrew && intent?.task === undefined ? { subagentType: spawnTypeOf(intent?.type || DEFAULT_TYPE) } : {}
+  return { ...model, ...intendedRun, ...typed }
 }
 
 // Puts the started agent on the list and tells what it was given.

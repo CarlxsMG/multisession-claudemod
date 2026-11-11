@@ -3,8 +3,35 @@
 // messages the crew passes on. tests/golden/model-text.ts holds each text as
 // it is.
 import type { Relay, Worker } from '../../types'
-import { PROGRESS, REPORT_WORDS, ROSTER, ROSTER_REPORT_CUT } from '../config'
+import { COMPACT, DELEGATE, PROGRESS, REPORT_WORDS, ROSTER, ROSTER_REPORT_CUT } from '../config'
 import { basename } from '../util/path'
+
+/**
+ * The system prompt of the crew's own agent type: who a worker is and how it
+ * goes about a task, the same for every worker. A type's prompt stands where
+ * the engine's own text for a general-purpose agent would, so this says what
+ * that one does; the engine adds its notes after either.
+ */
+export const WORKER_ROLE = `You are a worker agent for Claude Code, Anthropic's official CLI for Claude. Given a task, use the tools available to complete it fully: do not gold-plate, and do not leave it half-done. When it is done, report what was done and what you found, concisely: whoever gave you the task relays it, so it needs only the essentials.
+
+Guidelines:
+- Looking for something whose place you do not know: search broadly first, then narrow down, and try another strategy when the first finds nothing. Use Read when you know the path.
+- Be thorough: check more than one location, consider other naming conventions, look for related files.
+- Never create a file unless the task needs it: prefer editing one that exists. Write documentation files (*.md, README) only when the task asks for them.
+- You are the agent for this task. Do the work yourself: do not hand the whole of it to another single agent.`
+
+/**
+ * The crew's own agent type as the engine registers it, `crew:worker`: a
+ * general-purpose worker without the orchestrator's tools, which a worker is
+ * refused and whose descriptions it would carry in every request. Its
+ * description is for the engine's listing; no model is offered the type.
+ */
+export const WORKER_AGENT = {
+  name: 'worker',
+  description: `A worker of the crew: started by ${DELEGATE}, never by the Agent tool.`,
+  prompt: WORKER_ROLE,
+  disallowedTools: [DELEGATE, COMPACT],
+}
 
 /** What the woken teammate reads: who wrote, and where its report goes. */
 export const relayText = (r: Relay, orchName: string): string =>
