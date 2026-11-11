@@ -3,7 +3,7 @@
 import type { ParentLink, Plan, Takeover, Worker } from '../../types'
 import { DEFAULT_TYPE, ROSTER_FULL_REPORT_CUT, ROSTER_REPORT_CUT, ROSTER_ROWS } from '../config'
 import { stepText } from '../progress/plan'
-import { oneLine } from '../util/text'
+import { lines, oneLine } from '../util/text'
 
 /** What a worker's row says besides the worker itself. */
 export type RowFacts = {
@@ -18,6 +18,8 @@ export type RowFacts = {
   plan?: Plan
   /** How many tasks wait for its run to end, as a delegate call's `after` asked. */
   behind?: number
+  /** Its last report whole, line breaks kept, for a worker asked for alone. */
+  report?: string
   now: number
 }
 
@@ -38,6 +40,14 @@ const plural = (n: number, word: string): string => `${n} ${word}${n === 1 ? '' 
 
 const tokensText = (n: number): string => (n < 1000 ? `${n} tokens` : `~${Math.round(n / 1000)}k tokens`)
 
+// A last report under its row: one line beside its label, or, whole and of
+// several lines, each under the label and indented as it is.
+function lastReport(text: string): string {
+  if (!text.includes('\n')) return `\n  last report: ${text}`
+  const body = text.split('\n').map(line => (line === '' ? '' : `  ${line}`))
+  return `\n  last report:\n${body.join('\n')}`
+}
+
 /** One worker's row: who it is, where, what it did, and what it is doing now. */
 export function rosterRow(worker: Worker, facts: RowFacts, cut: RowCut): string {
   const { takeover, parent } = facts
@@ -50,7 +60,8 @@ export function rosterRow(worker: Worker, facts: RowFacts, cut: RowCut): string 
   const mark = `${answering}${facts.behind ? `, ${plural(facts.behind, 'task')} held behind its run` : ''}`
   const where = `${parent ? `${parent.fork ? 'fork of' : 'started by'} ${parent.parent}, ` : ''}${facts.isInWorktree ? 'worktree of' : 'repo'} ${worker.cwd}`
   const task = `last task "${oneLine(worker.task, cut.task)}"`
-  const report = cut.report > 0 && worker.answer ? `\n  last report: ${oneLine(worker.answer, cut.report)}` : ''
+  const said = facts.report !== undefined ? lines(facts.report, cut.report) : oneLine(worker.answer, cut.report)
+  const report = cut.report > 0 && said !== '' ? lastReport(said) : ''
   if (!facts.isActive) return `${head}${mark}, ${where}, ${history}, ${task}${report}`
   const doing = worker.activity ? ` (${worker.activity})` : ''
   const step = facts.plan === undefined ? '' : `, step ${stepText(facts.plan)}`

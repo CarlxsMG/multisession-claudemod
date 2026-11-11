@@ -63,6 +63,67 @@ test('the roster shows one worker in full when asked', async ($, on) => {
   expect(await roster('nobody')).toBe('crew: no worker "nobody". Workers: pip.')
 })
 
+test('one worker asked for alone shows its report whole, line by line; the list keeps its cut', async ($, on) => {
+  let spawned = 0
+  const clock = engine(on, { nextId: () => `agent-${++spawned}` })
+  await $.session.start({ cwd: '/work/main', surface: 'terminal', isInteractive: true })
+  const roster = async (worker?: string) => String((await $.tool.call({ tool: 'mcp__crew__roster', ...(worker ? { worker } : {}) })).result)
+  const done = (agentId: string, answer: string) =>
+    $.turn.complete({ answer, durationMs: 1, isAborted: false, turnId: `t-${agentId}`, agentId, reason: 'answer' })
+  await $.tool.call({ tool: 'mcp__crew__delegate', task: 'Map the billing code', title: 'Billing map', repo: '/work/api' })
+  const files = Array.from({ length: 120 }, (_, i) => `- src/billing/module-${i}.ts: ${'x'.repeat(30)}`)
+  const answer = ['Billing mapped.  ', '', '', 'Files:', ...files, '', 'Checks: 42 pass.', ''].join('\n')
+  expect(answer.length).toBeGreaterThan(5000)
+  await done('agent-1', answer)
+
+  // Whole: every line under the label, indented, with no space left at a line's end and one blank line at most.
+  const one = await roster('pip')
+  const shown = one.split('\n')
+  expect(shown[0]).toMatch(/^- Pip: address "pip", done, repo \/work\/api, .*last task "Billing map"$/)
+  expect(shown.slice(1, 5)).toEqual(['  last report:', '  Billing mapped.', '', '  Files:'])
+  for (const file of files) expect(one).toContain(`\n  ${file}\n`)
+  expect(one.endsWith('\n\n  Checks: 42 pass.')).toBe(true)
+  // The list still shows 120 characters of it on one line.
+  const all = (await roster()).split('\n')
+  expect(all[2]).toMatch(/^ {2}last report: Billing mapped\. Files: - src\/billing\/module-0\.ts: x+.*…$/)
+  expect(all[2]!.length).toBe('  last report: '.length + 120)
+
+  // Past the bound it is cut, and says so.
+  await $.tool.call({ tool: 'mcp__crew__delegate', task: 'List every route', title: 'Routes', repo: '/work/api', fresh: true })
+  await done('agent-2', Array.from({ length: 400 }, (_, i) => `route ${i}: ${'y'.repeat(40)}`).join('\n'))
+  const cut = (await roster('bolt')).split('\n  last report:\n')[1]!
+  expect(cut.endsWith('…')).toBe(true)
+  expect(cut.replace(/^ {2}/gm, '').length).toBe(8000)
+
+  // A worker the list let go still shows it when asked for by name.
+  await crewCommand($, 'clear')
+  await clock.advance(10_000)
+  expect(await roster()).toBe("Nova's crew is empty.")
+  expect(await roster('pip')).toContain('\n  Checks: 42 pass.')
+})
+
+test('only the latest reports are kept whole; an older worker shows the line it keeps, and a run that says nothing shows none', async ($, on) => {
+  let spawned = 0
+  engine(on, { nextId: () => `agent-${++spawned}` })
+  await $.session.start({ cwd: '/work/main', surface: 'terminal', isInteractive: true })
+  const roster = async (worker: string) => String((await $.tool.call({ tool: 'mcp__crew__roster', worker })).result)
+  const done = (agentId: string, answer: string) =>
+    $.turn.complete({ answer, durationMs: 1, isAborted: false, turnId: `t-${agentId}-${answer.length}`, agentId, reason: 'answer' })
+  for (let i = 1; i <= 26; i++) {
+    await $.tool.call({ tool: 'mcp__crew__delegate', task: `Task ${i}`, repo: `/work/r${i}`, fresh: true })
+    await done(`agent-${i}`, `Report ${i}\nline two`)
+  }
+  // 24 are kept whole: the two oldest fall back to their one line.
+  expect(await roster('agent-2')).toMatch(/\n {2}last report: Report 2 line two$/)
+  expect(await roster('agent-3')).toMatch(/\n {2}last report:\n {2}Report 3\n {2}line two$/)
+  expect(await roster('agent-26')).toMatch(/\n {2}last report:\n {2}Report 26\n {2}line two$/)
+
+  // Its next run ends with nothing said: the report of the run before is not shown as its last.
+  await $.tool.call({ tool: 'mcp__crew__delegate', task: 'Again', worker: 'agent-26' })
+  await done('agent-26', '')
+  expect(await roster('agent-26')).not.toMatch(/last report/)
+})
+
 test('an agent status the crew has no word for leaves each worker as the crew knew it', async ($, on) => {
   let spawned = 0
   const status = new Map<string, AgentInfo['status']>()

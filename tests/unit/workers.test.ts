@@ -121,10 +121,10 @@ test('a worker hears of the busy ones and those in its repository, most active f
 
 test('the preamble names the mates it is given, as given, and says so when there are none', () => {
   const mates = [worker('b', 'Old', 'idle', 1), worker('c', 'New', 'idle', 5)]
-  expect(workerPreamble('Me', 'Nova', 'Nova', '/work', mates, undefined, new Set(['c']))).toContain(
+  expect(workerPreamble('Me', 'Nova', 'Nova', '/work', mates, undefined, new Set(['c']), false)).toContain(
     'SendMessage: Old ("old", work), New ("new", own worktree of work).',
   )
-  expect(workerPreamble('Me', 'Nova', 'Nova', '/work', [], undefined, new Set())).toContain('SendMessage: none yet.')
+  expect(workerPreamble('Me', 'Nova', 'Nova', '/work', [], undefined, new Set(), false)).toContain('SendMessage: none yet.')
 })
 
 test("a roster row says what its caller tells it of the worker, whatever the worker's status", () => {

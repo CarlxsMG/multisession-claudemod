@@ -60,6 +60,11 @@ export type Worker = {
    * never reused.
    */
   asked: string | null
+  /**
+   * The addresses of the teammates it was told of, in its preamble and with
+   * the tasks given to it since; absent for one that was told of none.
+   */
+  mates?: string[]
   /** Tasks given to it. */
   tasks: number
   /** The tokens its turns used. */
@@ -329,6 +334,12 @@ export type BackgroundTask = {
 }
 
 /**
+ * A worker's last report as it wrote it, line breaks kept, by its id: what
+ * the roster shows of one worker asked for alone.
+ */
+export type Report = { id: string; text: string }
+
+/**
  * A compaction of the main conversation waiting for a safe moment: what the
  * summary should stress (`focus`, '' for nothing more than the crew's), what
  * it waits for (`idle`: no worker busy; `reports`: also the round over and
@@ -380,6 +391,7 @@ declare module 'claude-code' {
       background: Shaped<BackgroundTask[]>
       compactAsk: Shaped<Compaction>
       waiting: Shaped<Waiting[]>
+      reports: Shaped<Report[]>
     }
   }
 }

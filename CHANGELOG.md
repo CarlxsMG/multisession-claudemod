@@ -40,6 +40,20 @@ All notable changes to crew are written here. The format follows
 
 - The pane's feed shows the newest message first, so what just happened is at the top without
   scrolling; when not every message fits, the oldest are the ones left out.
+- A worker started as `Explore` or `Plan`, which edit nothing, no longer reads how to commit, write
+  comments or fork itself: about 1100 characters less at its start. Every other type, a
+  project's own agents included, reads the whole preamble as before.
+- The crew keeps a worker's last report whole, with its line breaks and up to 8000 characters,
+  where it kept 1200 on one line, and `mcp__crew__roster` shows it so for one worker asked for
+  alone. After a compaction the orchestrator can read a long report again, a list of files or of
+  check results included, without waking the worker that wrote it. The roster's list is as short
+  as before.
+- A worker given a new task is told, in one line, of the teammates that joined since it was last
+  told who is there, so it can message them without looking at the roster or asking the
+  orchestrator. Nothing is added when nobody is new.
+- A worker with a plan of three steps or more calls the progress tool as each step starts, from
+  step 1; the call that only declared the plan, step 0, is no longer asked of it, which saves a
+  request per task. A plan declared at step 0 still works.
 
 ### Fixed
 

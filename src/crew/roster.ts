@@ -1,16 +1,40 @@
 // The roster tool's answer: what the crew is doing, gathered for the rows
 // src/prompts/roster.ts writes.
 import type { Worker } from '../../types'
-import { ROSTER_REPORTS, ROSTER_ROWS } from '../config'
+import { REPORTS_KEEP, ROSTER_FULL_REPORT_CUT, ROSTER_REPORTS, ROSTER_ROWS } from '../config'
 import { quiet } from '../engine'
 import type { Engine } from '../engine'
 import { isOpen } from '../progress/runs'
 import { noWorker } from '../prompts/results'
 import { FULL_ROW_CUT, emptyCrew, rosterList, rosterRow, rowCut } from '../prompts/roster'
 import type { RowFacts } from '../prompts/roster'
-import { readDropped, readLook, readParents, readRuns, readTakeovers, readWaiting, readWorkers, readWorktrees } from '../state/atoms'
+import {
+  readDropped,
+  readLook,
+  readParents,
+  readReports,
+  readRuns,
+  readTakeovers,
+  readWaiting,
+  readWorkers,
+  readWorktrees,
+  updateReports,
+} from '../state/atoms'
+import { appendKept } from '../util/bounded'
+import { lines } from '../util/text'
 import { syncAgents, syncCrew } from './sync'
 import { ACTIVE, byActivity, findWorker } from './workers'
+
+/**
+ * Keeps a worker's report whole, with its line breaks, among the latest
+ * `REPORTS_KEEP`: after a compaction of the main conversation the roster is
+ * where the orchestrator reads it again, without waking the worker. A run
+ * that ended with nothing said leaves none of an earlier run's.
+ */
+export async function keepReport($: Engine, id: string, answer: string) {
+  const text = lines(answer, ROSTER_FULL_REPORT_CUT)
+  await updateReports($, list => (text === '' ? list.filter(r => r.id !== id) : appendKept(list, [{ id, text }], REPORTS_KEEP, r => r.id)))
+}
 
 /**
  * Active workers in full; the rest a line each, the latest few with a cut of
@@ -43,14 +67,16 @@ export async function rosterText($: Engine, key?: string, isMain = true): Promis
     plan: plans.get(id),
     now,
   })
-  // One worker in full, with as much of its last report as was kept.
+  // One worker in full, with its last report whole when it is among the
+  // latest kept, else the line the worker keeps of it.
   if (isOne) {
     if (one === undefined)
       return noWorker(
         key,
         list.map(x => x.address),
       )
-    return rosterRow(one, factsOf(one), FULL_ROW_CUT)
+    const report = (await readReports($)).find(r => r.id === one.id)?.text
+    return rosterRow(one, { ...factsOf(one), ...(report === undefined ? {} : { report }) }, FULL_ROW_CUT)
   }
   const sorted = [...list].sort(byActivity)
   const reported = new Set(

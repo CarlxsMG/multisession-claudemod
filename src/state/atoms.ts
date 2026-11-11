@@ -95,6 +95,9 @@ const compaction = atom({ plugin: 'crew', key: 'compactAsk' } as const, { ask: n
 // The tasks a delegate call asked to give once another worker's run ends,
 // and the ones that could not be given, until the orchestrator is told.
 const waiting = atom({ plugin: 'crew', key: 'waiting' } as const, [], { shape: 'waiting-1' })
+// The latest workers' last reports, whole: apart from the workers, which are
+// written at every change of a status and keep one line of each.
+const reports = atom({ plugin: 'crew', key: 'reports' } as const, [], { shape: 'reports-1' })
 
 // What an atom holds, as a change to it takes and gives it.
 type Change<A> = A extends Atom<infer T> ? (value: T) => T : never
@@ -394,4 +397,12 @@ export function readWaiting($: StateDollar) {
 
 export function updateWaiting($: StateDollar, change: Change<typeof waiting>) {
   return update($, waiting, change)
+}
+
+export function readReports($: StateDollar) {
+  return read($, reports)
+}
+
+export function updateReports($: StateDollar, change: Change<typeof reports>) {
+  return update($, reports, change)
 }

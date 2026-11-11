@@ -93,6 +93,7 @@ under, so it never changes even where the code name differs.
 | `takeovers` | `takeovers` | `takeovers-1` | Woken agents, who they answer, and their held tasks |
 | `relays` | `relays` | `relays-1` | Workers' messages to free teammates, waiting for the next tick |
 | `jobs` | `jobs` | `jobs-1` | What each worker was last given: a task's title or a message's gist |
+| `reports` | `reports` | `reports-1` | The latest 24 workers' last reports, whole and with their line breaks, up to 8000 characters each: what the roster shows of one worker asked for alone |
 | `opened` | `opened` | `opened-1` | Crew rows a press opened whole |
 | `model` | `mainModel` | `model-1` | The main session's model id |
 | `runs` | `runs` | `runs-1` | Each worker's current or latest run |
@@ -186,8 +187,9 @@ holds no look, and is turned down as a bad code.
    session's when none) however its own call named that model, that is not woken by another
    worker; else none.
 4. A reused worker gets the task through `deliver`, a send from the main conversation, with a
-   short reminder of how to report; held tasks that once missed it go first, in the same
-   message. An unnamed task that does not reach its free worker goes to the next one, up to
+   short reminder of how to report and, when teammates are there that it was not told of (its
+   `mates` hold the addresses it was), a line naming them; held tasks that once missed it go
+   first, in the same message. An unnamed task that does not reach its free worker goes to the next one, up to
    `REUSE_TRIES`; a new worker starts only when none is reached, and the result names the ones
    that were not. A send that failed on its way (`SEND_UNSURE`) may have arrived, so it ends the
    call there: no other worker is given the task and none starts. A worker woken by another worker gets nothing yet: the task is a **held task** on
@@ -531,8 +533,9 @@ is noticed in the debug log: `unrecognized($, kind, detail)` (`src/engine.ts`) w
   turn's end. Its time, calls, phase and plan belong to it.
 - **Phase.** What a run is busy with, read off its tool calls: thinking, reading, editing,
   running, testing, web, delegating, waiting.
-- **Plan, step.** What a worker declared with the progress tool (`step 0 of N`, then each step as
-  it starts), or read off its todo list.
+- **Plan, step.** What a worker declared with the progress tool (each step of N as it starts; the
+  first call sets the plan, and a call at step 0 that only declares it is still taken), or read
+  off its todo list.
 - **Round.** The stretch from the first worker starting while none ran to the last one ending.
 - **Check-in.** A row placed in the conversation every interval during a round, when something
   changed, with a line per worker. The newest follows the round in place; the earlier ones fold

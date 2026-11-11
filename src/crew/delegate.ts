@@ -51,7 +51,7 @@ import {
 } from '../prompts/results'
 import type { Lost } from '../prompts/results'
 import { modelAlias } from '../model-label'
-import { heldTasks, taskClose } from '../prompts/worker'
+import { heldTasks, newMates, taskClose } from '../prompts/worker'
 import { runtime } from '../runtime'
 import {
   readDropped,
@@ -73,7 +73,7 @@ import { deliver } from './deliver'
 import { ORCH_ID, markCall, setOrch } from './feed'
 import { release } from './takeover'
 import { bareTitle, nameAhead } from './title'
-import { ACTIVE, REUSABLE, claimName, findWorker, recallWorker, takenNow, unclaimNames } from './workers'
+import { ACTIVE, REUSABLE, claimName, findWorker, recallWorker, takenNow, toldMates, unclaimNames, untoldMatesOf } from './workers'
 
 // The heads-up of the tool's result, from the workers busy in the
 // repository; one in a worktree of its own edits apart.
@@ -197,16 +197,29 @@ async function giveTask(
       : chosen.status === 'stopped'
         ? givenAfterStop(chosen.name)
         : ''
+  // The teammates there now that neither its preamble nor an earlier task
+  // told it of: it reaches them without a look at the roster. Not the agents
+  // it started itself, which it knows.
+  const started = new Set((await readParents($)).filter(p => p.parent === chosen.name).map(p => p.id))
+  const mates = untoldMatesOf(
+    list.filter(w => !started.has(w.id)),
+    chosen,
+  )
   // Delegate's own workers always had the crew's preamble; any other agent
   // may not have (a fork, one started with delegation off): it hears it all.
   const sent = await deliver($, {
     id: chosen.id,
     worker: chosen,
-    text: `${body}\n\n${taskClose(chosen.asked)}`,
+    text: `${body}\n\n${newMates(mates, inWorktree, chosen.mates !== undefined)}${taskClose(chosen.asked)}`,
     line: { from: { name: look.name, id: ORCH_ID }, to: chosen.name, text: body, tone: 'orch', isQuietIfLost: true },
     // A busy worker takes the task into the one in flight, whose title
     // stays its own in the pane and the roster.
-    patch: w => ({ status: 'working', ...(wasBusy ? {} : { task: title }), tasks: w.tasks + all.length }),
+    patch: w => ({
+      status: 'working',
+      ...(wasBusy ? {} : { task: title }),
+      tasks: w.tasks + all.length,
+      ...(mates.length > 0 ? { mates: toldMates(w, mates) } : {}),
+    }),
     ...(wasBusy ? {} : { job: title }),
   })
   if (sent.isDelivered && mark !== undefined) await updateTakeovers($, list => list.filter(t => t.id !== chosen.id))
