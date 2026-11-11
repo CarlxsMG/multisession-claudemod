@@ -91,9 +91,9 @@ function scheduledCompactor(on: On) {
 const compactCall = async ($: Dollar, input: Record<string, unknown>, agentId?: string) =>
   String((await $.tool.call({ tool: 'mcp__crew__compact', ...input, ...(agentId ? { agentId } : {}) } as never)).result)
 
-test("the orchestrator's compaction waits for no worker busy, runs once with the crew's instructions, and the next waits 10 minutes", async ($, on) => {
+test("the orchestrator's compaction waits for no worker busy, runs once with the crew's instructions, and the next waits 10 minutes and a main turn's end", async ($, on) => {
   const { ran } = scheduledCompactor(on)
-  const { clock, delegate, end, toasts } = await progressCrew($, on)
+  const { clock, delegate, end, mainTurn, toasts } = await progressCrew($, on)
   await delegate('Fix the login', '/work/api', 'Login')
 
   expect(await compactCall($, { focus: 'the billing phase' })).toBe(
@@ -111,14 +111,40 @@ test("the orchestrator's compaction waits for no worker busy, runs once with the
   await clock.advance(5 * 60_000)
   expect(ran).toHaveLength(1)
   await clock.advance(5 * 60_000 + 2000)
+  expect(ran).toHaveLength(1)
+  await (
+    await mainTurn()
+  )()
+  await clock.advance(2000)
   expect(ran).toEqual([`Stress for what comes next: the billing phase\n\n${COMPACT_MAIN}`, COMPACT_MAIN])
+})
+
+test("a compaction safe only once the main turn's prompt cache lapsed waits for the next main turn's end", async ($, on) => {
+  const { ran } = scheduledCompactor(on)
+  const { clock, delegate, end, mainTurn } = await progressCrew($, on)
+  await delegate('Fix the login', '/work/api', 'Login')
+  const done = await mainTurn()
+  await compactCall($, {})
+  await done()
+  await clock.advance(5 * 60_000)
+  await end('agent-1')
+  await clock.advance(30 * 60_000)
+  expect(ran).toHaveLength(0)
+
+  await (
+    await mainTurn()
+  )()
+  await clock.advance(2000)
+  expect(ran).toEqual([COMPACT_MAIN])
 })
 
 test('a compaction a turn refuses stays queued and runs at the next safe moment; a skipped one is told and dropped', async ($, on) => {
   const { ran, answer } = scheduledCompactor(on)
-  const { clock, toasts } = await progressCrew($, on)
+  const { clock, mainTurn, toasts } = await progressCrew($, on)
   answer.now = 'busy'
+  const done = await mainTurn()
   await compactCall($, {})
+  await done()
   await clock.advance(3000)
   expect(ran).toHaveLength(0)
   answer.now = 'skip'
@@ -167,7 +193,10 @@ for (const [option, tokens, runs] of [
     async ($, on) => {
       const breakdown = { autoCompactThreshold: 200_000, isAutoCompactEnabled: true } as SessionContextBreakdown
       const { ran } = scheduledCompactor(on)
-      const { clock } = await progressCrew($, on, {}, { context: () => ({ tokens, window: 1_000_000, breakdown }) })
+      const { clock, mainTurn } = await progressCrew($, on, {}, { context: () => ({ tokens, window: 1_000_000, breakdown }) })
+      await (
+        await mainTurn()
+      )()
       await clock.advance(3000)
       expect(ran).toHaveLength(runs)
     },

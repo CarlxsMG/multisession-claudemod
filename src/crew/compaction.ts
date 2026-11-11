@@ -1,9 +1,10 @@
 // Compactions the crew starts: the orchestrator's compact tool and the
 // `compactAt` threshold ask for one, and the progress tick runs it at a safe
 // moment, between turns with no worker busy, so the summary never cuts a
-// coordination in the middle.
+// coordination in the middle, and soon after the main turn ended, while the
+// transcript it reads is still in the prompt cache.
 import type { CompactAsk, Worker } from '../../types'
-import { COMPACT_GAP_MIN } from '../config'
+import { COMPACT_GAP_MIN, COMPACT_WARM_MIN } from '../config'
 import { quiet } from '../engine'
 import type { Engine } from '../engine'
 import { t } from '../i18n'
@@ -13,6 +14,7 @@ import { readCompaction, readPendingRows, readRound, readRuns, readTakeovers, up
 import { ACTIVE } from './workers'
 
 const GAP_MS = COMPACT_GAP_MIN * 60_000
+const WARM_MS = COMPACT_WARM_MIN * 60_000
 // How often the auto-compaction threshold is read again: its breakdown is
 // estimated, where the context's fill is read for free.
 const THRESHOLD_MS = 60_000
@@ -28,7 +30,7 @@ export function chooseCompactAt(option: unknown) {
   compactShare = option === '70%' ? 0.7 : option === '85%' ? 0.85 : undefined
 }
 
-/** Notes that the main conversation's turn ended: an ask that waits for reports wants one after the last. */
+/** Notes that the main conversation's turn ended: an ask runs only soon after one, and one that waits for reports wants one after the last. */
 export function noteMainTurnEnd(now: number) {
   state.mainEndedAt = now
 }
@@ -88,7 +90,9 @@ async function runCompaction($: Engine, ask: CompactAsk) {
 /**
  * Called by the progress tick while the main conversation's turn is not under
  * way: asks for a compaction when the context passed `compactAt`, and runs
- * the one queued once it is safe, at most one every `COMPACT_GAP_MIN` minutes.
+ * the one queued once it is safe, at most one every `COMPACT_GAP_MIN` minutes,
+ * and only within `COMPACT_WARM_MIN` of the main turn's end: an ask that
+ * misses that window stays queued for the tick after the next turn ends.
  * It does not wait for the compaction, which takes a model request.
  */
 export async function compactWhenSafe($: Engine, list: readonly Worker[], now: number) {
@@ -102,6 +106,7 @@ export async function compactWhenSafe($: Engine, list: readonly Worker[], now: n
     wanted = asked
   }
   if (now < lastAt + GAP_MS) return
+  if (now - state.mainEndedAt >= WARM_MS) return
   if (!(await isSafe($, wanted, list))) return
   state.isRunning = true
   void runCompaction($, wanted).finally(() => {
