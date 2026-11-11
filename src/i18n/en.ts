@@ -44,6 +44,8 @@ export const en = {
   /** The toasts of a message that did not arrive. */
   missedWorker: (name: string, reason: string) => `Did not reach ${name}: ${reason}`,
   missedRelay: (name: string, by: string, reason: string) => `${by}'s message did not reach ${name}: ${reason}`,
+  /** The toast of a task that waited for a run and was not given, with why as the orchestrator hears it. */
+  notGiven: (title: string, reason: string) => `"${title}" was not given: ${reason}`,
   /** The toasts of a compaction the crew ran: it stood, or why the engine or a plugin skipped it. */
   compaction: {
     done: 'Compacted the conversation; the summary keeps the crew',
@@ -101,6 +103,7 @@ export const en = {
     delivered: 'delivered',
     /** What a delegate call did, under its row. */
     heldFor: 'waiting · answers to ',
+    heldAfter: 'waiting · after ',
     held: 'waiting',
     reused: 'reused · keeps its context',
     reusedShort: 'reused',

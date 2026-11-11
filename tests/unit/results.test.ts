@@ -1,6 +1,18 @@
 import { expect, test } from 'claude-code/testing'
 
-import { NEW_NONE_FREE, PICKED_FREE, delegatedTo, given, headsUp, heldFor, pickedFree, readDelegate, started, unsureSend } from '../../src/prompts/results'
+import {
+  NEW_NONE_FREE,
+  PICKED_FREE,
+  delegatedTo,
+  given,
+  headsUp,
+  heldAfter,
+  heldFor,
+  pickedFree,
+  readDelegate,
+  started,
+  unsureSend,
+} from '../../src/prompts/results'
 
 const pip = { name: 'Pip', address: 'pip' }
 
@@ -10,6 +22,15 @@ test("delegate's results read back as the row says them: reused, new, or held an
   expect(readDelegate(started('Pip', 'pip', undefined, '/work/api', NEW_NONE_FREE, ''))).toEqual({ kind: 'new', busy: [] })
   expect(readDelegate(heldFor(pip, 'Bolt', 1))).toEqual({ kind: 'held', by: 'Bolt' })
   expect(readDelegate(heldFor(pip, 'Bolt', 3))).toEqual({ kind: 'held', by: 'Bolt' })
+})
+
+test('a task held until a run ends reads back as held, with the worker whose run it waits for', () => {
+  expect(readDelegate(heldAfter(pip, 'Pip', 'Login', 1))).toEqual({ kind: 'held', by: 'Pip', isAfter: true })
+  expect(readDelegate(heldAfter(pip, 'Bolt', 'Login', 2, ' Not applied.'))).toEqual({ kind: 'held', by: 'Bolt', isAfter: true })
+  expect(readDelegate(heldAfter(undefined, 'Bolt', 'Login', 1))).toEqual({ kind: 'held', by: 'Bolt', isAfter: true })
+  expect(delegatedTo(heldAfter(pip, 'Bolt', 'Login', 1))).toEqual({ id: '', name: 'Pip', address: 'pip' })
+  // A new worker has no name yet: the row waits for it.
+  expect(delegatedTo(heldAfter(undefined, 'Bolt', 'Login', 1))).toBeUndefined()
 })
 
 test('the workers a heads-up names read back from the result, one or several', () => {

@@ -272,6 +272,52 @@ export function heldFor(w: Pick<Worker, 'name' | 'address'>, by: string, waiting
 }
 
 /**
+ * A task held until a run ends, as `after` asked: for `to`, or a new worker
+ * when it names none, behind the worker `behind` and the task it is on
+ * (`inFlight`). `waiting` counts the tasks held behind that run, this one
+ * included; `notes` are the sentences that follow, each with its leading
+ * space.
+ */
+export function heldAfter(to: Pick<Worker, 'name' | 'address'> | undefined, behind: string, inFlight: string, waiting: number, notes = ''): string {
+  const head = to === undefined ? 'Held for a new worker: it starts with this task' : `Held for ${to.name} (address "${to.address}"): it gets this task`
+  const whose = to !== undefined && to.name === behind ? 'its' : `${behind}'s`
+  const more = waiting > 1 ? ` ${waiting} tasks held behind ${behind}; they go in order.` : ''
+  return `${head} when ${whose} run ends ("${inFlight}"), as a task of its own, and reports to you. If that run fails or is stopped, the task is not given and you are told.${more}${notes}`
+}
+
+/** A line for the result of a call whose `after` names a worker that is not busy: nothing waited. */
+export const afterOver = (name: string): string => `\nNothing waited: ${name}, named in \`after\`, is not busy.`
+
+/**
+ * Where auto mode reviews only the model's own calls, a new worker cannot
+ * start when a run ends, with no turn to hand it over in: nothing is held.
+ */
+export const afterNeedsWorker = (behind: string): string =>
+  `crew: nothing held: auto mode reviews only calls you write, so a new worker cannot start on its own when ${behind}'s run ends. Give the task once ${behind} reports, or name a worker for it with \`worker\`.`
+
+/** Why a task that waited for a run was not given: how that run ended, or that its worker is gone with no word of it. */
+export const afterEnded = (behind: string, how: 'failed' | 'stopped' | 'gone'): string =>
+  how === 'failed' ? `${behind}'s run failed` : how === 'stopped' ? `${behind}'s run was stopped` : `${behind} is gone, and how its run ended is not known`
+/** Why a task that waited for a run was not given: the worker it was for is the crew's no more. */
+export const AFTER_NO_WORKER = 'the worker it was for is gone'
+/** Why a task that waited for a run was not given: its send did not arrive, with the reason. */
+export const afterNotReached = (name: string, reason: string): string => `it did not reach ${name}: ${reason.replace(/^crew: /, '').replace(/\.$/, '')}`
+/** Why a task that waited for a run was not given: no new worker could start, with the refusal. */
+export const afterNotStarted = (deny: string): string => `no worker could start: ${deny.replace(/\.$/, '')}`
+/** The refusal of a spawn made with no turn of the orchestrator's to review it in. */
+export const AFTER_UNREVIEWED = 'auto mode reviews only calls you write'
+
+// A task that waited for the run of `behind` and was not given, with why.
+const notGivenBody = (title: string, behind: string, why: string): string =>
+  `task "${title}", held behind ${behind}, was not given: ${why}. Give it again if it still stands.`
+
+/** A tool's word on a task that waited for a run and was not given. */
+export const notGiven = (title: string, behind: string, why: string): string => `crew: the ${notGivenBody(title, behind, why)}`
+
+/** The note a user message carries of a task that was not given while no crew tool was called. */
+export const notGivenNote = (title: string, behind: string, why: string): string => `[crew] The ${notGivenBody(title, behind, why)}`
+
+/**
  * What delegate answers an agent that calls it: who it reports to, and how it
  * splits its task instead.
  */
@@ -280,14 +326,17 @@ export const notForWorkers = (orchName: string, reportsTo: string): string =>
 
 /**
  * How delegate's result went, as its row says: the worker it reused, a new
- * one, or a task held for a woken one, with whom that one answers.
+ * one, or a task held: for a woken worker, with whom that one answers, or
+ * (`isAfter`) until a run ends, with the worker whose run it is.
  */
-export type DelegateOutcome = { kind: 'reused' | 'new'; busy: string[] } | { kind: 'held'; by: string }
+export type DelegateOutcome = { kind: 'reused' | 'new'; busy: string[] } | { kind: 'held'; by: string; isAfter?: true }
 
 /** What a delegate result said happened, read back for its row in the conversation. */
 export function readDelegate(text: string): DelegateOutcome | undefined {
   const isHeld = /^Held for \S+ \(address [^)]*\): \S+ is answering (\S+?),/.exec(text)
   if (isHeld !== null) return { kind: 'held', by: isHeld[1]! }
+  const isAfter = /^Held for (?:a new worker|(\S+) \(address [^)]*\)): it (?:gets|starts with) this task when (?:its|(\S+?)'s) run ends/.exec(text)
+  if (isAfter !== null) return { kind: 'held', by: isAfter[2] ?? isAfter[1] ?? '', isAfter: true }
   // A handoff's row is a crew row only once its worker started: a new one.
   if (text.startsWith(HANDED_OVER)) return { kind: 'new', busy: [] }
   const isReused = text.startsWith(GIVEN)

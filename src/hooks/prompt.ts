@@ -3,6 +3,7 @@
 import type { HookFor } from 'claude-code'
 
 import { ORCH_ID, USER_ID, say } from '../crew/feed'
+import { forgetWaiting, untoldWaiting } from '../crew/waiting'
 import type { Engine } from '../engine'
 import { t } from '../i18n'
 import { COMPACT_BRIEF } from '../prompts/compact'
@@ -42,13 +43,20 @@ export async function onSubmit($: Engine, e: Parameters<OnSubmitHook>[1], next: 
   // Held tasks that did not reach their worker while no crew tool was called
   // to say so: the orchestrator still waits for that worker's report.
   const missed = (await readTakeovers($)).filter(mark => mark.missed !== undefined && mark.isTold !== true)
-  if (pending === null && missed.length === 0) return next(e)
+  // So do the tasks that waited for a run and were not given.
+  const notGiven = await untoldWaiting($)
+  if (pending === null && missed.length === 0 && notGiven.length === 0) return next(e)
   const workers = await readWorkers($)
   const missedNotes = missed.map(m => heldMissedNote(workers.find(w => w.id === m.id) ?? { name: m.id, address: m.id }, m.held.length, m.missed ?? ''))
   // Context is attached on the way down; the text stays the user's.
-  const notes = [...(pending !== null ? [crewNote(pending)] : []), ...missedNotes]
+  const notes = [...(pending !== null ? [crewNote(pending)] : []), ...missedNotes, ...notGiven.map(w => w.note)]
   const entered = await next({ ...e, context: [...(e.context ?? []), ...notes] })
   if (entered.drop !== undefined) return entered
+  if (notGiven.length > 0)
+    await forgetWaiting(
+      $,
+      notGiven.map(w => w.seq),
+    )
   if (missed.length > 0) {
     const told = new Set(missed.map(m => m.id))
     await updateTakeovers($, list => list.map(mark => (told.has(mark.id) ? { ...mark, isTold: true } : mark)))

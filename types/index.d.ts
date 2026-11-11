@@ -160,6 +160,30 @@ export type HeldTask = { task: string; title: string }
 export type Takeover = { id: string; by: string; held: HeldTask[]; missed?: string; isTold?: boolean }
 
 /**
+ * A task a delegate call asked to give once another worker's run ends:
+ * `after` is that worker's id and `behind` its name. It then goes to the
+ * worker `to` names by id, or (`to` null) to a new one in `cwd`, of `type`
+ * and on `model`, as the call asked; `callId` is the call's, whose row names
+ * the worker once it has one. `seq` orders the tasks and tells them apart.
+ * `missed`: why it was not given (the run it waited for failed or was
+ * stopped, its worker was not reached, no worker could start); it then
+ * waits only to be told, in a tool's result or a user message's note.
+ */
+export type Waiting = {
+  seq: number
+  after: string
+  behind: string
+  to: string | null
+  task: string
+  title: string
+  cwd: string
+  type: string
+  model: string
+  callId?: string
+  missed?: string
+}
+
+/**
  * A worker's message to a free teammate (`id`), which the main conversation
  * sends on: who wrote it (`by`, with its id and address), its text and gist.
  */
@@ -369,6 +393,7 @@ declare module 'claude-code' {
       noteFirst: Shaped<NoteFirst[]>
       background: Shaped<BackgroundTask[]>
       compactAsk: Shaped<Compaction>
+      waiting: Shaped<Waiting[]>
       reports: Shaped<Report[]>
     }
   }

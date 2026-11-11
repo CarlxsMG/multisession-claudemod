@@ -27,12 +27,13 @@ function fresh() {
      */
     spawn: { notes: new Map<string, string>() },
     /**
-     * `src/crew/relay.ts` and `src/crew/takeover.ts`: whether the next tick
-     * sends on the messages that wait, and lifts the marks of runs that ended.
-     * A load starts with relays due: messages a reload caught on their way
-     * go on at the first tick.
+     * `src/crew/relay.ts`, `src/crew/takeover.ts` and `src/crew/waiting.ts`:
+     * whether the next tick sends on the messages that wait, lifts the marks
+     * of runs that ended, and gives the tasks that waited for one. A load
+     * starts with relays due: messages a reload caught on their way go on at
+     * the first tick.
      */
-    due: { relay: true, release: false },
+    due: { relay: true, release: false, waiting: false },
     /**
      * `src/crew/delegate.ts`: whether auto mode refused a spawn of delegate's
      * for want of a verdict, which it does every time while the session is

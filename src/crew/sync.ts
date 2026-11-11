@@ -8,6 +8,7 @@ import { readDropped, readListed, readRuns, readWorkers, updateDropped, updateLi
 import { appendKept } from '../util/bounded'
 import { enlist } from './feed'
 import { release } from './takeover'
+import { releaseWaiting } from './waiting'
 import { bareTitle } from './title'
 import { ACTIVE, FINISHED, claimName, makeWorker, prune, shelve, statusOf, takenNames, takenNow } from './workers'
 
@@ -160,8 +161,9 @@ function nameOf(taken: ReadonlySet<string>, info: { id: string; name?: string })
   return { name: claim.name, address: info.name && claim.isWantedFree ? info.name : info.id }
 }
 
-/** The engine's statuses, then the marks they lift. */
+/** The engine's statuses, then the marks they lift and the tasks that waited for a run they end. */
 export async function syncCrew($: Engine) {
   await quiet($, syncAgents($), 'sync')
   await release($)
+  await releaseWaiting($, false)
 }
