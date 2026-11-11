@@ -332,10 +332,12 @@ ends is logged to the debug log; what does not, and a table no look could read, 
 
 ### The brief and `[crew]` notes
 
-At session start the brief is built and frozen (`freezeBrief`): it goes into the system prompt as
-the `crew:orchestrator` section (`prompt.compose`) and into the `delegate` tool's description. A
-changed section or tool description would rewrite the whole prompt cache, so neither changes for
-the rest of the load. When the user changes delegation, the name or the personality, a note is
+At the process's first session start the brief is built and frozen (`freezeBrief`): it goes into
+the system prompt as the `crew:orchestrator` section (`prompt.compose`) and into the `delegate`
+tool's description. A changed section or tool description would rewrite the whole prompt cache, so
+neither changes for the rest of the process: a reload, an enable or a worker respawn starts the
+session again, finds the brief in its atom (the host keeps atoms across them) and registers
+`delegate` with it as it is. When the user changes delegation, the name or the personality, a note is
 queued (`note`); it rides as context on the user's next message, and only the latest settings
 are told. `toldBy` remembers, per conversation, what its last note said, so a resumed or cleared
 conversation gets a note when the settings no longer match.
@@ -454,7 +456,7 @@ is noticed in the debug log: `unrecognized($, kind, detail)` (`src/engine.ts`) w
 
 - **No progress reaches a model**, except the progress tool's reply and an active worker's step
   in the roster.
-- **The brief is frozen per load**; later changes reach the model as one `[crew]` note with the
+- **The brief is frozen per process**, reloads included; later changes reach the model as one `[crew]` note with the
   next user message.
 - **Text a model reads is English and pinned** by `tests/golden/model-text.ts`; a change there is
   deliberate and says why.
@@ -500,7 +502,7 @@ is noticed in the debug log: `unrecognized($, kind, detail)` (`src/engine.ts`) w
   parent's conversation. A worker splits its task by forking; `delegate` never starts one.
 - **Crew.** The orchestrator's workers, and the plugin's name.
 - **Brief.** The orchestrator's instructions: the `crew:orchestrator` system prompt section and
-  the `delegate` description, frozen per load.
+  the `delegate` description, frozen per process.
 - **Preamble.** What a worker reads ahead of its first task: how to report, the git rules, its
   teammates, the progress tool.
 - **`[crew]` note.** Context attached to the user's next message when delegation, the name or the

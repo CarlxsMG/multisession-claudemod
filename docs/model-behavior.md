@@ -11,10 +11,11 @@ still. Read this before changing what the models are told. The texts are not rep
   a person chose or a model wrote (a name, a catchphrase, a task, a report) goes in as it is.
   [The texts outside `src/prompts/`](#outside-srcprompts) include one that does not follow this:
   the engine's refusals and failed sends, passed on as they came.
-- **The brief is frozen per load.** `freezeBrief` (`src/settings/notes.ts`) builds it at
-  `session.start` and keeps it in the `brief` atom. The system prompt and the `delegate` tool's
-  description both take it from there and neither changes for the rest of the load, because a
-  changed section or tool description rewrites the whole prompt cache. Later changes reach the
+- **The brief is frozen per process.** `freezeBrief` (`src/settings/notes.ts`) builds it at the
+  first `session.start` and keeps it in the `brief` atom; a later `session.start` (a reload, an
+  enable, a worker respawn) finds it there and keeps it. The system prompt and the `delegate`
+  tool's description both take it from there and neither changes for the rest of the process,
+  because a changed section or tool description rewrites the whole prompt cache. Later changes reach the
   model as a `[crew]` note. `tests/briefs.test.tsx` checks it.
 - **The `delegate` description stays under 3950 characters**, with the longest name and
   personality. Claude Code cuts a tool description at 4096. The description holds the whole brief,

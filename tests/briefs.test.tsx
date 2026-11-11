@@ -289,6 +289,24 @@ test('switching the mode or the name leaves the brief and the delegate tool as t
   expect(seen.tools).toHaveLength(1)
 })
 
+// A reload starts the session again and keeps the atoms: a second session
+// start in one test is that reload.
+test('a reload after the settings changed keeps the brief and the delegate tool as they were', async ($, on) => {
+  const seen = { prompts: [] as string[], sends: [] as string[], tools: [] as string[] }
+  engine(on, { seen })
+  on('prompt.compose', () => ({ sections: [] }))
+  await $.session.start({ cwd: '/work/main', surface: 'terminal', isInteractive: true })
+  const before = (await composeBrief($))?.text
+  await crewCommand($, 'mode off')
+  await crewCommand($, `import ${lookCode({ ...DEFAULT_LOOK, name: 'Luna' })}`)
+
+  await $.session.start({ cwd: '/work/main', surface: 'terminal', isInteractive: true })
+  expect((await composeBrief($))?.text).toBe(before)
+  expect(seen.tools).toHaveLength(2)
+  expect(seen.tools[1]).toBe(seen.tools[0])
+  expect(seen.tools[1]).toMatch(/\nCrew: delegation was ON when this brief was written/)
+})
+
 test('the next message carries one "[crew]" note with the latest state, and the one after none', async ($, on) => {
   engine(on)
   const contexts: (readonly string[] | undefined)[] = []
