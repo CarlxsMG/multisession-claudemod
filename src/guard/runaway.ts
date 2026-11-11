@@ -3,10 +3,7 @@
 // background or after a worker's report, keeps a process alive that lags the
 // app; the model is told what to run instead.
 import { runawayDenied } from '../prompts/results'
-
-// Tools that run the command they are given as their whole call, so a
-// wrapper in front of the command word changes nothing about whether it ends.
-const WRAPPERS = new Set(['sudo', 'nohup', 'exec', 'command', 'env', 'npx', 'bunx', 'pnpx'])
+import { fromCommandWord, segments } from '../util/shell'
 
 // Watchers whose `-w` means watch; with any other tool it means something
 // else (`grep -w`, `git log -w`, `npm -w`).
@@ -17,7 +14,6 @@ const WATCHERS = new Set(['vite', 'tsc', 'jest', 'vitest', 'nodemon'])
 const RUNNERS = new Set(['npm', 'pnpm', 'yarn', 'bun'])
 
 const BOUNDED = /^g?timeout$/
-const ASSIGNMENT = /^[A-Za-z_][A-Za-z0-9_]*=/
 const FOLLOW = /^(-[A-Za-z0-9]*[fF][A-Za-z0-9]*|--follow(=.*)?)$/
 const WATCH_FLAG = /^--watch(All)?(=.*)?$/
 
@@ -26,23 +22,6 @@ const WATCH_FLAG = /^--watch(All)?(=.*)?$/
 const ENDLESS_LOOP = /\bwhile\s+(true|:)\s*(;|\n|\s)\s*do\b|\bwhile\s*\(\s*\$true\s*\)|\bfor\s*\(\(\s*;\s*;\s*\)\)|\bfor\s*\(\s*;\s*;\s*\)/i
 const LOOP_EXIT = /\b(break|exit|return)\b/
 const TIMEOUT_WRAP = /(^|[\s;&|(])g?timeout\s+(-\S+\s+)*\d/
-
-// The words of one simple command, between the shell's separators. Quotes
-// are not parsed: a separator inside one only splits a command more finely,
-// and only a segment's command word and its flags are read.
-function segments(command: string): string[][] {
-  return command
-    .split(/&&|\|\||[;|&\n]/)
-    .map(s => s.trim().split(/\s+/).filter(Boolean))
-    .filter(words => words.length > 0)
-}
-
-// The segment from its command word on: assignments and wrappers dropped.
-function fromCommandWord(words: readonly string[]): readonly string[] {
-  let i = 0
-  while (i < words.length && (ASSIGNMENT.test(words[i]!) || WRAPPERS.has(words[i]!.toLowerCase()))) i++
-  return words.slice(i)
-}
 
 // What in one simple command never ends, or null.
 function runawayIn(words: readonly string[]): string | null {
