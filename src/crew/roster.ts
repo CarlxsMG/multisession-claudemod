@@ -8,7 +8,7 @@ import { isOpen } from '../progress/runs'
 import { noWorker } from '../prompts/results'
 import { FULL_ROW_CUT, emptyCrew, rosterList, rosterRow, rowCut } from '../prompts/roster'
 import type { RowFacts } from '../prompts/roster'
-import { readDropped, readLook, readParents, readRuns, readTakeovers, readWorkers, readWorktrees } from '../state/atoms'
+import { readDropped, readLook, readParents, readRuns, readTakeovers, readWaiting, readWorkers, readWorktrees } from '../state/atoms'
 import { syncAgents, syncCrew } from './sync'
 import { ACTIVE, byActivity, findWorker } from './workers'
 
@@ -32,10 +32,12 @@ export async function rosterText($: Engine, key?: string, isMain = true): Promis
   // The one part of progress a model reads: an active worker's step, so the
   // orchestrator can say how it goes without waking anyone.
   const plans = new Map((await readRuns($)).flatMap(r => (isOpen(r) && r.plan !== undefined ? [[r.id, r.plan] as const] : [])))
+  const waiting = (await readWaiting($)).filter(w => w.missed === undefined)
   const now = await $.clock.now()
   const factsOf = ({ id, status }: Worker): RowFacts => ({
     isActive: ACTIVE.has(status),
     takeover: woken.get(id),
+    behind: waiting.filter(w => w.after === id).length,
     parent: parents.get(id),
     isInWorktree: inWorktree.has(id),
     plan: plans.get(id),

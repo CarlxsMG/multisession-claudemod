@@ -16,6 +16,8 @@ export type RowFacts = {
   isInWorktree: boolean
   /** The plan of its open run, for a busy worker. */
   plan?: Plan
+  /** How many tasks wait for its run to end, as a delegate call's `after` asked. */
+  behind?: number
   now: number
 }
 
@@ -43,7 +45,9 @@ export function rosterRow(worker: Worker, facts: RowFacts, cut: RowCut): string 
   const history = `${kind}${worker.model ? `model ${worker.model}, ` : ''}${plural(worker.tasks, 'task')}, ${tokensText(worker.tokens)}`
   const held = takeover !== undefined && takeover.held.length > 0 ? `, ${plural(takeover.held.length, 'task')} waiting` : ''
   const head = `- ${worker.name}: address "${worker.address}", ${worker.status}`
-  const mark = takeover === undefined ? '' : takeover.missed !== undefined ? `${held}, not delivered: ${takeover.missed}` : `, answering ${takeover.by}${held}`
+  const answering =
+    takeover === undefined ? '' : takeover.missed !== undefined ? `${held}, not delivered: ${takeover.missed}` : `, answering ${takeover.by}${held}`
+  const mark = `${answering}${facts.behind ? `, ${plural(facts.behind, 'task')} held behind its run` : ''}`
   const where = `${parent ? `${parent.fork ? 'fork of' : 'started by'} ${parent.parent}, ` : ''}${facts.isInWorktree ? 'worktree of' : 'repo'} ${worker.cwd}`
   const task = `last task "${oneLine(worker.task, cut.task)}"`
   const report = cut.report > 0 && worker.answer ? `\n  last report: ${oneLine(worker.answer, cut.report)}` : ''

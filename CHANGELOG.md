@@ -8,6 +8,12 @@ All notable changes to crew are written here. The format follows
 
 ### Added
 
+- The orchestrator can hand a task over ahead of time with `after` on `mcp__crew__delegate`: the
+  task waits for the busy worker it names and is given when that worker's run ends, as a task of
+  its own, to that worker, to another one or to a new one. A task for a busy worker no longer has
+  to land in the middle of the one it is on. If the run it waited for fails or is stopped, the
+  task is not given and the orchestrator is told; a toast says so too. The roster shows what
+  waits behind a worker's run.
 - The orchestrator can compact its own conversation at a good moment with `mcp__crew__compact`:
   before a new phase, or once a batch of reports is told to you. It runs between turns once no
   worker is busy, at most once every 10 minutes, and a toast says when it ran. The `compactAt`

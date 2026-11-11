@@ -38,7 +38,12 @@ export const DELEGATE_SPEC = {
       worker: {
         type: 'string',
         description:
-          "Name or address of a worker in the roster to give this to, forks and the Agent tool's agents included; it keeps its context and its agent type. A busy worker gets the task as a message in the middle of its current one, so prefer a free worker; one answering another worker gets it once that ends.",
+          "Name or address of a worker in the roster to give this to, forks and the Agent tool's agents included; it keeps its context and its agent type. A busy worker gets the task as a message in the middle of its current one unless `after` names it, so prefer a free worker; one answering another worker gets it once that ends.",
+      },
+      after: {
+        type: 'string',
+        description:
+          "Name or address of a busy worker whose run this task waits for. The task is held and given when that run ends, as a task of its own: to that worker, to the one `worker` names, or to a new one with `fresh`. If that run fails or is stopped it is not given, and you are told. For another worker, say in the task what it needs of that run's result; it can ask that worker with SendMessage.",
       },
       fresh: {
         type: 'boolean',
@@ -63,7 +68,7 @@ export const DELEGATE_SPEC = {
 /** The roster tool's spec. */
 export const ROSTER_SPEC = {
   name: 'roster',
-  description: `List the crew, busy workers first, then the most recent, at most ${ROSTER_ROWS} rows. Each row: name, SendMessage address, status (starting, working or waiting while busy; idle, done or stopped when free to take a task; failed), "fork of" or "started by" the worker that started it, repository or "worktree of" it for a worker in a git worktree, agent type when not general-purpose, model, tasks, tokens and last task; a busy worker also shows what it is doing, and an agent the worker that started it woke with a message shows "answering <name>" and how many of your tasks wait for it; "not delivered: <why>" means they did not reach it, and go with the next task you give it. The ${ROSTER_REPORTS} latest workers not busy (failed included) show their last report cut to ${ROSTER_REPORT_CUT} characters; pass \`worker\` for one worker with its last report at more length (up to ${ROSTER_FULL_REPORT_CUT} characters). A worker taken off the list comes back when it works again. Use it to pick the worker that should continue earlier work, to find an address for SendMessage or TaskStop, or to see who is busy where.`,
+  description: `List the crew, busy workers first, then the most recent, at most ${ROSTER_ROWS} rows. Each row: name, SendMessage address, status (starting, working or waiting while busy; idle, done or stopped when free to take a task; failed), "fork of" or "started by" the worker that started it, repository or "worktree of" it for a worker in a git worktree, agent type when not general-purpose, model, tasks, tokens and last task; a busy worker also shows what it is doing, and an agent the worker that started it woke with a message shows "answering <name>" and how many of your tasks wait for it; "not delivered: <why>" means they did not reach it, and go with the next task you give it; "held behind its run" counts the tasks \`after\` holds until that run ends. The ${ROSTER_REPORTS} latest workers not busy (failed included) show their last report cut to ${ROSTER_REPORT_CUT} characters; pass \`worker\` for one worker with its last report at more length (up to ${ROSTER_FULL_REPORT_CUT} characters). A worker taken off the list comes back when it works again. Use it to pick the worker that should continue earlier work, to find an address for SendMessage or TaskStop, or to see who is busy where.`,
   inputSchema: {
     type: 'object',
     properties: {

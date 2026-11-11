@@ -31,7 +31,7 @@ export function resultFoots(tool: string, output: unknown, who: Member, members:
   if (outcome.kind === 'held') {
     const by = findWorker(members, outcome.by)
     const name: Seg = { text: outcome.by, ...(by !== undefined ? { color: colorOfMember(by, look) } : {}) }
-    return [[dim(words.heldFor), name], [dim(words.held)]]
+    return [[dim(outcome.isAfter ? words.heldAfter : words.heldFor), name], [dim(words.held)]]
   }
   const reused = outcome.kind === 'reused'
   const base = reused ? words.reused : words.fresh

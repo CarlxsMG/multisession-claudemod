@@ -268,6 +268,52 @@ test('tasks held for an agent its worker woke, and how they go once its run ends
   expectText('task.heldTogether', seen.sends[sends])
 })
 
+test('tasks that wait for a run with `after`: held for its worker, another or a new one, sent together, and one with nothing to wait for', async ($, on) => {
+  let spawned = 0
+  const seen = recording()
+  const clock = engine(on, { nextId: () => `agent-${++spawned}`, seen })
+  await start($)
+  await delegate($, { task: 'Fix the login', title: 'Login', repo: '/work/api' })
+  await delegate($, { task: 'Fix the styles', title: 'Styles', repo: '/work/api', fresh: true })
+  await finish($, 'agent-2')
+  expectText('result.heldAfter', await delegate($, { task: 'Add the tests', title: 'Tests', after: 'pip' }))
+  expectText('result.heldAfterOther', await delegate($, { task: 'Review the login', title: 'Review', worker: 'bolt', after: 'pip' }))
+  expectText('result.heldAfterNew', await delegate($, { task: 'Try the login', title: 'Try', repo: '/work/api', fresh: true, after: 'pip' }))
+  expectText('result.afterOver', await delegate($, { task: 'Polish the styles', title: 'Polish', worker: 'bolt', after: 'bolt' }))
+  await delegate($, { task: 'Write the docs', title: 'Docs', after: 'pip' })
+  const sends = seen.sends.length
+  await finish($, 'agent-1')
+  await clock.advance(400)
+  expectText('task.afterTogether', seen.sends[sends])
+})
+
+test('a task that waited for a run and was not given: the next delegate result, the user message note, and where no new worker can start', async ($, on) => {
+  const contexts: (readonly string[] | undefined)[] = []
+  on('prompt.submit', (_, e) => {
+    contexts.push(e.context)
+    return { text: e.text }
+  })
+  let spawned = 0
+  const seen = recording()
+  const clock = engine(on, { nextId: () => `agent-${++spawned}`, seen })
+  await start($)
+  await delegate($, { task: 'Fix the login', title: 'Login', repo: '/work/api' })
+  await delegate($, { task: 'Fix the styles', title: 'Styles', repo: '/work/api', fresh: true })
+  await delegate($, { task: 'Add the tests', title: 'Tests', after: 'pip' })
+  await delegate($, { task: 'Write the docs', title: 'Docs', after: 'bolt' })
+  await $.turn.complete({ answer: 'API error', durationMs: 1, isAborted: false, turnId: 't-failed', agentId: 'agent-1', reason: 'error' })
+  await clock.advance(400)
+  expectText('result.notGiven', await delegate($, { task: 'Fix the footer', title: 'Footer', repo: '/work/web' }))
+  await $.turn.complete({ answer: '', durationMs: 1, isAborted: true, turnId: 't-stopped', agentId: 'agent-2', reason: 'aborted' })
+  await clock.advance(400)
+  await $.prompt.submit({ text: 'How is it going?', wait: false, origin: { kind: 'composer' } })
+  expectText('note.notGiven', contexts[0]?.join('\n'))
+  // Auto mode refuses the crew's own spawn from here on: nothing is held for a worker it could not start.
+  seen.refuse = NO_VERDICT
+  await delegate($, { task: 'Fix the header', title: 'Header', repo: '/work/web', fresh: true })
+  expectText('result.afterNeedsWorker', await delegate($, { task: 'Try the footer', title: 'Try', repo: '/work/web', fresh: true, after: 'mika' }))
+})
+
 test('one held task goes alone', async ($, on) => {
   const { seen, clock, delegate: give, done } = await wokenCrew($, on)
   await $.tool.call({ tool: 'Read', file_path: '/work/api/src/bus.ts', agentId: 'agent-2' })
