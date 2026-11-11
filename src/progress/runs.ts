@@ -1,6 +1,8 @@
 // A worker's runs, one to a task: opened as it starts, counted call by call,
 // closed with how it ended, and how long each took.
 import type { Phase, Run, RunEndKind, WorkerStatus } from '../../types'
+import { appendKept } from '../util/bounded'
+import { samePath } from '../util/path'
 import { nextPhase } from './phase'
 import { finishPlan } from './plan'
 
@@ -29,6 +31,22 @@ export function openRun(list: readonly Run[], id: string, now: number): Run[] {
  */
 export function countCall(list: readonly Run[], id: string, kind: Phase | undefined, now: number): Run[] {
   return list.map(r => (r.id === id && isOpen(r) ? { ...r, tools: r.tools + 1, touchedAt: Math.max(r.touchedAt, now), ...nextPhase(r, kind, now) } : r))
+}
+
+/** How many files a run keeps as edited, the latest. */
+export const EDITS_KEEP = 40
+
+/**
+ * An open run with `paths` among the files it edited: one it has already
+ * stays where it was, so the list is in the order each was first edited.
+ */
+export function addEdits(list: readonly Run[], id: string, paths: readonly string[]): Run[] {
+  return list.map(r => {
+    if (r.id !== id || !isOpen(r)) return r
+    const known = r.edited ?? []
+    const fresh = paths.filter((path, i) => !known.some(k => samePath(k, path)) && paths.findIndex(p => samePath(p, path)) === i)
+    return fresh.length === 0 ? r : { ...r, edited: appendKept(known, fresh, EDITS_KEEP) }
+  })
 }
 
 /**

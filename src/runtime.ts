@@ -11,8 +11,11 @@ import type { Timer } from 'claude-code'
 import type { NoteFirst, Phase } from '../types'
 import type { Cells } from './figure/raster'
 
-/** A worker's tool calls since the pane's last frame: what it does now, and each call's kind and time. */
-export type HeldCalls = { activity: string; calls: { kind: Phase | undefined; at: number }[] }
+/**
+ * A worker's tool calls since the pane's last frame: what it does now, each
+ * call's kind and time, and the files its editing calls changed.
+ */
+export type HeldCalls = { activity: string; calls: { kind: Phase | undefined; at: number }[]; edited: string[] }
 
 // Everything a session starts afresh, as a load starts it.
 function fresh() {
@@ -58,6 +61,11 @@ function fresh() {
     tick: { isTicking: false },
     /** `src/progress/calls.ts`: the workers' tool calls held for the pane's next frame. */
     calls: { held: new Map<string, HeldCalls>() },
+    /**
+     * `src/crew/edits.ts`: the workers told that another's run in flight has
+     * edited a file they edited: each with that other worker and the file.
+     */
+    edits: { warned: [] as { id: string; other: string; path: string }[] },
     /** `src/usage/limits.ts`: whether this session may ask for the usage, and when it last did. */
     probe: { isAllowed: false, at: -Infinity },
     /**
