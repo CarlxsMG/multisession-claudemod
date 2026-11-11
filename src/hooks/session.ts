@@ -12,7 +12,7 @@ import { defaultLook, normalizeLook } from '../figure/look'
 import { t } from '../i18n'
 import { settleLocale } from '../i18n/locale'
 import { startProgress } from '../progress/tick'
-import { COMPACT_SPEC, PROGRESS_SPEC, ROSTER_SPEC, delegateSpec } from '../prompts/tools'
+import { COMPACT_SPEC, DELEGATE_SPEC, PROGRESS_SPEC, ROSTER_SPEC } from '../prompts/tools'
 import { resetRuntime } from '../runtime'
 import { readModel } from '../settings/model'
 import { checkConversation, freezeBrief } from '../settings/notes'
@@ -58,9 +58,10 @@ export async function onSessionStart($: Engine, e: Parameters<OnSessionStartHook
   })
   // The host keeps the atoms across a reload, an enable or a worker respawn,
   // each of which starts the session again: the brief already frozen stays,
-  // as a changed tool description or prompt section rewrites the prompt
-  // cache. A fresh process finds none and freezes it.
-  await $.tool.register(delegateSpec((await readBrief($)) || (await freezeBrief($))))
+  // as a changed prompt section rewrites the prompt cache. A fresh process
+  // finds none and freezes it.
+  if (!(await readBrief($))) await freezeBrief($)
+  await $.tool.register(DELEGATE_SPEC)
   // A resumed conversation's latest note is the last one it got: when it no
   // longer matches the settings, the next message says so.
   await checkConversation($, true)

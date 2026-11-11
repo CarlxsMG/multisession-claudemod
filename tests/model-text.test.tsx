@@ -62,7 +62,7 @@ for (const isOn of [true, false]) {
     await start($)
     expectText(`brief.${mode}`, (await composeBrief($))?.text)
     const spec = (name: string) => seen.specs!.find(s => s.name === name)!
-    expectText(`spec.delegate.description.${mode}`, spec('delegate').description)
+    expectText('spec.delegate.description', spec('delegate').description)
     if (isOn) {
       expectText('spec.delegate.inputSchema', spec('delegate').inputSchema)
       expectText('spec.roster', spec('roster'))

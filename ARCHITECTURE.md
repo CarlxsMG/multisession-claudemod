@@ -333,11 +333,15 @@ ends is logged to the debug log; what does not, and a table no look could read, 
 ### The brief and `[crew]` notes
 
 At the process's first session start the brief is built and frozen (`freezeBrief`): it goes into
-the system prompt as the `crew:orchestrator` section (`prompt.compose`) and into the `delegate`
-tool's description. A changed section or tool description would rewrite the whole prompt cache, so
-neither changes for the rest of the process: a reload, an enable or a worker respawn starts the
-session again, finds the brief in its atom (the host keeps atoms across them) and registers
-`delegate` with it as it is. When the user changes delegation, the name or the personality, a note is
+the system prompt as the `crew:orchestrator` section (`prompt.compose`). A changed section would
+rewrite the prompt cache from there on, so it does not change for the rest of the process: a
+reload, an enable or a worker respawn starts the session again and finds the brief in its atom
+(the host keeps atoms across them). The `delegate` tool's description carries the brief's
+delegation rules too (`DELEGATION_RULES`), because policy plugins can keep out a system section
+but not a tool description; it holds no name, persona or mode, only constant text, so the tool
+list at the head of the cache is the same in every session and for every user's settings. Only
+the section says who the orchestrator is, its persona and whether delegation was on. When the
+user changes delegation, the name or the personality, a note is
 queued (`note`); it rides as context on the user's next message, and only the latest settings
 are told. `toldBy` remembers, per conversation, what its last note said, so a resumed or cleared
 conversation gets a note when the settings no longer match.
@@ -460,8 +464,8 @@ is noticed in the debug log: `unrecognized($, kind, detail)` (`src/engine.ts`) w
   next user message.
 - **Text a model reads is English and pinned** by `tests/golden/model-text.ts`; a change there is
   deliberate and says why.
-- **`delegate`'s description stays under 3950 characters** with the longest name and
-  personality (Claude Code cuts at 4096).
+- **`delegate`'s description holds no setting** and stays under 3950 characters (Claude Code
+  cuts at 4096).
 - **Delegate calls in one response run one after another.**
 - **A send is tried once**: a failure after it may have gone out answers undelivered.
 - **A worker never waits inside its turn**: it ends the turn with what it waits for, and a
@@ -501,8 +505,8 @@ is noticed in the debug log: `unrecognized($, kind, detail)` (`src/engine.ts`) w
 - **Fork.** An agent started with the Agent tool's `subagent_type: "fork"`: it inherits its
   parent's conversation. A worker splits its task by forking; `delegate` never starts one.
 - **Crew.** The orchestrator's workers, and the plugin's name.
-- **Brief.** The orchestrator's instructions: the `crew:orchestrator` system prompt section and
-  the `delegate` description, frozen per process.
+- **Brief.** The orchestrator's instructions: the `crew:orchestrator` system prompt section,
+  frozen per process, whose delegation rules the `delegate` description carries too.
 - **Preamble.** What a worker reads ahead of its first task: how to report, the git rules, its
   teammates, the progress tool.
 - **`[crew]` note.** Context attached to the user's next message when delegation, the name or the
