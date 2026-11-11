@@ -6,8 +6,9 @@ import { DELEGATION_RULES } from './orchestrator'
 const DELEGATE_ABOUT = `Hand a task to a crew worker: a named background subagent, general-purpose unless \`subagent_type\` says otherwise, that reports back when done. Goes to the worker you name; else to the free worker this tool started in that repository, of that type and on that model (the session's when unset), that last finished a task, or the next it can reach; it keeps its context; else to a new one. Returns at once: the worker's address, and who else is busy where it works.`
 
 // Policy plugins can keep out a system section but not a tool description, so
-// the rules ride here too, for the orchestrator alone and only while
-// delegation is on; its brief or the latest "[crew]" note says whether it is.
+// the rules ride here and nowhere else, for the orchestrator alone and only
+// while delegation is on; its brief or the latest "[crew]" note says whether
+// it is.
 const DELEGATE_RULES_FOR = `These rules are for the main assistant, the crew's orchestrator, while delegation is ON (its crew brief or the latest "[crew]" note says whether it is); a worker or fork reading them ignores them and does its own task.`
 
 /**
@@ -42,12 +43,12 @@ export const DELEGATE_SPEC = {
       },
       fresh: {
         type: 'boolean',
-        description: 'Start a new worker instead of reusing a free one: for unrelated work, or parts that run in parallel.',
+        description: 'Start a new worker instead of reusing a free one.',
       },
       subagent_type: {
         type: 'string',
         description:
-          "Agent type for a new worker, as the Agent tool lists them: `Explore` for read-only searches, `Plan`, the project's own agents. General-purpose when unset. Only a worker of the same type is reused; a fork starts from the Agent tool instead.",
+          "Agent type for a new worker, as the Agent tool lists them: `Explore` for a read-only search across many files, `Plan` for a design, the project's own agents. General-purpose when unset. Only a worker of the same type is reused; a fork starts from the Agent tool instead.",
       },
       model: {
         type: 'string',

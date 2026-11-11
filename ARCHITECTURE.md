@@ -338,11 +338,13 @@ At the process's first session start the brief is built and frozen (`freezeBrief
 the system prompt as the `crew:orchestrator` section (`prompt.compose`). A changed section would
 rewrite the prompt cache from there on, so it does not change for the rest of the process: a
 reload, an enable or a worker respawn starts the session again and finds the brief in its atom
-(the host keeps atoms across them). The `delegate` tool's description carries the brief's
-delegation rules too (`DELEGATION_RULES`), because policy plugins can keep out a system section
-but not a tool description; it holds no name, persona or mode, only constant text, so the tool
-list at the head of the cache is the same in every session and for every user's settings. Only
-the section says who the orchestrator is, its persona and whether delegation was on. When the
+(the host keeps atoms across them). The delegation rules (`DELEGATION_RULES`) are in the
+`delegate` tool's description and nowhere else: policy plugins can keep out a system section but
+not a tool description, and a rule in both places would be read twice in every request. The
+description holds no name, persona or mode, only constant text, so the tool list at the head of
+the cache is the same in every session and for every user's settings. The section says who the
+orchestrator is, its persona and whether delegation was on, and points at the description for
+how to delegate. When the
 user changes delegation, the name or the personality, a note is
 queued (`note`); it rides as context on the user's next message, and only the latest settings
 are told. `toldBy` remembers, per conversation, what its last note said, so a resumed or cleared
@@ -510,8 +512,8 @@ is noticed in the debug log: `unrecognized($, kind, detail)` (`src/engine.ts`) w
 - **Fork.** An agent started with the Agent tool's `subagent_type: "fork"`: it inherits its
   parent's conversation. A worker splits its task by forking; `delegate` never starts one.
 - **Crew.** The orchestrator's workers, and the plugin's name.
-- **Brief.** The orchestrator's instructions: the `crew:orchestrator` system prompt section,
-  frozen per process, whose delegation rules the `delegate` description carries too.
+- **Brief.** Who the orchestrator is: the `crew:orchestrator` system prompt section, frozen per
+  process. How it delegates is in the `delegate` tool's description, which the brief points at.
 - **Preamble.** What a worker reads ahead of its first task: how to report, the git rules, its
   teammates, the progress tool.
 - **`[crew]` note.** Context attached to the user's next message when delegation, the name or the

@@ -15,12 +15,17 @@ still. Read this before changing what the models are told. The texts are not rep
   first `session.start` and keeps it in the `brief` atom; a later `session.start` (a reload, an
   enable, a worker respawn) finds it there and keeps it. The system prompt takes it from there and
   it does not change for the rest of the process, because a changed section rewrites the prompt
-  cache. The `delegate` tool's description holds no setting at all: it carries only the brief's
+  cache. The `delegate` tool's description holds no setting at all: it carries only the
   delegation rules, constant text, so the tool list is the same in every session. Later changes reach the
   model as a `[crew]` note. `tests/briefs.test.tsx` checks it.
+- **The delegation rules are in the `delegate` description alone.** The brief says who the
+  orchestrator is and points there. A policy plugin can keep out a system section but not a tool
+  description, and a rule in both would be read twice in every request. A rule says when to do
+  something; what an argument does is said in that argument's description, once.
+  `tests/briefs.test.tsx` checks that no rule is in the brief.
 - **The `delegate` description stays under 3950 characters.** Claude Code cuts a tool
-  description at 4096. The description holds the brief's delegation rules, so a rule added to the
-  brief spends this room. `tests/briefs.test.tsx` checks it.
+  description at 4096. The description holds the delegation rules, so a rule added to them
+  spends this room. `tests/briefs.test.tsx` checks it.
 - **Each text is pinned.** `tests/model-text.test.tsx` makes the plugin send each text through the
   hook that sends it, and compares what comes out exactly with the golden file, so a change of
   wording fails it. [What the golden file does not hold](#what-the-golden-file-does-not-hold) lists
@@ -81,8 +86,9 @@ mode.
 ## Every model with the crew's tools
 
 The specs are registered at `session.start` (`src/hooks/session.ts`), so a worker has them in its
-tool list as the orchestrator does. That is why the brief's first line tells a worker or fork
-reading it to ignore it, and why the progress tool's description stays short.
+tool list as the orchestrator does. That is why the `delegate` description says its rules are the
+orchestrator's alone, and why the progress tool's description stays short. A fork of the main
+conversation reads the brief too, whose first line tells it to ignore it.
 
 | Text | How it arrives | When | Built by | Golden keys |
 | --- | --- | --- | --- | --- |
@@ -152,7 +158,7 @@ the `/crew` command's line in the command menu.
    `tests/unit/results.test.ts` covers them.
 3. A setting the model must hear of during a load cannot go only in the brief, which is frozen,
    and never goes in a tool's description: it also goes in the `[crew]` note (`crewNote`, and
-   `sameSettings` in `src/settings/notes.ts`). A rule added to the brief spends the `delegate`
-   description's room.
+   `sameSettings` in `src/settings/notes.ts`). A delegation rule goes in `DELEGATION_RULES`, not in
+   the brief, and spends the `delegate` description's room.
 4. A new text gets a golden key, an `expectText` in `tests/model-text.test.tsx` that goes through
    the hook that sends it, and a row here.

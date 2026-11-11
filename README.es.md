@@ -24,8 +24,8 @@ falla en tiempo real.
   su estado, repositorio, tarea, lo que hace y el tiempo y las llamadas de su ejecución.
 - **Los mensajes del equipo**: los dos más recientes como burbujas de chat que se van escribiendo,
   los anteriores como una línea discreta cada uno.
-- **Delegación por defecto.** Con Delegar ON, el system prompt del orquestador y la descripción de
-  la herramienta `delegate` le piden pasar al equipo todo salvo las respuestas rápidas, reutilizar
+- **Delegación por defecto.** Con Delegar ON, el system prompt del orquestador le dice que dirige
+  un equipo, y la descripción de la herramienta `delegate` le pide pasar al equipo todo salvo las respuestas rápidas, reutilizar
   el worker que ya conoce un área, lanzar en paralelo las partes independientes y reconducir a los
   workers con `SendMessage`. El brief se fija al cargar el plugin, para que la caché del prompt no
   se reescriba; los cambios posteriores le llegan al modelo en una nota `[crew]` breve con tu
