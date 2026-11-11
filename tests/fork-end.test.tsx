@@ -170,7 +170,7 @@ test('a busy worker nothing was heard from for ten minutes is told once, and aga
   await clock.advance(9 * 60_000)
   expect(await roster()).not.toMatch(/nothing was heard/)
 
-  await clock.advance(70_000)
+  await clock.advance(100_000)
   expect(toasts).toContain('Nothing heard from Pip for 10 min')
   expect((await roster()).split('\n').pop()).toMatch(
     /^crew: Pip \(address "pip"\) is working on "Relay" and nothing was heard from it for 10 min\. It may be on a long command, waiting for the user's approval, or stuck: ask it with SendMessage, or TaskStop it and give the task again\.$/,

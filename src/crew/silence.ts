@@ -10,10 +10,16 @@ import { t } from '../i18n'
 import { isOpen } from '../progress/runs'
 import { stepText } from '../progress/plan'
 import { cutSilent, goneSilent, quietSilent } from '../prompts/results'
+import { runtime } from '../runtime'
 import { readDropped, readParents, readRuns, readSilences, readWorkers, updateSilences } from '../state/atoms'
 import { ACTIVE } from './workers'
 
 const QUIET_MS = QUIET_MIN * 60_000
+// How often the crew is looked over for quiet workers: the sync that asks
+// runs every few seconds, and minutes are what a quiet spell is told in.
+const WATCH_MS = 30_000
+
+const watching = runtime.silence
 
 /**
  * Notes the busy workers a sync just ended because the engine lists them no
@@ -30,9 +36,11 @@ export async function noteGone($: Engine, gone: readonly Worker[], now: number) 
  * Notes each busy worker nothing was heard from for `QUIET_MIN` minutes,
  * and forgets the ones heard from since, told or not: a later quiet spell is
  * another one. A worker with a busy agent of its own waits for it, and is
- * not quiet.
+ * not quiet. It looks at most every `WATCH_MS`, however often it is asked.
  */
 export async function watchQuiet($: Engine, now: number) {
+  if (now - watching.at < WATCH_MS) return
+  watching.at = now
   const list = await readWorkers($)
   const parents = await readParents($)
   const busy = new Set(list.filter(w => ACTIVE.has(w.status)).map(w => w.id))

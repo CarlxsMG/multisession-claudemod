@@ -424,7 +424,7 @@ No report comes from a worker ended that way, and none from one that is stuck, s
 which is told not to poll, would wait for good. The sync notes both as a **silence**
 (`src/crew/silence.ts`): `gone`, a busy worker it just ended with no end of its run heard, and
 `quiet`, a busy worker with no tool call, turn or message for `QUIET_MIN` (10 minutes), unless it
-has a busy agent of its own to wait for. Each is said once, at the end of the next delegate or
+has a busy agent of its own to wait for; it looks for those every 30 s at most. Each is said once, at the end of the next delegate or
 roster result of the main conversation or in a `[crew]` note on the person's next message, and a
 toast says it at once. A quiet worker heard from again is forgotten, so its next quiet spell is
 told anew. A worker's own calls are told nothing.
