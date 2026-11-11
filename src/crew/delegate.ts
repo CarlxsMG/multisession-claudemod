@@ -82,7 +82,7 @@ import { ORCH_ID, markCall, setOrch } from './feed'
 import { release } from './takeover'
 import { bareTitle, nameAhead } from './title'
 import { spawnTypeOf } from './worker-type'
-import { ACTIVE, REUSABLE, claimName, findWorker, recallWorker, takenNow, toldMates, unclaimNames, untoldMatesOf } from './workers'
+import { ACTIVE, REUSABLE, apartIds, claimName, findWorker, recallWorker, takenNow, toldMates, unclaimNames, untoldMatesOf } from './workers'
 
 // The heads-up of the tool's result, from the workers busy in the
 // repository, each with the files its run has edited so far, as seen from
@@ -393,10 +393,11 @@ async function startWorker(
 export async function adoptHanded($: Engine, handed: Handed, worker: Pick<Worker, 'id' | 'name' | 'address' | 'cwd'>, called: string | undefined) {
   await setOrch($, 'delegating', `${handed.title} → ${worker.name}`)
   await markCall($, handed.callId, worker.id)
-  const inWorktree = new Set(await readWorktrees($))
+  const crew = await readWorkers($)
+  const inWorktree = apartIds(crew, await readWorktrees($))
   const own = inWorktree.has(worker.id)
   const where = own ? worktreeOf(worker.cwd) : worker.cwd
-  const warn = own ? '' : await busyHere($, await readWorkers($), worker.cwd, inWorktree, worker.id)
+  const warn = own ? '' : await busyHere($, crew, worker.cwd, inWorktree, worker.id)
   // Delegate's model stands, whatever the Agent call named.
   const isOther = called !== undefined && called !== '' && (modelAlias(called) ?? called) !== handed.asked
   const model = isOther ? handedModel(handed.asked === '' ? SESSION_MODEL : handed.asked, called) : ''
@@ -430,7 +431,7 @@ async function delegate($: Engine, input: object, callId?: string): Promise<stri
   // Any type the Agent tool can dispatch, but a fork is that tool's own.
   if (!isNamed && type === 'fork') return FORK_REFUSED
   const list = await readWorkers($)
-  const inWorktree = new Set(await readWorktrees($))
+  const inWorktree = apartIds(list, await readWorktrees($))
   const woken = new Map((await readTakeovers($)).map(t => [t.id, t]))
 
   const call: Asked = { task, title, cwd, sessionCwd, type, model, callId }

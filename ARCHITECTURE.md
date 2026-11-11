@@ -43,7 +43,7 @@ the debug log. Its `unrecognized` logs there an engine text the crew reads in no
 | --- | --- |
 | `hooks/register.tsx` | Every hook, each matcher written inline. Nothing else. |
 | `src/hooks/` | The hook bodies: the session's events (`session.ts`), the `/crew` command (`commands.ts`), the crew's tools (`tools.ts`), every tool call watched (`watch.ts`), turn starts and ends (`turns.ts`), the system prompt and the user's messages (`prompt.ts`), compaction (`compact.ts`). |
-| `src/crew/` | The crew itself: the worker list and its statuses (`workers.ts`), `delegate` (`delegate.ts`), the crew's own agent type (`worker-type.ts`), what each worker's conversation holds (`context.ts`), the spawn hook (`spawn.ts`) and the name it puts ahead of an agent's title (`title.ts`) and of a worker's background shell or Monitor (`shell-title.ts`), the send hook (`sends.ts`), relays (`relay.ts`), takeovers and held tasks (`takeover.ts`), workers that end with no report or go quiet (`silence.ts`), tasks that wait for a run to end (`waiting.ts`), compactions the crew starts (`compaction.ts`), one way to send and record (`deliver.ts`), the sync with the engine's agents (`sync.ts`), the user's message to a worker (`message.ts`), what the pane and the rows are drawn from (`feed.ts`), the roster's data (`roster.ts`), and the files runs in flight have edited (`edits.ts`). |
+| `src/crew/` | The crew itself: the worker list and its statuses (`workers.ts`), `delegate` (`delegate.ts`), the crew's own agent type (`worker-type.ts`), what each worker's conversation holds (`context.ts`), the spawn hook (`spawn.ts`) and the name it puts ahead of an agent's title (`title.ts`) and of a worker's background shell or Monitor (`shell-title.ts`), the send hook (`sends.ts`), relays (`relay.ts`), takeovers and held tasks (`takeover.ts`), workers that end with no report or go quiet (`silence.ts`), tasks that wait for a run to end (`waiting.ts`), the worktree a worker makes for itself (`own-worktree.ts`), compactions the crew starts (`compaction.ts`), one way to send and record (`deliver.ts`), the sync with the engine's agents (`sync.ts`), the user's message to a worker (`message.ts`), what the pane and the rows are drawn from (`feed.ts`), the roster's data (`roster.ts`), and the files runs in flight have edited (`edits.ts`). |
 | `src/guard/runaway.ts` | The guard on Bash and PowerShell calls: it refuses a command that would not end (`tail -f`, `watch`, a watch mode, an endless loop), the main session's and every worker's. |
 | `src/prompts/` | Nearly every text a model reads ([docs/model-behavior.md](docs/model-behavior.md) lists them all): the orchestrator's brief and `[crew]` note (`orchestrator.ts`), the workers' preamble and the texts the crew sends them (`worker.ts`), the tool specs (`tools.ts`), the tool results and their parsers (`results.ts`), the roster's text (`roster.ts`), and what the `/crew` command answers (`commands.ts`). |
 | `src/progress/` | Progress, which no model reads: `run-store.ts` is the only module that records runs with the engine, `calls.ts` holds tool calls for the pane's next frame, `todos.ts` reads a plan off a todo list, `status.ts` pins the status line, `placed.ts` places the rows and keeps the check-in interval, and `tick.ts` is the progress tick; `runs.ts`, `round.ts`, `plan.ts`, `phase.ts`, `check-in.ts` are pure; `text/` builds the status line, the team view, the cards and the placed rows. |
@@ -59,7 +59,7 @@ the debug log. Its `unrecognized` logs there an engine text the crew reads in no
 | `src/config.ts` | The names the crew shares with the engine, the pane's tick, and the limits the roster and the briefs share. |
 | `src/words.ts` | The words, marks and colours of each worker status and run end. |
 | `src/runtime.ts` | What one load keeps in memory beside the atoms, and `resetRuntime`. See [Runtime state](#runtime-state-srcruntimets). |
-| `src/util/` | Pure helpers: text fitting, time, paths (POSIX and Windows), base64, seeded random, bounded lists, tool-input reading. |
+| `src/util/` | Pure helpers: text fitting, time, paths (POSIX and Windows), base64, seeded random, bounded lists, tool-input reading, a shell command's words (`shell.ts`). |
 | `types/index.d.ts` | The state contract (`PluginState.crew`) and the domain types. |
 
 ## State and persistence
@@ -75,7 +75,7 @@ under, so it never changes even where the code name differs.
 | `look` | `look` | `look-3` | The orchestrator's look |
 | `workers` | `workers` | `workers-2` | The crew: active workers and the 24 most recent free ones |
 | `dropped` | `dropped` | `dropped-1` | The **shelf**: workers cleared or let go, up to 50 |
-| `worktrees` | `worktrees` | `worktrees-1` | Ids of workers that work in a git worktree of their own |
+| `worktrees` | `worktrees` | `worktrees-1` | Ids of workers the engine started in a git worktree of their own; one that made its own carries `isApart` in `workers` |
 | `parents` | `parents` | `parents-1` | Agents a worker started, with that worker's name and whether it is a fork |
 | `messages` | `messages` | `messages-2` | The feed: who said what to whom, each line with `fromId`/`toId` (the person has a sentinel id) |
 | `orch` | `orch` | `orch-1` | The orchestrator's mood, activity and since when |
@@ -277,6 +277,36 @@ carry a spawn's type through.
 - An engine that refuses the registration leaves the workers general-purpose agents.
 - The type sets neither `maxTurns` nor `autoCompactWindow`: a run that meets its turn limit is cut
   with no report, and a task of a few hundred requests is an honest one.
+
+### Worktrees and the main branch
+
+The orchestrator and the worker read one story. A worker that edits commits in a git worktree and
+branch of its own, `git worktree add ../<repo>-<name> -b crew/<name>-<topic>`, unless its task
+names the branch, its base or the path, or says the user allowed the main branch (`gitRules`,
+`src/prompts/worker.ts`). The orchestrator's git rule says what the worker does by default and
+that a branch name or the user's go-ahead goes in the brief (`DELEGATION_RULES`), and the `task`
+argument lists it among what a brief holds. `delegate` has no argument for a worktree: the rules
+point at the worker's own, not at the Agent tool's `isolation`.
+
+A worker edits apart from the repository it is listed in when it has a worktree of its own, and
+the crew learns of one in two ways:
+
+- An agent the Agent tool started with `isolation: "worktree"` is in the `worktrees` atom from its
+  spawn: the engine made the worktree and starts the agent, and the agents it starts, there.
+- A worker that makes one for itself is marked `isApart` on the list. The engine knows nothing of
+  that worktree, so `watchCall` reads a worker's Bash and PowerShell calls: one that ran without an
+  error and holds `git worktree add` (`addsWorktree`, `src/crew/own-worktree.ts`) marks it.
+
+`apartIds` (`src/crew/workers.ts`) joins the two, and everything that asks whether a worker is in
+the repository reads it: the roster's row says `worktree of`, a delegate result says `in a
+worktree of` and names such a worker in no heads-up, and a teammate's preamble says `own worktree
+of`. Only the engine's worktree is where a worker's own agents start, so only it makes their
+preamble say so (`shared` in `briefFor`).
+
+The mark stays for the worker's life: the crew cannot tell a worker that went back to the
+repository from one still in its worktree. What it does not see: a path in quotes with a space in
+it, and an `add` that failed inside a command that ended well. A wrong mark hides only the
+worker's name in a heads-up; two workers that edit one file are still told so, by the file's path.
 
 ### What a worker's conversation holds
 
@@ -613,6 +643,8 @@ is noticed in the debug log: `unrecognized($, kind, detail)` (`src/engine.ts`) w
   its task and what its call asked when handed to the orchestrator to start), by address, until the spawn hook reads it.
 - **Isolated.** An Agent call that asked for `isolation: "worktree"`: its agent works in its own
   worktree.
+- **Apart.** A worker that edits in a git worktree of its own, the engine's or one it made, and so
+  is not busy in the repository it is listed in.
 - **Run.** One stretch of a worker's work, from the turn, task or message that starts it to its
   turn's end. Its time, calls, phase and plan belong to it.
 - **Phase.** What a run is busy with, read off its tool calls: thinking, reading, editing,

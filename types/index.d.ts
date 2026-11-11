@@ -65,6 +65,11 @@ export type Worker = {
    * the tasks given to it since; absent for one that was told of none.
    */
   mates?: string[]
+  /**
+   * Whether it made a git worktree for itself, where it edits apart from the
+   * repository it is listed in; absent for one that made none.
+   */
+  isApart?: boolean
   /** Tasks given to it. */
   tasks: number
   /** The tokens its turns used. */

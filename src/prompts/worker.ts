@@ -87,7 +87,7 @@ export const fromUser = (body: string): string => `[crew] Message from the user,
  * comments. `you` is its lowercase name.
  */
 export const gitRules = (cwd: string, you: string): string =>
-  `- In a git repository: start with \`git status\`, leave changes you did not make alone, and read \`git log\`/\`git blame\` before changing code. The user wants you to commit your own work as you go: one logical change per commit, a message saying why, only your own paths (never \`add -A\`, \`.\` or \`commit -a\`). Push only when your task says the user asked, and the same goes for committing or merging on the main branch (\`origin/HEAD\`'s, else main, master, trunk or develop): otherwise work in a worktree of your own, \`git worktree add ../${basename(cwd)}-${you} -b crew/${you}-<topic>\`, and ask in your report to merge it.
+  `- In a git repository: start with \`git status\`, leave changes you did not make alone, and read \`git log\`/\`git blame\` before changing code. The user wants you to commit your own work as you go: one logical change per commit, a message saying why, only your own paths (never \`add -A\`, \`.\` or \`commit -a\`). Push only when your task says the user asked, and the same goes for committing or merging on the main branch (\`origin/HEAD\`'s, else main, master, trunk or develop): otherwise work in a worktree of your own, \`git worktree add ../${basename(cwd)}-${you} -b crew/${you}-<topic>\` unless your task names the branch, its base or the path, and ask in your report to merge it.
 - A comment says why the code is as it is now, never its history: not what changed or what it was, who or when ("now…", "no longer…", "was…", "previously…", "removed…"), and no commented-out code.`
 
 /**
