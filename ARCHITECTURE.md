@@ -267,9 +267,11 @@ carry a spawn's type through.
 - To the orchestrator and to the crew the worker stays general-purpose: its `type` is the one
   asked, which a reuse compares, the roster leaves unsaid and a named call notes. Only the spawn
   names the crew's type.
-- The model is not offered the type (`hideWorkerType`, on `agent.offer`): a worker starts through
-  `delegate`, which briefs it and puts it on the list. So a worker handed to the orchestrator to
-  start in auto mode is the general-purpose agent its Agent call names, with every tool.
+- The model is offered the type like any other, with a description that says `delegate` starts
+  it: the engine asks `agent.offer` before it resumes an agent that ended too, so a type kept
+  from the model is one whose finished workers no message wakes. A worker handed to the
+  orchestrator to start in auto mode is still the general-purpose agent its handoff names, with
+  every tool.
 - An engine that refuses the registration leaves the workers general-purpose agents.
 - The type sets neither `maxTurns` nor `autoCompactWindow`: a run that meets its turn limit is cut
   with no report, and a task of a few hundred requests is an honest one.

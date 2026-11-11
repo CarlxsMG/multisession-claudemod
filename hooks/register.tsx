@@ -5,7 +5,6 @@ import { chooseCompactAt } from '../src/crew/compaction'
 import { onSend } from '../src/crew/sends'
 import { nameShell } from '../src/crew/shell-title'
 import { onSpawn } from '../src/crew/spawn'
-import { hideWorkerType } from '../src/crew/worker-type'
 import { chooseNapAfter } from '../src/crew/workers'
 import { guardRunaway } from '../src/guard/runaway'
 import { runCrewCommand } from '../src/hooks/commands'
@@ -101,9 +100,6 @@ export const register: Register = (on, options) => {
   on('session.end', ($, e, next) => onSessionEnd($, e, next))
 
   on('agent.spawn', ($, e, next) => onSpawn($, e, next))
-  // The crew's own agent type, which only delegate starts. If this fails the
-  // model is offered the type: an agent it starts so is one more on the list.
-  on('agent.offer', { agent: /^crew:worker$/ }, ($, e) => hideWorkerType($, e))
 
   on('session.send', ($, e, next) => onSend($, e, next)).catch(($, e, next) =>
     // Sent once only: a send that failed on its way is not tried again.

@@ -24,7 +24,8 @@ Guidelines:
  * The crew's own agent type as the engine registers it, `crew:worker`: a
  * general-purpose worker without the orchestrator's tools, which a worker is
  * refused and whose descriptions it would carry in every request. Its
- * description is for the engine's listing; no model is offered the type.
+ * description is the line the orchestrator reads of it among the agent
+ * types: it says who starts one.
  */
 export const WORKER_AGENT = {
   name: 'worker',
