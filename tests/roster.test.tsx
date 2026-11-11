@@ -57,7 +57,7 @@ test('the roster shows one worker in full when asked', async ($, on) => {
   const roster = async (worker?: string) => String((await $.tool.call({ tool: 'mcp__crew__roster', ...(worker ? { worker } : {}) })).result)
 
   const one = await roster('pip')
-  expect(one).toMatch(/^- Pip: address "pip", done, repo \/work\/api, .*last task "Billing map"\n {2}last report: Billing: y+$/)
+  expect(one).toMatch(/^- Pip: address "pip", done, repo \/work\/api, .*last task "Billing map", finished 0s ago\n {2}last report: Billing: y+$/)
   expect(one).toContain(answer)
   expect(await roster()).toMatch(/last report: Billing: y+…$/)
   expect(await roster('nobody')).toBe('crew: no worker "nobody". Workers: pip.')
@@ -79,7 +79,7 @@ test('one worker asked for alone shows its report whole, line by line; the list 
   // Whole: every line under the label, indented, with no space left at a line's end and one blank line at most.
   const one = await roster('pip')
   const shown = one.split('\n')
-  expect(shown[0]).toMatch(/^- Pip: address "pip", done, repo \/work\/api, .*last task "Billing map"$/)
+  expect(shown[0]).toMatch(/^- Pip: address "pip", done, repo \/work\/api, .*last task "Billing map", finished 0s ago$/)
   expect(shown.slice(1, 5)).toEqual(['  last report:', '  Billing mapped.', '', '  Files:'])
   for (const file of files) expect(one).toContain(`\n  ${file}\n`)
   expect(one.endsWith('\n\n  Checks: 42 pass.')).toBe(true)
@@ -178,7 +178,7 @@ test('the roster keeps to the active in full and cuts old reports', async ($, on
   const lines = text.split('\n')
   expect(lines[0]).toBe("Nova's crew (14):")
   expect(lines[1]).toMatch(/^- \S+: address "\S+", starting, repo \/work\/r14, model test-model, 1 task, 0 tokens, last task "Task 14"/)
-  expect(lines[2]).toMatch(/^- \S+: address "\S+", done, repo \/work\/r13, model test-model, 1 task, ~45k tokens, last task "Task 13"$/)
+  expect(lines[2]).toMatch(/^- \S+: address "\S+", done, repo \/work\/r13, model test-model, 1 task, ~45k tokens, last task "Task 13", finished \d+s ago$/)
   const reports = lines.filter(x => x.startsWith('  last report: '))
   expect(reports).toHaveLength(3)
   expect(reports[0]).toMatch(/^ {2}last report: Informe 13: x+…$/)

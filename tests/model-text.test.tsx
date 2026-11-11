@@ -167,6 +167,19 @@ test("delegate's result for a free worker picked over others that were free", as
   expectText('result.givenOverOthers', await delegate($, { task: 'Add the tests', title: 'Tests', repo: '/work/api' }))
 })
 
+test("delegate's result when every free worker last worked too long ago to reuse unnamed", async ($, on) => {
+  let spawned = 0
+  const clock = engine(on, { nextId: () => `agent-${++spawned}`, seen: recording() })
+  await start($)
+  for (const title of ['Login', 'Styles']) await delegate($, { task: `Build the ${title}`, title, repo: '/work/api', fresh: true })
+  for (let i = 1; i <= 2; i++) {
+    await clock.advance(1000)
+    await finish($, `agent-${i}`)
+  }
+  await clock.advance(5 * 60_000)
+  expectText('result.startedAfterIdle', await delegate($, { task: 'Add the tests', title: 'Tests', repo: '/work/api' }))
+})
+
 test("delegate's results when free workers could not be reached: the next one, and a new one when none is", async ($, on) => {
   let spawned = 0
   const seen = recording()

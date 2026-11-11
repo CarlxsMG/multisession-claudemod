@@ -4,6 +4,7 @@ import type { ParentLink, Plan, Takeover, Worker } from '../../types'
 import { DEFAULT_TYPE, ROSTER_FULL_REPORT_CUT, ROSTER_REPORT_CUT, ROSTER_ROWS } from '../config'
 import { stepText } from '../progress/plan'
 import { lines, oneLine } from '../util/text'
+import { shortTime } from '../util/time'
 
 /** What a worker's row says besides the worker itself. */
 export type RowFacts = {
@@ -38,7 +39,8 @@ export const FULL_ROW_CUT: RowCut = { task: 400, report: ROSTER_FULL_REPORT_CUT 
 
 const plural = (n: number, word: string): string => `${n} ${word}${n === 1 ? '' : 's'}`
 
-const tokensText = (n: number): string => (n < 1000 ? `${n} tokens` : `~${Math.round(n / 1000)}k tokens`)
+/** The tokens a worker's turns used, as a row and a delegate result give them. */
+export const tokensText = (n: number): string => (n < 1000 ? `${n} tokens` : `~${Math.round(n / 1000)}k tokens`)
 
 // A last report under its row: one line beside its label, or, whole and of
 // several lines, each under the label and indented as it is.
@@ -62,7 +64,10 @@ export function rosterRow(worker: Worker, facts: RowFacts, cut: RowCut): string 
   const task = `last task "${oneLine(worker.task, cut.task)}"`
   const said = facts.report !== undefined ? lines(facts.report, cut.report) : oneLine(worker.answer, cut.report)
   const report = cut.report > 0 && said !== '' ? lastReport(said) : ''
-  if (!facts.isActive) return `${head}${mark}, ${where}, ${history}, ${task}${report}`
+  // When a free worker's last turn ended: past the prompt cache's life, waking
+  // it costs its whole conversation again.
+  const finished = worker.finishedAt === undefined ? '' : `, finished ${shortTime(Math.max(0, facts.now - worker.finishedAt))} ago`
+  if (!facts.isActive) return `${head}${mark}, ${where}, ${history}, ${task}${finished}${report}`
   const doing = worker.activity ? ` (${worker.activity})` : ''
   const step = facts.plan === undefined ? '' : `, step ${stepText(facts.plan)}`
   const age = Math.round((facts.now - worker.updatedAt) / 1000)

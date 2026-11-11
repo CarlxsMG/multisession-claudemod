@@ -19,7 +19,7 @@ export const GOLDEN: Record<string, string> = {
     "Persona: Nova is cheerful and encouraging, a warm teammate. Let it color greetings and short status lines only; technical content stays precise and plain.",
   ].join('\n'),
   "spec.delegate.description": [
-    "Hand a task to a crew worker: a named background subagent, general-purpose unless `subagent_type` says otherwise, that reports back when done. Goes to the worker you name; else to the free worker this tool started in that repository, of that type and on that model (the session's when unset), that last finished a task, or the next it can reach; it keeps its context; else to a new one. Returns at once: the worker's address, and who else is busy where it works.",
+    "Hand a task to a crew worker: a named background subagent, general-purpose unless `subagent_type` says otherwise, that reports back when done. Goes to the worker you name; else to the free worker this tool started in that repository, of that type and on that model (the session's when unset), that last finished a task, if it did within 4 min (its context is still cached), or the next such it can reach; it keeps its context; else to a new one. Returns at once: the worker's address, and who else is busy where it works.",
     "",
     "These rules are for the main assistant, the crew's orchestrator, while delegation is ON (its crew brief or the latest \"[crew]\" note says whether it is); a worker or fork reading them ignores them and does its own task.",
     "",
@@ -270,15 +270,15 @@ export const GOLDEN: Record<string, string> = {
     "Heads-up: Pip is working in this repository; keep files apart or wait for its report.",
   ].join('\n'),
   "result.givenBesideBusy": [
-    "Given to Pip (address \"pip\") in /work/api, the free worker of that type and model there that last finished a task; context kept.",
+    "Given to Pip (address \"pip\") in /work/api, the free worker of that type and model there that last finished a task; context kept: last task \"Login\", finished 0s ago, 0 tokens used.",
     "Heads-up: Bolt is working in this repository; keep files apart or wait for its report.",
   ].join('\n'),
-  "result.givenOverOthers": "Given to Luna (address \"luna\") in /work/api, the free worker of that type and model there that last finished a task (also free: Tito, Mika, Bolt and 1 more; name one with `worker` to pick it); context kept.",
+  "result.givenOverOthers": "Given to Luna (address \"luna\") in /work/api, the free worker of that type and model there that last finished a task (also free: Tito, Mika, Bolt and 1 more; name one with `worker` to pick it); context kept: last task \"Search\", finished 0s ago, 0 tokens used.",
   "result.givenUnapplied": "Given to Pip (address \"pip\") in /work/api, as named; context kept. Not applied, as a named worker stays as it is: `repo` /work/web (it works in /work/api); `subagent_type` Explore (it is general-purpose); `model` opus (it runs on test-model); `fresh` (it is not a new worker).",
   "result.heldUnapplied": "Held for Bolt (address \"agent-2\"): Bolt is answering Pip, whose message woke it. It gets this task when that run ends, and reports to you. Not applied, as a named worker stays as it is: `fresh` (it is not a new worker).",
   "result.givenWhileBusy": "Given to Pip (address \"pip\") in /work/api, as named; context kept. Pip is busy: the task reached it as a message in the middle of \"Login\", which it may finish first or set aside.",
   "result.givenAfterFailure": "Given to Pip (address \"pip\") in /work/api, as named; context kept. Pip's last run failed: if this task builds on that one, have it check what was left undone.",
-  "result.givenAfterStop": "Given to Pip (address \"pip\") in /work/api, the free worker of that type and model there that last finished a task; context kept. Pip's last run was stopped: if this task builds on that one, have it check what was left undone.",
+  "result.givenAfterStop": "Given to Pip (address \"pip\") in /work/api, the free worker of that type and model there that last finished a task; context kept: last task \"Login again\", finished 0s ago, 0 tokens used. Pip's last run was stopped: if this task builds on that one, have it check what was left undone.",
   "task.reused": [
     "Add the tests",
     "",
@@ -292,11 +292,12 @@ export const GOLDEN: Record<string, string> = {
   "result.noModel": "crew: no model \"gpt-5\"; nothing started. Models: sonnet, opus, fable, or none for the session's.",
   "result.notForWorkers": "crew: delegate is Nova's tool, not a worker's; nothing started. To split your task, fork yourself once per part (Agent tool, `subagent_type: \"fork\"`) and report the whole; for work beyond it, ask Nova in your report.",
   "result.unreachable": "crew: could not reach Bolt: the agent is gone",
+  "result.startedAfterIdle": "Started Mika (address \"mika\", id ?) in /work/api, as no free worker of that type and model there finished a task in the last 4 min, so none has its context cached (also free: Bolt, Pip; name one with `worker` to pick it).",
   "result.startedAfterLost": [
     "Started Mika (address \"mika\", id ?) in /work/api, as Bolt, free there, could not be reached (the agent is gone).",
     "Heads-up: Pip is working in this repository; keep files apart or wait for its report.",
   ].join('\n'),
-  "result.givenAfterLost": "Given to Tito (address \"tito\") in /work/api, the next free worker of that type and model there (also free: Mika, Bolt, Pip; name one with `worker` to pick it), as Luna could not be reached (the agent is gone); context kept.",
+  "result.givenAfterLost": "Given to Tito (address \"tito\") in /work/api, the next free worker of that type and model there (also free: Mika, Bolt, Pip; name one with `worker` to pick it), as Luna could not be reached (the agent is gone); context kept: last task \"Deploy\", finished 1s ago, 0 tokens used.",
   "result.startedAfterLostMany": [
     "Started Rex (address \"rex\", id ?) in /work/api, as Luna (the agent is gone), Mika (the agent is gone) and Bolt (the agent is gone), free there, could not be reached, and no more were tried (also free: Pip; name one with `worker` to pick it).",
     "Heads-up: Tito is working in this repository; keep files apart or wait for its report.",
@@ -382,11 +383,11 @@ export const GOLDEN: Record<string, string> = {
     "Nova's crew (3):",
     "- Mika: address \"agent-3\", starting, fork of Bolt, repo /work/web, fork, model test-model, 1 task, 0 tokens, last task \"Frontend\", 0 tool calls, updated 0s ago",
     "- Bolt: address \"bolt\", working (Edit app.css), step 2/4, repo /work/web, model test-model, 1 task, 0 tokens, last task \"Styles\", 1 tool call, updated 30s ago",
-    "- Pip: address \"pip\", done, repo /work/api, model test-model, 1 task, 0 tokens, last task \"Login\"",
+    "- Pip: address \"pip\", done, repo /work/api, model test-model, 1 task, 0 tokens, last task \"Login\", finished 0s ago",
     "  last report: Login fixed: the token now refreshes. Tests: 42 pass.",
   ].join('\n'),
   "roster.one": [
-    "- Pip: address \"pip\", done, repo /work/api, model test-model, 1 task, 0 tokens, last task \"Login\"",
+    "- Pip: address \"pip\", done, repo /work/api, model test-model, 1 task, 0 tokens, last task \"Login\", finished 0s ago",
     "  last report:",
     "  Login fixed: the token now refreshes.",
     "  Tests: 42 pass.",
@@ -503,7 +504,7 @@ export const GOLDEN: Record<string, string> = {
   "compact.crewState": [
     "[crew] The crew as of the last compaction or resume, for the main assistant (a worker ignores this). It goes stale: call mcp__crew__roster for live state; reports that came back since arrive on their own.",
     "Nova's crew (1):",
-    "- Pip: address \"pip\", done, repo /work/api, model test-model, 1 task, 0 tokens, last task \"Login\"",
+    "- Pip: address \"pip\", done, repo /work/api, model test-model, 1 task, 0 tokens, last task \"Login\", finished 0s ago",
     "  last report: Done: 3 files changed, tests green.",
   ].join('\n'),
   "brief.compact": [

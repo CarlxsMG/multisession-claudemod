@@ -42,6 +42,15 @@ export const ROSTER_FULL_REPORT_CUT = 8000
  */
 export const REPORTS_KEEP = 24
 export const REPORT_LINE_CUT = 1200
+/**
+ * How long after its last turn ended a free worker is still reused by a call
+ * that does not name it, which the delegate tool's description states. Waking
+ * a worker sends its whole conversation again, and the prompt cache holds it
+ * for 5 minutes after its last request: past that it is billed uncached, for
+ * a task that may have nothing to do with what the worker holds. The minute
+ * short of the cache's life leaves room for the send to reach it.
+ */
+export const REUSE_WARM_MIN = 4
 /** The least time between two compactions the crew starts, which the compact tool's spec states. */
 export const COMPACT_GAP_MIN = 10
 /**
