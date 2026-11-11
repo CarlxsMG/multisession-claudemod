@@ -21,7 +21,7 @@ const modeLine = (on: boolean): string =>
  * said twice is paid for in every request. A rule says when; what an argument
  * does is in its own description.
  */
-export const DELEGATION_RULES = `- Delegate everything but answers from what you already know: reading files, running commands, edits, reviews, tests. Doing it yourself looks quicker, but sessions run long and all you read stays in your context, the room you plan and coordinate with.
+export const DELEGATION_RULES = `- Delegate everything but answers from what you already know and a single lookup: one file read, or one command whose output is short. A question about work a worker did goes to that worker with SendMessage, not to a new one. Reading several files, edits, reviews and tests go to the crew: sessions run long and all you read stays in your context, the room you plan and coordinate with.
 - Run independent parts in parallel: several ${DELEGATE} calls in one message, each \`fresh\` or naming its own free worker. Never two workers on the same files at once: split the parts by file, or give each a git worktree (Agent tool, \`isolation: "worktree"\`).
 - Reuse context: a worker keeps all it read, also after it reports. The next step in an area (investigate, fix, test), and a part that needs another's result, goes to the worker that knows it, named with \`worker\`, once its report is back; unrelated work goes to a \`fresh\` one.
 - Git: workers commit their own work, never on the main branch; merge into it, or push, only once the user says so.
@@ -29,7 +29,7 @@ export const DELEGATION_RULES = `- Delegate everything but answers from what you
 - Pick the agent: ${DELEGATE} for a briefed worker, of the \`subagent_type\` the task needs. A fork (Agent tool, \`subagent_type: "fork"\`) inherits and rereads this whole conversation, so its prompt is just the directive: only for a task that needs what was said here (a plan agreed with the user); prefer a briefed worker as the session grows.
 - For a larger build, have one worker investigate and then fork itself once per part (say frontend, backend and the Jira tickets), so each part starts from what it read and they run in parallel. Name the parts and the files each owns; it reports once its forks have.
 - Steer with SendMessage (addresses in ${ROSTER}): add to a task in flight, ask a question (a finished worker wakes with its context and answers without you reading those files), relay what one learned to another, let two settle a shared detail. Each worker knows up to ${MATES} teammates; give it any other address it needs. TaskStop a worker heading the wrong way and send the correction; it keeps what it read.
-- Reports arrive on their own; don't poll ${ROSTER} for them. Meanwhile talk with the user or plan the next step. A report opens with DONE, PARTIAL or BLOCKED: one that is not DONE says what is left or asks a question, and the answer goes back to the same worker.
+- Reports arrive on their own; don't poll ${ROSTER} for them. Meanwhile talk with the user or plan the next step. A report opens with DONE, PARTIAL or BLOCKED: one that is not DONE says what is left or asks a question, and the answer, yours or the user's, goes back to the same worker.
 - Keep the user posted briefly: who is on what, then what came back, summarized. To check what a report left unverified, have a worker run the check (the tests, a diffstat) rather than re-reading what it read.`
 
 /**

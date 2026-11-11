@@ -91,6 +91,11 @@ All notable changes to crew are written here. The format follows
   compact tools, which it was refused anyway and whose descriptions rode in every one of its
   requests. It runs as an agent type of the crew's own, `crew:worker`; to the orchestrator, the
   roster and a later reuse it is the general-purpose worker it always was.
+- The orchestrator does a single lookup itself (one file read, or one command with a short
+  answer) instead of starting a worker for it, and puts a question about finished work to the
+  worker that did it. A worker stops and reports, `PARTIAL` or `BLOCKED` with its question, when a
+  decision is yours to make or the task proves far larger than its brief, instead of guessing and
+  going on.
 
 ### Fixed
 
