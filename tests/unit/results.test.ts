@@ -1,6 +1,6 @@
 import { expect, test } from 'claude-code/testing'
 
-import { NEW_NONE_FREE, PICKED_FREE, delegatedTo, given, headsUp, heldFor, pickedFree, readDelegate, started } from '../../src/prompts/results'
+import { NEW_NONE_FREE, PICKED_FREE, delegatedTo, given, headsUp, heldFor, pickedFree, readDelegate, started, unsureSend } from '../../src/prompts/results'
 
 const pip = { name: 'Pip', address: 'pip' }
 
@@ -32,6 +32,10 @@ test('a free worker picked over others names up to three of them and counts the 
 test('a result delegate did not write reads as nothing', () => {
   expect(readDelegate('crew: `task` is required.')).toBeUndefined()
   expect(readDelegate('')).toBeUndefined()
+  // A send that may have gone out gave the task to no one the crew knows of.
+  const unsure = unsureSend(pip, [{ name: 'Bolt', reason: 'crew: the agent is gone.' }])
+  expect(readDelegate(unsure)).toBeUndefined()
+  expect(delegatedTo(unsure)).toBeUndefined()
 })
 
 test("the worker a delegate result reached reads back from it, with the id a new one's gives", () => {

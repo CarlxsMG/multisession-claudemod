@@ -3,6 +3,7 @@
 // of its text sit together, so a change in wording reaches both;
 // tests/golden/model-text.ts holds each text as it is.
 import type { Plan, Worker } from '../../types'
+import { ROSTER } from '../config'
 
 // ---- delegate ----
 
@@ -21,6 +22,14 @@ export const noWorker = (key: string, addresses: readonly string[]): string =>
   `crew: no worker "${key}". Workers: ${addresses.length > 0 ? addresses.join(', ') : 'none'}.`
 
 export const unreachable = (name: string, reason: string): string => `crew: could not reach ${name}: ${reason}`
+
+/**
+ * A free worker's send failed on its way and may have arrived: no other
+ * worker is given the task, as two would then do it. `lost` are the free
+ * ones tried before it that could not be reached.
+ */
+export const unsureSend = (w: Pick<Worker, 'name' | 'address'>, lost: readonly Lost[]): string =>
+  `crew: the task may have reached ${w.name} (address "${w.address}"): its send failed on its way, so no other worker was tried and none started.${lost.length > 0 ? ` Before it, ${notReached(lost)}.` : ''} See whether ${w.name} is working (${ROSTER} with \`worker\` "${w.address}"): if it is, it has the task and reports to you; if not, give the task again.`
 
 // What became of the tasks held for a woken worker that did not reach it:
 // they wait for the next task given to it.
@@ -165,6 +174,9 @@ export const givenWhileBusy = (name: string, inFlight: string): string =>
 
 /** What a task given to a worker named after a failed run adds. */
 export const givenAfterFailure = (name: string): string => ` ${name}'s last run failed: if this task builds on that one, have it check what was left undone.`
+
+/** What a task given to a worker whose last run was stopped adds, named or not. */
+export const givenAfterStop = (name: string): string => ` ${name}'s last run was stopped: if this task builds on that one, have it check what was left undone.`
 
 /** A `repo` a call gave with a worker that works elsewhere; `where` as `given` takes it. */
 export const unappliedRepo = (asked: string, where: string): string => `\`repo\` ${asked} (it works in ${where})`
