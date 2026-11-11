@@ -29,7 +29,7 @@ const roster = async ($: Dollar, input: Record<string, unknown> = {}) => String(
 const finish = (_$: Dollar, agentId: string, answer = 'Done: 3 files changed, tests green.') =>
   _$.turn.complete({ answer, durationMs: 1, isAborted: false, turnId: `t-${agentId}-${answer.length}`, agentId, reason: 'answer' })
 
-const recording = (): Seen => ({ prompts: [], sends: [], specs: [] })
+const recording = (): Seen => ({ prompts: [], sends: [], specs: [], agentTypes: [] })
 
 const composed = (on: On) => on('prompt.compose', () => ({ sections: [{ id: 'intro', text: 'You are Claude Code.', scope: 'shared' as const }] }))
 
@@ -68,6 +68,7 @@ for (const isOn of [true, false]) {
       expectText('spec.roster', spec('roster'))
       expectText('spec.progress', spec('progress'))
       expectText('spec.compact', spec('compact'))
+      expectText('agent.worker', seen.agentTypes![0])
     }
   })
 }

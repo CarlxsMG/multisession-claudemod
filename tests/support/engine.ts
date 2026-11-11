@@ -32,6 +32,8 @@ export type Seen = {
   undelivered?: string
   gone?: Record<string, string>
   spawns?: AgentSpawnInput[]
+  agentTypes?: { name: string; description: string; prompt: string; disallowedTools?: readonly string[] }[]
+  refuseTypes?: boolean
   refuse?: string
   refused?: number
   refuseAgent?: string
@@ -78,6 +80,11 @@ export function engine(on: On, options: EngineOptions = {}) {
     if (e.name === 'delegate') seen?.tools?.push(e.description)
     seen?.specs?.push({ name: e.name, description: e.description, inputSchema: e.inputSchema })
     return { value: { tool: `mcp__crew__${e.name}` } }
+  })
+  on('agent.register', (_, e) => {
+    if (seen?.refuseTypes === true) throw new Error('agent types are off')
+    seen?.agentTypes?.push(e)
+    return { value: { agent: `crew:${e.name}` } }
   })
   on('ui.open', (_, e) => {
     seen?.opens?.push(e.id)

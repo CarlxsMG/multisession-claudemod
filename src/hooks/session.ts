@@ -5,6 +5,7 @@ import type { HookFor } from 'claude-code'
 import type { MoodLines } from '../../types'
 import { TICK_MS } from '../config'
 import { enlist } from '../crew/feed'
+import { registerWorkerType } from '../crew/worker-type'
 import { quiet } from '../engine'
 import type { Engine } from '../engine'
 import { setPalette256 } from '../figure/color256'
@@ -68,6 +69,7 @@ export async function onSessionStart($: Engine, e: Parameters<OnSessionStartHook
   await $.tool.register(ROSTER_SPEC)
   await $.tool.register(PROGRESS_SPEC)
   await $.tool.register(COMPACT_SPEC)
+  await registerWorkerType($)
   await enlist($, [...(await readDropped($)), ...(await readWorkers($))])
   $.clock.every(TICK_MS, () => tick($))
   await startProgress($)
