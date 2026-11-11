@@ -8,6 +8,10 @@ All notable changes to crew are written here. The format follows
 
 ### Added
 
+- The orchestrator hears of a worker that will not report: one Claude Code dropped while it was
+  busy, and one that has been busy for 10 minutes with no tool call, turn or message. It is told
+  once, with its next crew tool call or your next message, and a toast tells you at the moment,
+  so a stuck worker no longer waits for you to notice.
 - The orchestrator can hand a task over ahead of time with `after` on `mcp__crew__delegate`: the
   task waits for the busy worker it names and is given when that worker's run ends, as a task of
   its own, to that worker, to another one or to a new one. A task for a busy worker no longer has

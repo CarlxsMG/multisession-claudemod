@@ -33,6 +33,8 @@ export const es: Messages = {
   notDelivered: (text, reason) => (reason === undefined ? `${text} (no entregado)` : `${text} (no entregado: ${reason})`),
   missedWorker: (name, reason) => `No llegó a ${name}: ${reason}`,
   missedRelay: (name, by, reason) => `No llegó a ${name} el mensaje de ${by}: ${reason}`,
+  goneWorker: name => `${name} terminó sin informe`,
+  quietWorker: (name, minutes) => `Sin noticias de ${name} desde hace ${minutes} min`,
   notGiven: (title, reason) => `"${title}" no se entregó: ${reason}`,
   compaction: {
     done: 'Conversación compactada; el resumen conserva el equipo',

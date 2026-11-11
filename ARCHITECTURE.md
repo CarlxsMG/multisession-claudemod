@@ -43,7 +43,7 @@ the debug log. Its `unrecognized` logs there an engine text the crew reads in no
 | --- | --- |
 | `hooks/register.tsx` | Every hook, each matcher written inline. Nothing else. |
 | `src/hooks/` | The hook bodies: the session's events (`session.ts`), the `/crew` command (`commands.ts`), the crew's tools (`tools.ts`), every tool call watched (`watch.ts`), turn starts and ends (`turns.ts`), the system prompt and the user's messages (`prompt.ts`), compaction (`compact.ts`). |
-| `src/crew/` | The crew itself: the worker list and its statuses (`workers.ts`), `delegate` (`delegate.ts`), the spawn hook (`spawn.ts`) and the name it puts ahead of an agent's title (`title.ts`) and of a worker's background shell or Monitor (`shell-title.ts`), the send hook (`sends.ts`), relays (`relay.ts`), takeovers and held tasks (`takeover.ts`), tasks that wait for a run to end (`waiting.ts`), compactions the crew starts (`compaction.ts`), one way to send and record (`deliver.ts`), the sync with the engine's agents (`sync.ts`), the user's message to a worker (`message.ts`), what the pane and the rows are drawn from (`feed.ts`), and the roster's data (`roster.ts`). |
+| `src/crew/` | The crew itself: the worker list and its statuses (`workers.ts`), `delegate` (`delegate.ts`), the spawn hook (`spawn.ts`) and the name it puts ahead of an agent's title (`title.ts`) and of a worker's background shell or Monitor (`shell-title.ts`), the send hook (`sends.ts`), relays (`relay.ts`), takeovers and held tasks (`takeover.ts`), workers that end with no report or go quiet (`silence.ts`), tasks that wait for a run to end (`waiting.ts`), compactions the crew starts (`compaction.ts`), one way to send and record (`deliver.ts`), the sync with the engine's agents (`sync.ts`), the user's message to a worker (`message.ts`), what the pane and the rows are drawn from (`feed.ts`), and the roster's data (`roster.ts`). |
 | `src/guard/runaway.ts` | The guard on Bash and PowerShell calls: it refuses a command that would not end (`tail -f`, `watch`, a watch mode, an endless loop), the main session's and every worker's. |
 | `src/prompts/` | Nearly every text a model reads ([docs/model-behavior.md](docs/model-behavior.md) lists them all): the orchestrator's brief and `[crew]` note (`orchestrator.ts`), the workers' preamble and the texts the crew sends them (`worker.ts`), the tool specs (`tools.ts`), the tool results and their parsers (`results.ts`), the roster's text (`roster.ts`), and what the `/crew` command answers (`commands.ts`). |
 | `src/progress/` | Progress, which no model reads: `run-store.ts` is the only module that records runs with the engine, `calls.ts` holds tool calls for the pane's next frame, `todos.ts` reads a plan off a todo list, `status.ts` pins the status line, `placed.ts` places the rows and keeps the check-in interval, and `tick.ts` is the progress tick; `runs.ts`, `round.ts`, `plan.ts`, `phase.ts`, `check-in.ts` are pure; `text/` builds the status line, the team view, the cards and the placed rows. |
@@ -110,6 +110,7 @@ under, so it never changes even where the code name differs.
 | `background` | `background` | `background-1` | Shells and Monitors left running in the background, whose each is, its process and when its owner's turn ended, up to 100 |
 | `compactAsk` | `compaction` | `compactAsk-1` | The compaction the orchestrator or `compactAt` asked for, until a safe moment runs it, and when the crew last ran one |
 | `waiting` | `waiting` | `waiting-1` | Tasks a delegate call's `after` holds until a worker's run ends, and those not given, until the orchestrator is told |
+| `silences` | `silences` | `silences-1` | Workers no report will come from, and busy ones nothing was heard from for long, until the orchestrator is told |
 
 The last five hold what a call under way leaves for the hooks that follow it, which a reload of
 the plugin's code may come between: a spawn auto mode handed to the orchestrator, an Agent call
@@ -406,6 +407,15 @@ finished worker (a message, a resume, a turn's start, a tool call) has a hook. A
 the engine lists no more, with nothing heard from it for a minute (`GONE_MS`), takes its run's
 end, or `stopped` when that end never reached the crew and the engine had listed it. Which agents
 it listed is an atom: the engine may drop one around a reload, where no sync of the next load sees it.
+
+No report comes from a worker ended that way, and none from one that is stuck, so the orchestrator,
+which is told not to poll, would wait for good. The sync notes both as a **silence**
+(`src/crew/silence.ts`): `gone`, a busy worker it just ended with no end of its run heard, and
+`quiet`, a busy worker with no tool call, turn or message for `QUIET_MIN` (10 minutes), unless it
+has a busy agent of its own to wait for; it looks for those every 30 s at most. Each is said once, at the end of the next delegate or
+roster result of the main conversation or in a `[crew]` note on the person's next message, and a
+toast says it at once. A quiet worker heard from again is forgotten, so its next quiet spell is
+told anew. A worker's own calls are told nothing.
 
 ## Rendering
 

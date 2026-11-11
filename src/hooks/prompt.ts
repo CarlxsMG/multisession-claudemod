@@ -3,6 +3,7 @@
 import type { HookFor } from 'claude-code'
 
 import { ORCH_ID, USER_ID, say } from '../crew/feed'
+import { markSilentTold, untoldSilent } from '../crew/silence'
 import { forgetWaiting, untoldWaiting } from '../crew/waiting'
 import type { Engine } from '../engine'
 import { t } from '../i18n'
@@ -45,13 +46,16 @@ export async function onSubmit($: Engine, e: Parameters<OnSubmitHook>[1], next: 
   const missed = (await readTakeovers($)).filter(mark => mark.missed !== undefined && mark.isTold !== true)
   // So do the tasks that waited for a run and were not given.
   const notGiven = await untoldWaiting($)
-  if (pending === null && missed.length === 0 && notGiven.length === 0) return next(e)
+  // And the workers no report will come from, or that went quiet.
+  const silent = await untoldSilent($)
+  if (pending === null && missed.length === 0 && notGiven.length === 0 && silent.notes.length === 0) return next(e)
   const workers = await readWorkers($)
   const missedNotes = missed.map(m => heldMissedNote(workers.find(w => w.id === m.id) ?? { name: m.id, address: m.id }, m.held.length, m.missed ?? ''))
   // Context is attached on the way down; the text stays the user's.
-  const notes = [...(pending !== null ? [crewNote(pending)] : []), ...missedNotes, ...notGiven.map(w => w.note)]
+  const notes = [...(pending !== null ? [crewNote(pending)] : []), ...missedNotes, ...notGiven.map(w => w.note), ...silent.notes]
   const entered = await next({ ...e, context: [...(e.context ?? []), ...notes] })
   if (entered.drop !== undefined) return entered
+  await markSilentTold($, silent.silences)
   if (notGiven.length > 0)
     await forgetWaiting(
       $,
