@@ -3,3 +3,5 @@ node_modules/
 *.log
 # Written by Claude Code when it loads the plugin; it lists the MCP tools of the machine.
 .claude-plugin/types/
+# What a run of the eval suite writes: its scores, its report and the prompts it sent.
+evals/results/

@@ -1,0 +1,18 @@
+schema_version: '1.1'
+name: multi-parallel
+description: Two independent parts across several files go to the crew.
+tags: [delegation, multi-file]
+runs: 1
+execution:
+  max_turns: 4
+  timeout_seconds: 240
+  allowed_tools: [Read, Glob, Grep]
+  prompt: |
+    Two independent things, please: check whether prices are rounded the same way everywhere under `src/`, and write me a one-line description of each exported function of every module for the README.
+context:
+  scaffold_script: fixture.sh
+graders:
+  - name: delegates
+    type: tool_used
+    tool: mcp__crew__delegate
+    min: 1

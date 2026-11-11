@@ -1,0 +1,22 @@
+schema_version: '1.1'
+name: trivial-version
+description: One file read is a lookup the orchestrator does itself.
+tags: [delegation, trivial]
+runs: 1
+execution:
+  max_turns: 4
+  timeout_seconds: 240
+  allowed_tools: [Read, Glob, Grep]
+  prompt: |
+    Which version does the `package.json` of this project declare?
+context:
+  scaffold_script: fixture.sh
+graders:
+  - name: does-it-itself
+    type: tool_used
+    tool: mcp__crew__delegate
+    min: 0
+    max: 0
+  - name: answers
+    type: regex
+    pattern: '3\.4\.1'
