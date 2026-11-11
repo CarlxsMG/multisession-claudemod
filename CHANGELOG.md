@@ -48,6 +48,12 @@ All notable changes to crew are written here. The format follows
 - A worker with a plan of three steps or more calls the progress tool as each step starts, from
   step 1; the call that only declared the plan, step 0, is no longer asked of it, which saves a
   request per task. A plan declared at step 0 still works.
+- A delegation that names no worker reuses a free one only if it finished a task in the last 4
+  minutes, while its conversation is still in the prompt cache: waking one idle longer sends its
+  whole conversation again uncached, for a task that may have nothing to do with it. Such a worker
+  is passed over and named in the result, and still takes a task when the orchestrator names it.
+  The result of an unnamed reuse says what the worker holds (its last task, when it finished, the
+  tokens it used), and the roster says when each free worker finished.
 
 ### Fixed
 

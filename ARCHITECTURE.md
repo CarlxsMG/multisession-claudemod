@@ -183,7 +183,12 @@ holds no look, and is turned down as a bad code.
 3. It picks the worker: the one named, else (without `fresh`) the most recent free worker that
    `delegate` started in that repository, of the same type and on the model asked for (the
    session's when none) however its own call named that model, that is not woken by another
-   worker; else none.
+   worker, and whose last turn ended within `REUSE_WARM_MIN` (4 minutes); else none. Waking a
+   worker sends its whole conversation again, and past the prompt cache's 5 minutes that is
+   billed uncached, for a task that may have nothing to do with what it holds: a free worker
+   idle longer is reused only when named, and the result names it. The result of an unnamed
+   reuse says what the worker's context holds: its last task, when it finished and the tokens
+   its turns used.
 4. A reused worker gets the task through `deliver`, a send from the main conversation, with a
    short reminder of how to report and, when teammates are there that it was not told of (its
    `mates` hold the addresses it was), a line naming them; held tasks that once missed it go

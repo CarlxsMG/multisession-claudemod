@@ -529,7 +529,7 @@ test('the result says why its worker got the task: named, the free one, or a new
   await done('agent-1')
   expect(first(await delegate({ task: 'Write the docs', fresh: true }))).toBe('Started Bolt (address "bolt", id ?) in /work/api, as `fresh` asked.')
   expect(first(await delegate({ task: 'Add the endpoint' }))).toBe(
-    'Given to Pip (address "pip") in /work/api, the free worker of that type and model there that last finished a task; context kept.',
+    'Given to Pip (address "pip") in /work/api, the free worker of that type and model there that last finished a task; context kept: last task "Map the API", finished 0s ago, 0 tokens used.',
   )
   await done('agent-1')
   expect(first(await delegate({ task: 'Test the endpoint', worker: 'pip' }))).toBe('Given to Pip (address "pip") in /work/api, as named; context kept.')
@@ -564,7 +564,7 @@ test('a free worker that cannot be reached gives way to the next free one, and a
   // The first cannot be reached: the second takes the task, and no worker starts.
   seen.gone = gone('agent-4')
   expect(first(await delegate({ task: 'Review the endpoint' }))).toBe(
-    'Given to Mika (address "mika") in /work/api, the next free worker of that type and model there (also free: Bolt, Pip; name one with `worker` to pick it), as Tito could not be reached (the agent is gone); context kept.',
+    'Given to Mika (address "mika") in /work/api, the next free worker of that type and model there (also free: Bolt, Pip; name one with `worker` to pick it), as Tito could not be reached (the agent is gone); context kept: last task "Add the endpoint", finished 1s ago, 0 tokens used.',
   )
   expect(spawned).toBe(4)
   expect(seen.sends.slice(-2).map(text => text.split('\n')[0])).toEqual(['Review the endpoint', 'Review the endpoint'])
@@ -573,7 +573,7 @@ test('a free worker that cannot be reached gives way to the next free one, and a
   // Two cannot be reached, in the order tried: Mika, Tito, then Bolt.
   seen.gone = gone('agent-3', 'agent-4')
   expect(first(await delegate({ task: 'Polish the endpoint' }))).toBe(
-    'Given to Bolt (address "bolt") in /work/api, the next free worker of that type and model there (also free: Pip; name one with `worker` to pick it), as Mika (the agent is gone) and Tito (the agent is gone) could not be reached; context kept.',
+    'Given to Bolt (address "bolt") in /work/api, the next free worker of that type and model there (also free: Pip; name one with `worker` to pick it), as Mika (the agent is gone) and Tito (the agent is gone) could not be reached; context kept: last task "Write the docs", finished 3s ago, 0 tokens used.',
   )
   expect(spawned).toBe(4)
   await done('agent-2')
@@ -634,13 +634,13 @@ test('a worker whose last run was stopped is reused with a word on it, named or 
   expect(await delegate({ task: 'Migrate the schema' })).toMatch(/^Started Pip/)
   await ends('t1', true)
   expect(await delegate({ task: 'Seed the data' })).toBe(
-    `Given to Pip (address "pip") in /work/api, the free worker of that type and model there that last finished a task; context kept.${stopped}`,
+    `Given to Pip (address "pip") in /work/api, the free worker of that type and model there that last finished a task; context kept: last task "Migrate the schema", finished 0s ago, 0 tokens used.${stopped}`,
   )
   await ends('t2', true)
   expect(await delegate({ task: 'Seed the data again', worker: 'pip' })).toBe(`Given to Pip (address "pip") in /work/api, as named; context kept.${stopped}`)
   await ends('t3', false)
   expect(await delegate({ task: 'Add the indexes' })).toBe(
-    'Given to Pip (address "pip") in /work/api, the free worker of that type and model there that last finished a task; context kept.',
+    'Given to Pip (address "pip") in /work/api, the free worker of that type and model there that last finished a task; context kept: last task "Seed the data again", finished 0s ago, 0 tokens used.',
   )
   expect(spawned).toBe(1)
 })
@@ -937,6 +937,49 @@ test('among several free workers the one that ended a turn last is reused, which
   await clock.advance(1000)
   await done('agent-1', 't4')
   expect(await delegate({ task: 'Count the lines', repo: '/work/api' })).toMatch(/^Given to Pip/)
+})
+
+test('an unnamed call passes over a free worker whose last turn ended too long ago to be cached, names it, and says what its pick holds', async ($, on) => {
+  let spawned = 0
+  const clock = engine(on, { nextId: () => `agent-${++spawned}` })
+  await $.session.start({ cwd: '/work/main', surface: 'terminal', isInteractive: true })
+  const delegate = async (input: Record<string, unknown>) =>
+    String((await $.tool.call({ tool: 'mcp__crew__delegate', repo: '/work/api', ...input })).result).split('\n')[0]
+  let turns = 0
+  const done = (agentId: string) =>
+    $.turn.complete({ answer: 'Hecho', durationMs: 1000, isAborted: false, turnId: `t${++turns}`, agentId, reason: 'answer', usage: USAGE })
+
+  await delegate({ task: 'Map the API', title: 'API map' })
+  await delegate({ task: 'Write the docs', title: 'Docs', fresh: true })
+  await done('agent-1')
+  await clock.advance(3 * 60_000)
+  await done('agent-2')
+  await clock.advance(2 * 60_000)
+  // Pip ended five minutes ago, Bolt two: Bolt takes the task, the result
+  // says what its context holds, and Pip is named for a call that wants it.
+  expect(await delegate({ task: 'Add the endpoint', title: 'Endpoint' })).toBe(
+    'Given to Bolt (address "bolt") in /work/api, the free worker of that type and model there that last finished a task (also free: Pip; name one with `worker` to pick it); context kept: last task "Docs", finished 2m ago, ~45k tokens used.',
+  )
+  expect(spawned).toBe(2)
+
+  // Every free candidate past the window: a new worker starts, and its reason names them, best first.
+  await done('agent-2')
+  await clock.advance(4 * 60_000)
+  expect(await delegate({ task: 'Test the endpoint', title: 'Tests' })).toBe(
+    'Started Mika (address "mika", id ?) in /work/api, as no free worker of that type and model there finished a task in the last 4 min, so none has its context cached (also free: Bolt, Pip; name one with `worker` to pick it).',
+  )
+  expect(spawned).toBe(3)
+
+  // Named, a worker long idle still takes the task, and its result is a named one's.
+  expect(await delegate({ task: 'Recheck the map', worker: 'pip' })).toBe('Given to Pip (address "pip") in /work/api, as named; context kept.')
+
+  // A second short of the window it is still reused.
+  await done('agent-3')
+  await clock.advance(4 * 60_000 - 1000)
+  expect(await delegate({ task: 'One more' })).toBe(
+    'Given to Mika (address "mika") in /work/api, the free worker of that type and model there that last finished a task (also free: Bolt; name one with `worker` to pick it); context kept: last task "Tests", finished 3m ago, ~45k tokens used.',
+  )
+  expect(spawned).toBe(3)
 })
 
 const roster = async ($: Parameters<TestBody>[0]) => String((await $.tool.call({ tool: 'mcp__crew__roster' })).result)
