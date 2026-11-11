@@ -360,7 +360,7 @@ test('a worker no report will come from, and one that went quiet: the user messa
   expectText('note.goneSilent', contexts[0]?.join('\n'))
   await $.tool.call({ tool: 'Read', file_path: '/work/api/src/styles.css', agentId: 'agent-2' })
   await progress($, 'agent-2', 1, 3, 'Read the styles')
-  await clock.advance(10 * 60_000 + 4000)
+  await clock.advance(10 * 60_000 + 40_000)
   expectText('result.quietSilent', (await roster($, { worker: 'pip' })).split('\n').pop())
 })
 
