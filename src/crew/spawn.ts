@@ -3,7 +3,7 @@
 import type { HookFor } from 'claude-code'
 
 import type { ParentLink, Worker } from '../../types'
-import { DEFAULT_TYPE } from '../config'
+import { DEFAULT_TYPE, READ_ONLY_TYPES } from '../config'
 import type { Engine } from '../engine'
 import { modelAlias } from '../model-label'
 import { endOf } from '../progress/runs'
@@ -122,7 +122,7 @@ type Identified = Awaited<ReturnType<typeof identify>>
 
 // What its agent hears first, and whether it works in a worktree.
 async function briefFor($: Engine, e: SpawnEvent, who: Identified) {
-  const { look, list, isCrew, parent, reportsTo, cwd, name } = who
+  const { look, list, intent, isCrew, parent, reportsTo, cwd, name } = who
   const inWorktree = new Set(await readWorktrees($))
   // Its own worktree, or the one of the worker that starts it, where it
   // starts too unless the call sends it elsewhere.
@@ -135,7 +135,17 @@ async function briefFor($: Engine, e: SpawnEvent, who: Identified) {
     ? e.prompt
     : e.fork
       ? forkPreamble(reportsTo, e.parentAgentId === undefined ? gitRules(cwd, name.toLowerCase()) : '') + e.prompt
-      : workerPreamble(name, look.name, reportsTo, cwd, matesOf(list, name, cwd), own ? 'own' : shared ? 'parent' : undefined, inWorktree) + e.prompt
+      : workerPreamble(
+          name,
+          look.name,
+          reportsTo,
+          cwd,
+          matesOf(list, name, cwd),
+          own ? 'own' : shared ? 'parent' : undefined,
+          inWorktree,
+          // Its type as delegate asked it, which the engine may not carry through.
+          READ_ONLY_TYPES.has(intent?.type || e.subagentType),
+        ) + e.prompt
   return { prompt, worktree: own || shared }
 }
 

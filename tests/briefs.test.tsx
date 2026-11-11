@@ -156,6 +156,38 @@ test('an agent a worker starts reports to that worker, and the roster says whose
   expect(await roster('agent-2')).toMatch(/^- Bolt: address "agent-2", done, fork of Pip, repo \/work\/shop, /)
 })
 
+test('a worker of a read-only type is not told how to fork, commit or write comments; any other type is', async ($, on) => {
+  let spawned = 0
+  const seen = { prompts: [] as string[], sends: [] as string[] }
+  engine(on, { nextId: () => `agent-${++spawned}`, seen })
+  await $.session.start({ cwd: '/work/main', surface: 'terminal', isInteractive: true })
+  const delegate = (task: string, type?: string) =>
+    $.tool.call({ tool: 'mcp__crew__delegate', task, repo: '/work/api', fresh: true, ...(type ? { subagent_type: type } : {}) })
+  await delegate('Find the callers', 'Explore')
+  await delegate('Design the migration', 'Plan')
+  await delegate('Fix the login')
+  await delegate('Review the diff', 'code-reviewer')
+  await spawnAgent($, { prompt: 'Look around', description: 'Look', subagentType: 'Explore', tool_use_id: 'toolu_1' })
+  const [explore, plan, general, own, agents] = seen.prompts as [string, string, string, string, string]
+  for (const short of [explore, plan, agents]) {
+    expect(short).toMatch(/^\[crew\] You are \w+, a worker in Nova's crew\./)
+    expect(short).not.toMatch(/fork yourself|git status|commit your own work|git worktree add|A comment says/)
+    // What it can apply stays: where it works, who is there, commands that end, its plan and its report.
+    expect(short).toMatch(/\n- Your repository is \/work\/(api|main)\./)
+    expect(short).toMatch(/\n- Teammates you can reach with SendMessage: /)
+    expect(short).toMatch(/\n- Run only commands that end: /)
+    expect(short).toMatch(/\n- 3\+ steps: /)
+    expect(short).toMatch(/\n- Your final message goes back into Nova's conversation/)
+  }
+  // A type the crew does not know may edit: it hears every rule.
+  for (const full of [general, own]) {
+    expect(full).toMatch(/\n- Parallel parts, once you have read what they need: fork yourself once per part/)
+    expect(full).toMatch(GIT_LINE)
+    expect(full).toMatch(COMMENT_LINE)
+  }
+  expect(general.length - explore.length).toBeGreaterThan(1000)
+})
+
 test("with delegation off, delegate's workers still hear the preamble and the Agent tool's do not", async ($, on) => {
   let spawned = 0
   const seen = { prompts: [] as string[], sends: [] as string[] }
