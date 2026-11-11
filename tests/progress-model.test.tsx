@@ -82,7 +82,7 @@ test('workers hear when to call progress, and forks do not', async ($, on) => {
   await $.session.start({ cwd: '/work/main', surface: 'terminal', isInteractive: true })
   await $.tool.call({ tool: DELEGATE, task: 'Investigate the checkout', repo: '/work/shop' })
   expect(seen.prompts[0]).toMatch(
-    /\n- 3\+ steps: call mcp__crew__progress as you start each step, 1 to N \(the N steps you will actually take\), in the same message as that step's first tool call\.\n- In a git repository/,
+    /\n- 3\+ steps: call mcp__crew__progress as you start each step, 1 to N \(the N steps you will actually take\), in the same message as that step's first tool call\.\n- Stop and report instead of guessing when [^\n]*\n- In a git repository/,
   )
   expect(seen.prompts[0]).not.toMatch(/step 0/)
   await spawnAgent($, { prompt: 'Do the frontend', description: 'Frontend', subagentType: 'fork', fork: true, parentAgentId: 'agent-1' })

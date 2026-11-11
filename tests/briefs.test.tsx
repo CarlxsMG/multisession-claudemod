@@ -36,7 +36,7 @@ test('the brief is part of the system prompt, and the delegation rules of the de
 
   const description = seen.tools[0]!
   expect(description).toMatch(
-    /- Delegate everything but answers from what you already know: reading files, running commands, edits, reviews, tests\. Doing it yourself looks quicker, but sessions run long/,
+    /- Delegate everything but answers from what you already know and a single lookup: one file read, or one command whose output is short\. A question about work a worker did goes to that worker with SendMessage, not to a new one\. Reading several files, edits, reviews and tests go to the crew: sessions run long/,
   )
   expect(description).not.toMatch(/more than a couple of tool calls|run the tests, a diffstat/)
   expect(description).toMatch(/several mcp__crew__delegate calls in one message, each `fresh` or naming its own free worker/)
@@ -58,7 +58,7 @@ test('the brief is part of the system prompt, and the delegation rules of the de
   expect(description).toMatch(/TaskStop a worker heading the wrong way/)
   expect(description).toMatch(/don't poll mcp__crew__roster for them/)
   expect(description).toMatch(
-    /A report opens with DONE, PARTIAL or BLOCKED: one that is not DONE says what is left or asks a question, and the answer goes back to the same worker\.\n/,
+    /A report opens with DONE, PARTIAL or BLOCKED: one that is not DONE says what is left or asks a question, and the answer, yours or the user's, goes back to the same worker\.\n/,
   )
   expect(description).toMatch(/To check what a report left unverified, have a worker run the check/)
   // What an argument does is said in its own description, not in a rule.
@@ -96,6 +96,10 @@ test('workers are told to report in a few lines, and who to talk to', async ($, 
   expect(seen.prompts[0]).toMatch(/you do the hands-on work\. All you send goes to models: terse, facts only, nothing the reader already knows\.\n/)
   expect(seen.prompts[0]).toMatch(/Teammates you can reach with SendMessage: none yet\./)
   expect(seen.prompts[0]).toMatch(/You keep this context after you report/)
+  // A worker is told when to stop, and to say so with the report's own words.
+  expect(seen.prompts[0]).toMatch(
+    /\n- Stop and report instead of guessing when a decision is the user's \(a push, a merge, deleting work, a choice between designs\) or the task proves far larger than briefed: PARTIAL or BLOCKED, with what you have and the question\.\n/,
+  )
   // The `task` argument tells the orchestrator not to repeat these in a
   // brief: that holds only while the preamble gives each of them.
   expect(DELEGATE_SPEC.inputSchema.properties.task.description).toMatch(
@@ -177,7 +181,7 @@ test('an agent a worker starts reports to that worker, and the roster says whose
   await $.session.start({ cwd: '/work/main', surface: 'terminal', isInteractive: true })
   await $.tool.call({ tool: 'mcp__crew__delegate', task: 'Investigate the checkout, then split it', title: 'Checkout', repo: '/work/shop' })
   expect(seen.prompts[0]).toMatch(
-    /\n- Parallel parts, once you have read what they need: fork yourself once per part \(Agent tool, `subagent_type: "fork"`\)\. Each starts from your context, so give it only its part and files; report the whole once they report\.\n- 3\+ steps: call mcp__crew__progress as you start each step, 1 to N \(the N steps you will actually take\), in the same message as that step's first tool call\.\n- In a git repository: /,
+    /\n- Parallel parts, once you have read what they need: fork yourself once per part \(Agent tool, `subagent_type: "fork"`\)\. Each starts from your context, so give it only its part and files; report the whole once they report\.\n- 3\+ steps: call mcp__crew__progress as you start each step, 1 to N \(the N steps you will actually take\), in the same message as that step's first tool call\.\n- Stop and report instead of guessing when [^\n]*\n- In a git repository: /,
   )
 
   const fork = { prompt: 'Do the frontend', description: 'Frontend', subagentType: 'fork', fork: true, parentAgentId: 'agent-1' }
