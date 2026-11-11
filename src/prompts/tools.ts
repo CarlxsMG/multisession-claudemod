@@ -25,7 +25,7 @@ export const DELEGATE_SPEC = {
       task: {
         type: 'string',
         description:
-          'The brief, from one model to another: goal, facts, constraints, files it owns, what the report must answer. Complete in facts, as a new worker has not seen this conversation; terse in form. To a worker that keeps its context, only what is new.',
+          "The brief, from one model to another. To a new worker, which has not seen this conversation: the goal; what done looks like; the files it owns, or that it only reads; the checks to run; what the user allowed in git (a branch name, pushing, the main branch); what the report must answer. Facts, tersely. The worker's preamble already gives the report format and the git, progress and messaging rules: don't repeat them. To a worker that keeps its context, only what is new.",
       },
       title: {
         type: 'string',
