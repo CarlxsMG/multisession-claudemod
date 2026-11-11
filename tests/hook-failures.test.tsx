@@ -1,7 +1,8 @@
 // What a hook that fails leaves behind. The engine skips it: what is beneath
 // it runs in its place, or what its last `next` answered stands. Each kind of
 // hook fails here where it stands, the crew's state refused under it, and the
-// row, the call, the prompt or the spawn goes on. Only a guard answers for it.
+// row, the call, the prompt or the spawn goes on. A guard answers for it, and
+// a drawing's `.catch` passes the event on: the engine's row, caught.
 import { expect } from 'claude-code/testing'
 import type { Plugin, TestBody } from 'claude-code/testing'
 import type { On, TraceOutcome } from 'claude-code'
@@ -71,7 +72,7 @@ async function delegated($: Dollar, on: On, surface: Surface) {
   return { fault, output }
 }
 
-const decidedOn = (surface: Surface): Pick<Failure, 'decided'> => (surface === 'vscode' ? {} : { decided: 'skipped' })
+const decidedOn = (surface: Surface): Pick<Failure, 'decided'> => (surface === 'vscode' ? {} : { decided: 'caught' })
 
 const SAID: Said = { text: '42 tests pass', origin: { kind: 'unclassified' }, isExpanded: false, from: { name: 'pip' } }
 
