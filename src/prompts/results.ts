@@ -311,6 +311,17 @@ export const goneSilent = (w: Pick<Worker, 'name' | 'address' | 'task'>): string
   `${w.name} (address "${w.address}") ended without a report: the engine dropped it while it was on "${w.task}". Take that task as not done: give it again, to ${w.name} by name or to another worker.`
 
 /**
+ * A worker that was busy when Claude Code restarted: the restart ended its
+ * run, and whether a message still reaches it is the engine's to say. The
+ * caller puts `crew: ` or `[crew] ` ahead.
+ */
+export const cutSilent = (w: Pick<Worker, 'name' | 'address' | 'task'>): string =>
+  `${w.name} (address "${w.address}") was on "${w.task}" when Claude Code restarted, which ended its run: it is stopped. Take that task as not done: give it again, to ${w.name} by name, which keeps what it had read if the engine can resume it, or to another worker.`
+
+/** Why the tasks held for a woken worker did not reach it, when a restart ended the run they waited for. */
+export const HELD_OVER_RESTART = 'Claude Code restarted before that run ended'
+
+/**
  * A busy worker nothing was heard from for `minutes`: what it was last seen
  * doing, and the `step` of its plan when it declared one, as its roster row
  * says them. The caller puts `crew: ` or `[crew] ` ahead.

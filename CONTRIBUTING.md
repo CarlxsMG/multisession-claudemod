@@ -112,7 +112,7 @@ npx --yes prettier@3.9.10 --check .
 Users keep data across sessions and plugin versions, and pass share codes to each other. So these
 are frozen (see ARCHITECTURE.md, State and persistence):
 
-- the store keys (`STORE_KEYS`: `look`, `isOn`, `lines`, `toldBy`, `progress`);
+- the store keys (`STORE_KEYS`: `look`, `isOn`, `lines`, `toldBy`, `progress`, `crews`);
 - the state keys in `types/index.d.ts` (`PluginState.crew`), including the ones whose code name
   differs (`members` is `cast`, `pendingRows` is `due`, `paneTick` is `beat`, `pendingNote` is
   `note`, `editTab` is `tab`, `moodLines` is `lines`, `mainModel` is `model`);

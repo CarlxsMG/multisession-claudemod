@@ -1,14 +1,15 @@
 // Workers the orchestrator would wait for in vain: one the engine dropped
-// while busy, with no end of its run heard, and one that is busy with
-// nothing heard from it for a long while. The orchestrator is told of each
-// once, in a tool's result or a user message's note.
+// while busy, with no end of its run heard, one that is busy with nothing
+// heard from it for a long while, and one a restart of Claude Code stopped
+// (noted by `src/crew/persist.ts`). The orchestrator is told of each once,
+// in a tool's result or a user message's note.
 import type { Silence, Worker } from '../../types'
 import { QUIET_MIN } from '../config'
 import type { Engine } from '../engine'
 import { t } from '../i18n'
 import { isOpen } from '../progress/runs'
 import { stepText } from '../progress/plan'
-import { goneSilent, quietSilent } from '../prompts/results'
+import { cutSilent, goneSilent, quietSilent } from '../prompts/results'
 import { readDropped, readParents, readRuns, readSilences, readWorkers, updateSilences } from '../state/atoms'
 import { ACTIVE } from './workers'
 
@@ -64,6 +65,7 @@ async function wordsOf($: Engine, silences: readonly Silence[], now: number): Pr
     const w = crew.find(x => x.id === silence.id)
     if (w === undefined) return []
     if (silence.kind === 'gone') return [{ silence, text: goneSilent(w) }]
+    if (silence.kind === 'cut') return [{ silence, text: cutSilent(w) }]
     const plan = runs.find(r => r.id === w.id && isOpen(r))?.plan
     const minutes = Math.floor((now - silence.since) / 60_000)
     return [{ silence, text: quietSilent(w, minutes, plan !== undefined ? stepText(plan) : undefined) }]

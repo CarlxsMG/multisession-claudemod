@@ -187,12 +187,32 @@ export type Waiting = {
  * A worker the orchestrator would wait for in vain (`id`). `gone`: the
  * engine dropped it while it was busy and no end of its run reached the
  * crew, so no report comes. `quiet`: it is busy and nothing was heard from
- * it since `since`, its last sign of life when that was noted. `isTold` once
+ * it since `since`, its last sign of life when that was noted. `cut`: it
+ * was busy when Claude Code restarted, which ended its run. `isTold` once
  * the orchestrator has heard so, in a tool's result or a user message's
- * note: a gone one then leaves the list, a quiet one stays until the worker
- * is heard from again.
+ * note: a quiet one then stays until the worker is heard from again, any
+ * other leaves the list.
  */
-export type Silence = { id: string; kind: 'gone' | 'quiet'; since: number; isTold?: boolean }
+export type Silence = { id: string; kind: 'gone' | 'quiet' | 'cut'; since: number; isTold?: boolean }
+
+/**
+ * The crew as the store keeps it for one conversation, by its session id, so
+ * a conversation resumed in a new process finds its workers: the list and
+ * the shelf, who started whom, who works in a worktree, the takeovers with
+ * their held tasks, the tasks that wait for a run, and the compaction asked
+ * for. `shape` tags the record: one with another tag is not read back.
+ */
+export type KeptCrew = {
+  shape: string
+  at: number
+  workers: Worker[]
+  dropped: Worker[]
+  parents: ParentLink[]
+  worktrees: string[]
+  takeovers: Takeover[]
+  waiting: Waiting[]
+  compaction: Compaction
+}
 
 /**
  * A worker's message to a free teammate (`id`), which the main conversation
