@@ -44,6 +44,9 @@ export const en = {
   /** The toasts of a message that did not arrive. */
   missedWorker: (name: string, reason: string) => `Did not reach ${name}: ${reason}`,
   missedRelay: (name: string, by: string, reason: string) => `${by}'s message did not reach ${name}: ${reason}`,
+  /** The toasts of a worker the engine dropped with no report, and of a busy one nothing was heard from for so many minutes. */
+  goneWorker: (name: string) => `${name} ended without a report`,
+  quietWorker: (name: string, minutes: number) => `Nothing heard from ${name} for ${minutes} min`,
   /** The toast of a task that waited for a run and was not given, with why as the orchestrator hears it. */
   notGiven: (title: string, reason: string) => `"${title}" was not given: ${reason}`,
   /** The toasts of a compaction the crew ran: it stood, or why the engine or a plugin skipped it. */

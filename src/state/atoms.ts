@@ -100,6 +100,9 @@ const waiting = atom({ plugin: 'crew', key: 'waiting' } as const, [], { shape: '
 // The latest workers' last reports, whole: apart from the workers, which are
 // written at every change of a status and keep one line of each.
 const reports = atom({ plugin: 'crew', key: 'reports' } as const, [], { shape: 'reports-1' })
+// The workers no report will come from, and the busy ones nothing was heard
+// from for long, until the orchestrator is told.
+const silences = atom({ plugin: 'crew', key: 'silences' } as const, [], { shape: 'silences-1' })
 
 // What an atom holds, as a change to it takes and gives it.
 type Change<A> = A extends Atom<infer T> ? (value: T) => T : never
@@ -407,4 +410,12 @@ export function readReports($: StateDollar) {
 
 export function updateReports($: StateDollar, change: Change<typeof reports>) {
   return update($, reports, change)
+}
+
+export function readSilences($: StateDollar) {
+  return read($, silences)
+}
+
+export function updateSilences($: StateDollar, change: Change<typeof silences>) {
+  return update($, silences, change)
 }

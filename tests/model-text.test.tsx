@@ -349,6 +349,34 @@ test('a task that waited for a run and was not given: the next delegate result, 
   expectText('result.afterNeedsWorker', await delegate($, { task: 'Try the footer', title: 'Try', repo: '/work/web', fresh: true, after: 'mika' }))
 })
 
+test('a worker no report will come from, and one that went quiet: the user message note and the next crew result', async ($, on) => {
+  const contexts: (readonly string[] | undefined)[] = []
+  on('prompt.submit', (_, e) => {
+    contexts.push(e.context)
+    return { text: e.text }
+  })
+  let spawned = 0
+  const listed = new Map<string, 'running'>()
+  const clock = engine(on, {
+    nextId: () => `agent-${++spawned}`,
+    agents: () => [...listed].map(([id, status]) => ({ id, description: id, type: 'general-purpose', status })),
+    seen: recording(),
+  })
+  await start($)
+  await delegate($, { task: 'Fix the login', title: 'Login', repo: '/work/api' })
+  await delegate($, { task: 'Fix the styles', title: 'Styles', repo: '/work/api', fresh: true })
+  for (const id of ['agent-1', 'agent-2']) listed.set(id, 'running')
+  await clock.advance(4000)
+  listed.delete('agent-1')
+  await clock.advance(70_000)
+  await $.prompt.submit({ text: 'How is it going?', wait: false, origin: { kind: 'composer' } })
+  expectText('note.goneSilent', contexts[0]?.join('\n'))
+  await $.tool.call({ tool: 'Read', file_path: '/work/api/src/styles.css', agentId: 'agent-2' })
+  await progress($, 'agent-2', 1, 3, 'Read the styles')
+  await clock.advance(10 * 60_000 + 40_000)
+  expectText('result.quietSilent', (await roster($, { worker: 'pip' })).split('\n').pop())
+})
+
 test('one held task goes alone', async ($, on) => {
   const { seen, clock, delegate: give, done } = await wokenCrew($, on)
   await $.tool.call({ tool: 'Read', file_path: '/work/api/src/bus.ts', agentId: 'agent-2' })
