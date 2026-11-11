@@ -74,6 +74,11 @@ All notable changes to crew are written here. The format follows
   not verify, in 200 words unless its task sets another length. The orchestrator sees at a glance
   whether a task is finished, sends a question back to the worker that asked it, and has checked
   only what a report left unverified.
+- The orchestrator does a single lookup itself (one file read, or one command with a short
+  answer) instead of starting a worker for it, and puts a question about finished work to the
+  worker that did it. A worker stops and reports, `PARTIAL` or `BLOCKED` with its question, when a
+  decision is yours to make or the task proves far larger than its brief, instead of guessing and
+  going on.
 
 ### Fixed
 
