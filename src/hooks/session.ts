@@ -16,7 +16,7 @@ import { COMPACT_SPEC, PROGRESS_SPEC, ROSTER_SPEC, delegateSpec } from '../promp
 import { resetRuntime } from '../runtime'
 import { readModel } from '../settings/model'
 import { checkConversation, freezeBrief } from '../settings/notes'
-import { STORE_KEYS, readDropped, readWorkers, updateIsOn, updateLimits, updateLook, updateMoodLines, updateOrch } from '../state/atoms'
+import { STORE_KEYS, readBrief, readDropped, readWorkers, updateIsOn, updateLimits, updateLook, updateMoodLines, updateOrch } from '../state/atoms'
 import { stopTyping, tick, typeForTerminal } from '../ui/pane/animation'
 import { openPaneOnAttach, openPaneWhenShown } from '../ui/pane/index'
 import { allowUsageProbe, hasApp, probeUsage, toLimits } from '../usage/limits'
@@ -56,7 +56,11 @@ export async function onSessionStart($: Engine, e: Parameters<OnSessionStartHook
     description: t().command.description,
     argumentHint: t().command.argumentHint,
   })
-  await $.tool.register(delegateSpec(await freezeBrief($)))
+  // The host keeps the atoms across a reload, an enable or a worker respawn,
+  // each of which starts the session again: the brief already frozen stays,
+  // as a changed tool description or prompt section rewrites the prompt
+  // cache. A fresh process finds none and freezes it.
+  await $.tool.register(delegateSpec((await readBrief($)) || (await freezeBrief($))))
   // A resumed conversation's latest note is the last one it got: when it no
   // longer matches the settings, the next message says so.
   await checkConversation($, true)
