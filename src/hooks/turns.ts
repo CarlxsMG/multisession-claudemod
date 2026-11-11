@@ -9,12 +9,13 @@ import { lapseHandoffs } from '../crew/delegate'
 import { ORCH_ID, say, setOrch } from '../crew/feed'
 import { keepReport } from '../crew/roster'
 import { releaseSoon } from '../crew/takeover'
+import { releaseWaiting, waitingSoon } from '../crew/waiting'
 import { patchWorker } from '../crew/workers'
 import { quiet } from '../engine'
 import type { Engine } from '../engine'
 import { beginRun, endRun } from '../progress/run-store'
 import { readModel } from '../settings/model'
-import { readLook, readParents, readTakeovers, readWorkers } from '../state/atoms'
+import { readLook, readParents, readTakeovers, readWaiting, readWorkers } from '../state/atoms'
 import { oneLine } from '../util/text'
 import { statusLabel } from '../words'
 
@@ -29,6 +30,9 @@ export async function onTurnStart($: Engine, e: Parameters<OnTurnStartHook>[1], 
     await setOrch($, 'thinking', '')
     // A model the settings changed is seen at the next turn at the latest.
     await readModel($)
+    // A task that waited for a run to start a new worker starts it here, as
+    // that run's report opens this turn: the timer cannot (see `releaseWaiting`).
+    await quiet($, releaseWaiting($, true), 'waiting')
   } else {
     await patchWorker($, e.agentId, () => ({ status: 'working' }))
     await beginRun($, e.agentId)
@@ -74,5 +78,7 @@ export async function onTurnComplete($: Engine, e: Parameters<OnTurnCompleteHook
   // A woken worker's run is over: the next tick lifts its mark, from the
   // main conversation, not from this turn.
   if ((await readTakeovers($)).some(t => t.id === worker.id)) releaseSoon()
+  // So are the tasks a delegate call held until this run ended.
+  if ((await readWaiting($)).some(w => w.after === worker.id)) waitingSoon()
   return next(e)
 }

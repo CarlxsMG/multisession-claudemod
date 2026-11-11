@@ -8,6 +8,12 @@ All notable changes to crew are written here. The format follows
 
 ### Added
 
+- The orchestrator can hand a task over ahead of time with `after` on `mcp__crew__delegate`: the
+  task waits for the busy worker it names and is given when that worker's run ends, as a task of
+  its own, to that worker, to another one or to a new one. A task for a busy worker no longer has
+  to land in the middle of the one it is on. If the run it waited for fails or is stopped, the
+  task is not given and the orchestrator is told; a toast says so too. The roster shows what
+  waits behind a worker's run.
 - The orchestrator can compact its own conversation at a good moment with `mcp__crew__compact`:
   before a new phase, or once a batch of reports is told to you. It runs between turns once no
   worker is busy, at most once every 10 minutes, and a toast says when it ran. The `compactAt`
@@ -59,6 +65,10 @@ All notable changes to crew are written here. The format follows
   is passed over and named in the result, and still takes a task when the orchestrator names it.
   The result of an unnamed reuse says what the worker holds (its last task, when it finished, the
   tokens it used), and the roster says when each free worker finished.
+- The `delegate` tool tells the orchestrator what a new worker's brief holds: the goal, what done
+  looks like, the files it owns or only reads, the checks to run, what you allowed in git and what
+  the report must answer. It also says the worker already knows how to report and the git and
+  progress rules, so briefs stop repeating them.
 - A worker's report opens with `DONE`, `PARTIAL` or `BLOCKED` and the outcome, in a first line
   short enough for the roster's list to show whole, then says which checks it ran and what it did
   not verify, in 200 words unless its task sets another length. The orchestrator sees at a glance
