@@ -13,15 +13,20 @@ import {
   NEW_FRESH,
   NEW_NONE_FREE,
   PICKED_NAMED,
+  SEND_UNSURE,
   TASK_REQUIRED,
   autoModeHandoff,
+  delegatedTo,
   given,
   givenAfterFailure,
+  givenAfterStop,
   givenWhileBusy,
   handedModel,
   handedStarted,
   headsUp,
+  heldDropped,
   heldFor,
+  heldLetGo,
   heldMissed,
   heldWentFirst,
   newAfterLost,
@@ -38,12 +43,13 @@ import {
   unappliedRepo,
   unappliedType,
   unreachable,
+  unsureSend,
 } from '../prompts/results'
 import type { Lost } from '../prompts/results'
 import { modelAlias } from '../model-label'
 import { heldTasks, newMates, taskClose } from '../prompts/worker'
 import { runtime } from '../runtime'
-import { readIntents, readLook, readParents, readTakeovers, readWorkers, readWorktrees, updateIntents, updateTakeovers } from '../state/atoms'
+import { readDropped, readIntents, readLook, readParents, readTakeovers, readWorkers, readWorktrees, updateIntents, updateTakeovers } from '../state/atoms'
 import { appendKept } from '../util/bounded'
 import { fieldOf, rawStringArg, stringArg } from '../util/input'
 import { joinPath, samePath } from '../util/path'
@@ -165,9 +171,16 @@ async function giveTask(
   const before = mark?.held ?? []
   const all = [...before, { task, title }]
   const body = before.length > 0 ? heldTasks(all) : task
-  // Only a call that names its worker reaches one that is busy or failed.
+  // Only a call that names its worker reaches one that is busy or failed; a
+  // stopped one is free to any call, and left as much undone.
   const wasBusy = ACTIVE.has(chosen.status)
-  const state = wasBusy ? givenWhileBusy(chosen.name, oneLine(chosen.task, 48)) : chosen.status === 'failed' ? givenAfterFailure(chosen.name) : ''
+  const state = wasBusy
+    ? givenWhileBusy(chosen.name, oneLine(chosen.task, 48))
+    : chosen.status === 'failed'
+      ? givenAfterFailure(chosen.name)
+      : chosen.status === 'stopped'
+        ? givenAfterStop(chosen.name)
+        : ''
   // The teammates there now that neither its preamble nor an earlier task
   // told it of: it reaches them without a look at the roster. Not the agents
   // it started itself, which it knows.
@@ -195,6 +208,16 @@ async function giveTask(
   })
   if (sent.isDelivered && mark !== undefined) await updateTakeovers($, list => list.filter(t => t.id !== chosen.id))
   if (!sent.isDelivered && mark !== undefined) {
+    // Missed again for the same reason, and the engine lists it no more: it
+    // is gone, and tasks kept for it would wait for a worker nothing reaches.
+    if (mark.missed === sent.reason && !(await isListed($, chosen.id))) {
+      await updateTakeovers($, list => list.filter(t => t.id !== chosen.id))
+      return heldDropped(
+        chosen,
+        all.map(h => h.title),
+        sent.reason,
+      )
+    }
     await updateTakeovers($, list => list.map(t => (t.id === chosen.id ? { ...t, held: [...t.held, { task, title }], missed: sent.reason, isTold: true } : t)))
     return heldMissed(chosen, all.length, sent.reason)
   }
@@ -209,6 +232,13 @@ async function giveTask(
     return given(chosen, where, why, notes(where) + state + (before.length > 0 ? heldWentFirst(before.length) : '') + warn)
   }
   return { lost: sent.reason }
+}
+
+// Whether the engine still lists the agent; a list that cannot be read
+// takes nothing for gone.
+async function isListed($: Engine, id: string): Promise<boolean> {
+  const infos = await quiet($, $.agent.list(), 'agent list')
+  return infos === undefined || infos.some(info => info.id === id)
 }
 
 // How many free workers an unnamed task is sent to before a new one starts:
@@ -373,6 +403,9 @@ async function delegate($: Engine, input: object, callId?: string): Promise<stri
     const why = lost.length === 0 ? pickedFree(rest) : pickedNext(lost, rest)
     const answer = await giveTask($, candidate, undefined, call, why, () => '', list, inWorktree)
     if (typeof answer === 'string') return answer
+    // A send that failed on its way may have arrived: given to another
+    // worker too, the task would be done twice.
+    if (answer.lost === SEND_UNSURE) return unsureSend(candidate, lost)
     lost.push({ name: candidate.name, reason: answer.lost })
   }
   const why = lost.length > 0 ? newAfterLost(lost, names(free.slice(lost.length))) : isFresh ? NEW_FRESH : NEW_NONE_FREE
@@ -393,6 +426,32 @@ async function hold($: Engine, worker: Worker, mark: Takeover, task: string, tit
   await setOrch($, 'delegating', `${title} → ${worker.name}`)
   await markCall($, callId, worker.id)
   return heldFor(worker, mark.by, waiting, notes)
+}
+
+/**
+ * Lets go of the held tasks that missed their worker and that the call just
+ * gave, word for word, to another: that worker has the task now, so the
+ * first is not sent it with its next one, and a mark left with no task goes.
+ * Answers a line for each worker a task was let go for.
+ */
+async function letGoElsewhere($: Engine, task: string, result: string): Promise<string[]> {
+  const to = delegatedTo(result)
+  if (to === undefined) return []
+  const isIt = (held: { task: string }) => held.task.trim() === task
+  const crew = [...(await readWorkers($)), ...(await readDropped($))]
+  const ownerOf = (id: string) => crew.find(w => w.id === id) ?? { name: id, address: id }
+  // The mark of the worker that got it is delegate's own to lift.
+  const isElsewhere = (mark: Takeover) => mark.missed !== undefined && ownerOf(mark.id).address !== to.address && mark.held.some(isIt)
+  const freed = (await readTakeovers($)).filter(isElsewhere)
+  if (freed.length === 0) return []
+  await updateTakeovers($, marks =>
+    marks.flatMap(mark => {
+      if (!isElsewhere(mark)) return [mark]
+      const held = mark.held.filter(h => !isIt(h))
+      return held.length > 0 ? [{ ...mark, held }] : []
+    }),
+  )
+  return freed.map(mark => heldLetGo(ownerOf(mark.id), to.name))
 }
 
 /**
@@ -518,7 +577,8 @@ export async function delegateInTurn($: Engine, input: object, callId: string): 
     // this; what did not reach it, the result says.
     const missed = (await quiet($, release($), 'release')) ?? []
     const result = await delegate($, input, callId)
-    return [result, ...(await tellMissed($, missed))].join('\n')
+    const freed = (await quiet($, letGoElsewhere($, stringArg(input, 'task'), result), 'let go')) ?? []
+    return [result, ...freed, ...(await tellMissed($, missed))].join('\n')
   })
   runtime.carried.delegating = run.catch(() => undefined)
   return run

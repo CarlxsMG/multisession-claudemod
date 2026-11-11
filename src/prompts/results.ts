@@ -3,6 +3,7 @@
 // of its text sit together, so a change in wording reaches both;
 // tests/golden/model-text.ts holds each text as it is.
 import type { Plan, Worker } from '../../types'
+import { ROSTER } from '../config'
 
 // ---- delegate ----
 
@@ -22,12 +23,21 @@ export const noWorker = (key: string, addresses: readonly string[]): string =>
 
 export const unreachable = (name: string, reason: string): string => `crew: could not reach ${name}: ${reason}`
 
+/**
+ * A free worker's send failed on its way and may have arrived: no other
+ * worker is given the task, as two would then do it. `lost` are the free
+ * ones tried before it that could not be reached.
+ */
+export const unsureSend = (w: Pick<Worker, 'name' | 'address'>, lost: readonly Lost[]): string =>
+  `crew: the task may have reached ${w.name} (address "${w.address}"): its send failed on its way, so no other worker was tried and none started.${lost.length > 0 ? ` Before it, ${notReached(lost)}.` : ''} See whether ${w.name} is working (${ROSTER} with \`worker\` "${w.address}"): if it is, it has the task and reports to you; if not, give the task again.`
+
 // What became of the tasks held for a woken worker that did not reach it:
 // they wait for the next task given to it.
 function missedBody(w: Pick<Worker, 'name' | 'address'>, count: number, reason: string): string {
   const wait = count === 1 ? 'It goes' : 'They go'
   const why = reason.replace(/^crew: /, '').replace(/\.$/, '')
-  return `held for ${w.name} (address "${w.address}") did not reach it: ${why}. ${wait} with the next task you give ${w.name}, or give ${count === 1 ? 'it' : 'them'} to another worker.`
+  const it = count === 1 ? 'it' : 'them'
+  return `held for ${w.name} (address "${w.address}") did not reach it: ${why}. ${wait} with the next task you give ${w.name}; or give ${it} to another worker word for word, which takes ${it} off ${w.name}.`
 }
 
 /** A tool's word on tasks held for a worker that did not reach it. */
@@ -37,6 +47,23 @@ export const heldMissed = (w: Pick<Worker, 'name' | 'address'>, count: number, r
 /** The note a user message carries of tasks that missed their worker while no crew tool was called. */
 export const heldMissedNote = (w: Pick<Worker, 'name' | 'address'>, count: number, reason: string): string =>
   `[crew] ${count === 1 ? 'The task' : `The ${count} tasks`} ${missedBody(w, count, reason)}`
+
+/**
+ * What a delegate result adds when its task is one that was held for another
+ * worker, `w`, and missed it: `w` is not sent it again.
+ */
+export const heldLetGo = (w: Pick<Worker, 'name' | 'address'>, to: string): string =>
+  `crew: the task held for ${w.name} (address "${w.address}") is let go: ${to} has it now.`
+
+/**
+ * A worker whose held tasks missed it could not be reached again, for the
+ * same reason, and the engine lists it no more: the tasks held for it, the
+ * call's own last, are let go, each by its title.
+ */
+export function heldDropped(w: Pick<Worker, 'name' | 'address'>, titles: readonly string[], reason: string): string {
+  const why = reason.replace(/^crew: /, '').replace(/\.$/, '')
+  return `crew: ${w.name} (address "${w.address}") could not be reached again: ${why}. The ${titles.length} tasks held for it are let go, this one included: ${titles.map(title => `"${title}"`).join(', ')}. Give them to another worker.`
+}
 
 /** What a task given to a worker whose held tasks once missed it adds: those went first. */
 export const heldWentFirst = (count: number): string => ` ${count === 1 ? 'The task' : `The ${count} tasks`} held for it went first, in the same message.`
@@ -165,6 +192,9 @@ export const givenWhileBusy = (name: string, inFlight: string): string =>
 
 /** What a task given to a worker named after a failed run adds. */
 export const givenAfterFailure = (name: string): string => ` ${name}'s last run failed: if this task builds on that one, have it check what was left undone.`
+
+/** What a task given to a worker whose last run was stopped adds, named or not. */
+export const givenAfterStop = (name: string): string => ` ${name}'s last run was stopped: if this task builds on that one, have it check what was left undone.`
 
 /** A `repo` a call gave with a worker that works elsewhere; `where` as `given` takes it. */
 export const unappliedRepo = (asked: string, where: string): string => `\`repo\` ${asked} (it works in ${where})`

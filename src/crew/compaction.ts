@@ -65,10 +65,12 @@ async function isPastShare($: Engine, now: number): Promise<boolean> {
 // Whether nothing would be cut: no worker busy, no row waiting for the main
 // turn, no agent answering a worker, and for an ask that waits for reports
 // the round over and a turn of the orchestrator's since the last one came in.
+// A mark whose tasks missed their worker holds nothing back: its run is over,
+// and its tasks are in the state, not in the conversation.
 async function isSafe($: Engine, ask: CompactAsk, list: readonly Worker[]): Promise<boolean> {
   if (list.some(w => ACTIVE.has(w.status))) return false
   if ((await readPendingRows($)).length > 0) return false
-  if ((await readTakeovers($)).length > 0) return false
+  if ((await readTakeovers($)).some(mark => mark.missed === undefined)) return false
   if (ask.after === 'idle') return true
   const round = await readRound($)
   if (round.startedAt !== 0 && round.closedAt === 0) return false

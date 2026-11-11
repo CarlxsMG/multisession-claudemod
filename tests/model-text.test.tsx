@@ -179,15 +179,17 @@ test("delegate's results when free workers could not be reached: the next one, a
   }
   seen.gone = { 'agent-5': 'the agent is gone' }
   expectText('result.givenAfterLost', await delegate($, { task: 'Add the tests', title: 'Tests', repo: '/work/api' }))
-  seen.gone = {
-    'agent-5': 'the agent is gone',
-    'agent-3': 'the agent is gone',
-    'agent-2': 'crew: the message may not have gone out; check before sending it again.',
-  }
+  seen.gone = { 'agent-5': 'the agent is gone', 'agent-3': 'the agent is gone', 'agent-2': 'the agent is gone' }
   expectText('result.startedAfterLostMany', await delegate($, { task: 'Tag the release', title: 'Release', repo: '/work/api' }))
+  // A send that may have gone out, first of the free ones and after one that could not be reached.
+  const unsure = 'crew: the message may not have gone out; check before sending it again.'
+  seen.gone = { 'agent-5': unsure }
+  expectText('result.unsureSend', await delegate($, { task: 'Write the notes', title: 'Notes', repo: '/work/api' }))
+  seen.gone = { 'agent-5': 'the agent is gone', 'agent-3': unsure }
+  expectText('result.unsureSendAfterLost', await delegate($, { task: 'Write the notes', title: 'Notes', repo: '/work/api' }))
 })
 
-test("delegate's results for a worker named while busy, and after a run that failed", async ($, on) => {
+test("delegate's results for a worker named while busy, after a run that failed, and for one whose last run was stopped", async ($, on) => {
   let spawned = 0
   engine(on, { nextId: () => `agent-${++spawned}`, seen: recording() })
   await start($)
@@ -195,6 +197,8 @@ test("delegate's results for a worker named while busy, and after a run that fai
   expectText('result.givenWhileBusy', await delegate($, { task: 'Add the tests', title: 'Tests', worker: 'pip' }))
   await $.turn.complete({ answer: 'API error', durationMs: 1, isAborted: false, turnId: 't-failed', agentId: 'agent-1', reason: 'error' })
   expectText('result.givenAfterFailure', await delegate($, { task: 'Try the login again', title: 'Login again', worker: 'pip' }))
+  await $.turn.complete({ answer: '', durationMs: 1, isAborted: true, turnId: 't-stopped', agentId: 'agent-1', reason: 'aborted' })
+  expectText('result.givenAfterStop', await delegate($, { task: 'Finish the login', title: 'Login', repo: '/work/api' }))
 })
 
 test("delegate's result for a named worker the call's other arguments do not fit, given and held", async ($, on) => {
@@ -298,9 +302,25 @@ test('held tasks that did not reach their worker: the next delegate result, the 
   await clock.advance(400)
   await $.prompt.submit({ text: 'How is it going?', wait: false, origin: { kind: 'composer' } })
   expectText('note.heldMissed', contexts[0]?.join('\n'))
+  // Another reason than the first: the tasks are kept.
+  seen.undelivered = 'its transcript is locked'
   expectText('result.heldMissed', await give({ task: 'Write the changelog.', title: 'Changelog', worker: 'bolt' }))
   seen.undelivered = undefined
   expectText('result.heldWentFirst', await give({ task: 'Tag the release.', title: 'Release', worker: 'bolt' }))
+})
+
+test('held tasks that missed their worker and are let go: one given to another worker word for word, the rest when it cannot be reached again', async ($, on) => {
+  const { seen, clock, delegate: give, done } = await wokenCrew($, on)
+  await $.tool.call({ tool: 'Read', file_path: '/work/api/src/bus.ts', agentId: 'agent-2' })
+  await give({ task: 'Record the event.', title: 'Session bus', worker: 'bolt' })
+  await give({ task: 'Update the doc.', title: 'Docs', worker: 'bolt' })
+  seen.undelivered = 'the agent is gone'
+  await done('agent-2')
+  await clock.advance(400)
+  seen.undelivered = undefined
+  expectText('result.heldLetGo', await give({ task: 'Record the event.', title: 'Session bus', repo: '/work/web' }))
+  seen.gone = { 'agent-2': 'the agent is gone' }
+  expectText('result.heldDropped', await give({ task: 'Write the changelog.', title: 'Changelog', worker: 'bolt' }))
 })
 
 test("a worker's message to a free teammate, as the teammate reads it", async ($, on) => {
