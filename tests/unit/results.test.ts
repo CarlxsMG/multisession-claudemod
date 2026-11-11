@@ -18,6 +18,18 @@ test('the workers a heads-up names read back from the result, one or several', (
   expect(headsUp([])).toBe('')
 })
 
+test('a heads-up says what each busy worker has edited so far: the latest four by name, the earlier counted, or none', () => {
+  expect(headsUp(['Pip'])).toBe('\nHeads-up: Pip is working in this repository; keep files apart or wait for its report.\nFiles edited so far: Pip: none yet.')
+  const edits = new Map([
+    ['Pip', ['a.ts', 'b.ts', 'c.ts', 'd.ts', 'e.ts', 'f.ts']],
+    ['Bolt', ['docs/x.md']],
+  ])
+  const text = headsUp(['Pip', 'Bolt', 'Mika'], edits)
+  expect(text.split('\n')[2]).toBe('Files edited so far: Pip: c.ts, d.ts, e.ts, f.ts and 2 more; Bolt: docs/x.md; Mika: none yet.')
+  // The row still reads who is busy from the first line.
+  expect(readDelegate(started('Tito', 'tito', 'agent-4', '/work/api', NEW_NONE_FREE, text))).toEqual({ kind: 'new', busy: ['Pip', 'Bolt', 'Mika'] })
+})
+
 test('a free worker picked over others names up to three of them and counts the rest, and still reads back', () => {
   expect(pickedFree([])).toBe(PICKED_FREE)
   expect(pickedFree(['Bolt'])).toBe(`${PICKED_FREE} (also free: Bolt; name one with \`worker\` to pick it)`)

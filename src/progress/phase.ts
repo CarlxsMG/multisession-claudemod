@@ -17,6 +17,16 @@ const WEB = new Set(['WebSearch', 'WebFetch'])
 const DELEGATING = new Set(['Agent', 'Task', 'SendMessage', 'TaskStop', DELEGATE])
 const WAITING = new Set(['Monitor', 'TaskOutput', 'AskUserQuestion'])
 
+/**
+ * The file a call of an editing tool changes, as the call names it;
+ * undefined for any other call, and for one that names none.
+ */
+export function editedPath(call: { tool: string } & Record<string, unknown>): string | undefined {
+  if (!EDITING.has(call.tool)) return undefined
+  const path = call.file_path ?? call.notebook_path
+  return typeof path === 'string' && path.trim() !== '' ? path : undefined
+}
+
 // A command that runs a test suite: the runners of the usual ecosystems,
 // alone or behind a package manager, after `&&`, `;` or `|`.
 const TEST_RUN = new RegExp(

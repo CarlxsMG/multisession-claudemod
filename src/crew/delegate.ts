@@ -55,19 +55,27 @@ import { runtime } from '../runtime'
 import { readDropped, readIntents, readLook, readParents, readTakeovers, readWorkers, readWorktrees, updateIntents, updateTakeovers } from '../state/atoms'
 import { appendKept } from '../util/bounded'
 import { fieldOf, rawStringArg, stringArg } from '../util/input'
-import { joinPath, samePath } from '../util/path'
+import { joinPath, samePath, under } from '../util/path'
 import { oneLine } from '../util/text'
 import { shortTime } from '../util/time'
 import { deliver } from './deliver'
+import { editsInFlight } from './edits'
 import { ORCH_ID, markCall, setOrch } from './feed'
 import { release } from './takeover'
 import { bareTitle, nameAhead } from './title'
 import { ACTIVE, REUSABLE, claimName, findWorker, recallWorker, takenNow, toldMates, unclaimNames, untoldMatesOf } from './workers'
 
 // The heads-up of the tool's result, from the workers busy in the
-// repository; one in a worktree of its own edits apart.
-function busyHere(list: readonly Worker[], cwd: string, inWorktree: ReadonlySet<string>, except?: string): string {
-  return headsUp(list.filter(w => samePath(w.cwd, cwd) && w.id !== except && !inWorktree.has(w.id) && ACTIVE.has(w.status)).map(w => w.name))
+// repository, each with the files its run has edited so far, as seen from
+// the repository; one in a worktree of its own edits apart.
+async function busyHere($: Engine, list: readonly Worker[], cwd: string, inWorktree: ReadonlySet<string>, except?: string): Promise<string> {
+  const busy = list.filter(w => samePath(w.cwd, cwd) && w.id !== except && !inWorktree.has(w.id) && ACTIVE.has(w.status))
+  if (busy.length === 0) return ''
+  const edits = (await quiet($, editsInFlight($), 'edits')) ?? new Map<string, string[]>()
+  return headsUp(
+    busy.map(w => w.name),
+    new Map(busy.map(w => [w.name, (edits.get(w.id) ?? []).map(path => under(cwd, path))])),
+  )
 }
 
 // The delegate tool's input, every field the model may leave out with its
@@ -244,7 +252,7 @@ async function giveTask(
     // and none for one in a worktree of its own.
     const own = inWorktree.has(chosen.id)
     const where = own ? worktreeOf(chosen.cwd) : chosen.cwd
-    const warn = own ? '' : busyHere(list, chosen.cwd, inWorktree, chosen.id)
+    const warn = own ? '' : await busyHere($, list, chosen.cwd, inWorktree, chosen.id)
     return given(chosen, where, why, notes(where) + state + (before.length > 0 ? heldWentFirst(before.length) : '') + warn, held)
   }
   return { lost: sent.reason }
@@ -337,7 +345,7 @@ async function startWorker(
   // The spawn hook has put it on the list by its address.
   const id = spawned.agentId ?? (await readWorkers($)).find(w => w.address === address)?.id
   if (id !== undefined) await markCall($, callId, id)
-  return started(name, address, spawned.agentId, cwd, why, busyHere(list, cwd, inWorktree))
+  return started(name, address, spawned.agentId, cwd, why, await busyHere($, list, cwd, inWorktree))
 }
 
 /**
@@ -352,7 +360,7 @@ export async function adoptHanded($: Engine, handed: Handed, worker: Pick<Worker
   const inWorktree = new Set(await readWorktrees($))
   const own = inWorktree.has(worker.id)
   const where = own ? worktreeOf(worker.cwd) : worker.cwd
-  const warn = own ? '' : busyHere(await readWorkers($), worker.cwd, inWorktree, worker.id)
+  const warn = own ? '' : await busyHere($, await readWorkers($), worker.cwd, inWorktree, worker.id)
   // Delegate's model stands, whatever the Agent call named.
   const isOther = called !== undefined && called !== '' && (modelAlias(called) ?? called) !== handed.asked
   const model = isOther ? handedModel(handed.asked === '' ? SESSION_MODEL : handed.asked, called) : ''
