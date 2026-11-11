@@ -178,3 +178,6 @@ the `/crew` command's line in the command menu.
    gives (the report format and the git, progress and messaging rules), so that briefs do not
    repeat them. Take one of those out of `workerPreamble` and that sentence is no longer true:
    `tests/briefs.test.tsx` holds the two together.
+6. A change to a delegation rule, the brief or the `delegate` tool's description changes what the
+   orchestrator does, which no test sees: run the eval suite before and after
+   ([Evals](../CONTRIBUTING.md#evals)).

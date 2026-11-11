@@ -1,0 +1,18 @@
+schema_version: '1.1'
+name: multi-investigate
+description: An investigation across several files goes to the crew.
+tags: [delegation, multi-file]
+runs: 1
+execution:
+  max_turns: 4
+  timeout_seconds: 240
+  allowed_tools: [Read, Glob, Grep]
+  prompt: |
+    Some orders come out with a total of NaN and others are off by a few cents from what the cart showed. Find the cause of each in this project and tell me the file and line.
+context:
+  scaffold_script: fixture.sh
+graders:
+  - name: delegates
+    type: tool_used
+    tool: mcp__crew__delegate
+    min: 1

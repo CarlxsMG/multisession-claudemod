@@ -176,6 +176,38 @@ request and someone will translate it.
   meet the machine at its busiest, with every other file doing the same, and the load can take
   most of 5 s. A test that hangs is noticed that much later.
 
+## Evals
+
+The tests pin every text a model reads and run no model. Whether the orchestrator delegates is
+measured by a small suite for `claude plugin eval`, in `evals/`. The command loads the plugin from
+its folder and runs each case as a headless session, so the tools the orchestrator really called
+can be graded.
+
+```
+claude plugin eval . --scaffold --allow-tools "mcp__crew__*" --ablation none --max-cost-usd 2 --no-publish
+```
+
+- `evals/delegation/` holds three multi-file cases (a review of every module, two independent
+  parts, an investigation across files), which pass when `mcp__crew__delegate` is called, and three
+  trivial ones (a version in one file, a port in one file, an answer the model already knows),
+  which pass when it is not. The graders are deterministic (`tool_used`, `regex`): no judge model
+  is paid for.
+- Every case works on the project in `evals/fixture/shop/`, whose code has its gaps on purpose:
+  they are what the cases ask about. A case can reach nothing outside its own directory, so each
+  has a `fixture.sh` that copies the project into the run's directory; `--scaffold` is what runs
+  it.
+- `--allow-tools "mcp__crew__*"` lets the session call the crew's tools, which a case cannot grant
+  itself. `--ablation none` leaves out the arm without the plugin, where there is no crew to
+  delegate to.
+- **It is not one of the four checks, and CI does not run it.** Each run is a real session on your
+  own credential: the six cases cost about a dollar on the default model, as a multi-file case
+  starts real workers. Run it when you change a delegation rule, the brief or the `delegate`
+  tool's description, on `main` and on your branch, and put both results in the pull request with
+  the model and the Claude Code version they ran on.
+- Each case runs once, and one run is one observation, not a rate. `--runs 3` runs each three
+  times, at three times the cost.
+- Results go to `evals/results/`, which git ignores.
+
 ## Commits and pull requests
 
 - One logical change per commit. The subject says what the change achieves, in English, at most
