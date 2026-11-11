@@ -2,6 +2,7 @@ import { expect } from 'claude-code/testing'
 import type { TestBody } from 'claude-code/testing'
 import type { AgentSpawnInput } from 'claude-code'
 import { WORKER_NAMES } from '../src/persona/names'
+import { SEND_UNSURE } from '../src/prompts/results'
 import { DELEGATE, NO_VERDICT, PANE, SURFACES, USAGE, crewCommand, engine, mountRow, spawnAgent, test, toolRow } from './support/crew'
 import type { Ask, Seen } from './support/crew'
 
@@ -586,6 +587,62 @@ test('a free worker that cannot be reached gives way to the next free one, and a
   )
   expect(seen.sends.length).toBe(sent + 3)
   expect(spawned).toBe(5)
+})
+
+test('a free worker whose send may have gone out ends the call: no other worker gets the task and none starts', async ($, on) => {
+  let spawned = 0
+  const seen: Seen = { prompts: [], sends: [] }
+  const clock = engine(on, { nextId: () => `agent-${++spawned}`, seen })
+  await $.session.start({ cwd: '/work/main', surface: 'terminal', isInteractive: true })
+  const delegate = async (input: Record<string, unknown>) => String((await $.tool.call({ tool: 'mcp__crew__delegate', repo: '/work/api', ...input })).result)
+
+  // Three free workers, best first: Mika, Bolt, Pip.
+  for (const task of ['Map the API', 'Write the docs', 'Add the endpoint']) await delegate({ task, fresh: true })
+  for (const agentId of ['agent-1', 'agent-2', 'agent-3']) {
+    await clock.advance(1000)
+    await $.turn.complete({ answer: 'Hecho', durationMs: 1, isAborted: false, turnId: `t-${agentId}`, agentId, reason: 'answer' })
+  }
+
+  // The first may have the task: it is sent once, and no one else is tried.
+  seen.gone = { 'agent-3': SEND_UNSURE }
+  let sent = seen.sends.length
+  expect(await delegate({ task: 'Review the endpoint' })).toBe(
+    'crew: the task may have reached Mika (address "mika"): its send failed on its way, so no other worker was tried and none started. See whether Mika is working (mcp__crew__roster with `worker` "mika"): if it is, it has the task and reports to you; if not, give the task again.',
+  )
+  expect(seen.sends.length).toBe(sent + 1)
+  expect(spawned).toBe(3)
+
+  // One that could not be reached before it is named, and the one after it gets nothing.
+  seen.gone = { 'agent-3': 'crew: the agent is gone.', 'agent-2': SEND_UNSURE }
+  sent = seen.sends.length
+  expect(await delegate({ task: 'Review the endpoint' })).toBe(
+    'crew: the task may have reached Bolt (address "bolt"): its send failed on its way, so no other worker was tried and none started. Before it, Mika could not be reached (the agent is gone). See whether Bolt is working (mcp__crew__roster with `worker` "bolt"): if it is, it has the task and reports to you; if not, give the task again.',
+  )
+  expect(seen.sends.length).toBe(sent + 2)
+  expect(spawned).toBe(3)
+})
+
+test('a worker whose last run was stopped is reused with a word on it, named or not, and with none once it finished a run', async ($, on) => {
+  let spawned = 0
+  engine(on, { nextId: () => `agent-${++spawned}` })
+  await $.session.start({ cwd: '/work/main', surface: 'terminal', isInteractive: true })
+  const delegate = async (input: Record<string, unknown>) => String((await $.tool.call({ tool: 'mcp__crew__delegate', repo: '/work/api', ...input })).result)
+  const ends = (turnId: string, isAborted: boolean) =>
+    $.turn.complete({ answer: '', durationMs: 1, isAborted, turnId, agentId: 'agent-1', reason: isAborted ? 'aborted' : 'answer' })
+  const stopped = " Pip's last run was stopped: if this task builds on that one, have it check what was left undone."
+
+  expect(await delegate({ task: 'Migrate the schema' })).toMatch(/^Started Pip/)
+  await ends('t1', true)
+  expect(await delegate({ task: 'Seed the data' })).toBe(
+    `Given to Pip (address "pip") in /work/api, the free worker of that type and model there that last finished a task; context kept.${stopped}`,
+  )
+  await ends('t2', true)
+  expect(await delegate({ task: 'Seed the data again', worker: 'pip' })).toBe(`Given to Pip (address "pip") in /work/api, as named; context kept.${stopped}`)
+  await ends('t3', false)
+  expect(await delegate({ task: 'Add the indexes' })).toBe(
+    'Given to Pip (address "pip") in /work/api, the free worker of that type and model there that last finished a task; context kept.',
+  )
+  expect(spawned).toBe(1)
 })
 
 test('a worker sent where another is busy hears of it', async ($, on) => {

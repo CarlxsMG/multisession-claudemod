@@ -187,7 +187,8 @@ holds no look, and is turned down as a bad code.
    short reminder of how to report; held tasks that once missed it go first, in the same
    message. An unnamed task that does not reach its free worker goes to the next one, up to
    `REUSE_TRIES`; a new worker starts only when none is reached, and the result names the ones
-   that were not. A worker woken by another worker gets nothing yet: the task is a **held task** on
+   that were not. A send that failed on its way (`SEND_UNSURE`) may have arrived, so it ends the
+   call there: no other worker is given the task and none starts. A worker woken by another worker gets nothing yet: the task is a **held task** on
    its takeover, and the result says so.
 5. Without a worker, it takes a free name (see Names below), records the **intent**, and calls `$.agent.spawn`. A model asked for is passed only when it is
    not haiku. With none, the spawn hook gives the worker the session's model, as the alias the

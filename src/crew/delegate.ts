@@ -13,10 +13,12 @@ import {
   NEW_FRESH,
   NEW_NONE_FREE,
   PICKED_NAMED,
+  SEND_UNSURE,
   TASK_REQUIRED,
   autoModeHandoff,
   given,
   givenAfterFailure,
+  givenAfterStop,
   givenWhileBusy,
   handedModel,
   handedStarted,
@@ -38,6 +40,7 @@ import {
   unappliedRepo,
   unappliedType,
   unreachable,
+  unsureSend,
 } from '../prompts/results'
 import type { Lost } from '../prompts/results'
 import { modelAlias } from '../model-label'
@@ -165,9 +168,16 @@ async function giveTask(
   const before = mark?.held ?? []
   const all = [...before, { task, title }]
   const body = before.length > 0 ? heldTasks(all) : task
-  // Only a call that names its worker reaches one that is busy or failed.
+  // Only a call that names its worker reaches one that is busy or failed; a
+  // stopped one is free to any call, and left as much undone.
   const wasBusy = ACTIVE.has(chosen.status)
-  const state = wasBusy ? givenWhileBusy(chosen.name, oneLine(chosen.task, 48)) : chosen.status === 'failed' ? givenAfterFailure(chosen.name) : ''
+  const state = wasBusy
+    ? givenWhileBusy(chosen.name, oneLine(chosen.task, 48))
+    : chosen.status === 'failed'
+      ? givenAfterFailure(chosen.name)
+      : chosen.status === 'stopped'
+        ? givenAfterStop(chosen.name)
+        : ''
   // Delegate's own workers always had the crew's preamble; any other agent
   // may not have (a fork, one started with delegation off): it hears it all.
   const sent = await deliver($, {
@@ -360,6 +370,9 @@ async function delegate($: Engine, input: object, callId?: string): Promise<stri
     const why = lost.length === 0 ? pickedFree(rest) : pickedNext(lost, rest)
     const answer = await giveTask($, candidate, undefined, call, why, () => '', list, inWorktree)
     if (typeof answer === 'string') return answer
+    // A send that failed on its way may have arrived: given to another
+    // worker too, the task would be done twice.
+    if (answer.lost === SEND_UNSURE) return unsureSend(candidate, lost)
     lost.push({ name: candidate.name, reason: answer.lost })
   }
   const why = lost.length > 0 ? newAfterLost(lost, names(free.slice(lost.length))) : isFresh ? NEW_FRESH : NEW_NONE_FREE
