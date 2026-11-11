@@ -10,7 +10,7 @@ import type { Engine } from '../engine'
 import { t } from '../i18n'
 import { COMPACT_MAIN, compactFocus, compactQueued, withCrewInstructions } from '../prompts/compact'
 import { runtime } from '../runtime'
-import { readCompaction, readPendingRows, readRound, readRuns, readTakeovers, updateCompaction } from '../state/atoms'
+import { readCompaction, readPendingRows, readRound, readRuns, readTakeovers, readWaiting, updateCompaction } from '../state/atoms'
 import { ACTIVE } from './workers'
 
 const GAP_MS = COMPACT_GAP_MIN * 60_000
@@ -63,7 +63,8 @@ async function isPastShare($: Engine, now: number): Promise<boolean> {
 }
 
 // Whether nothing would be cut: no worker busy, no row waiting for the main
-// turn, no agent answering a worker, and for an ask that waits for reports
+// turn, no agent answering a worker, no task waiting for a run to end, and
+// for an ask that waits for reports
 // the round over and a turn of the orchestrator's since the last one came in.
 // A mark whose tasks missed their worker holds nothing back: its run is over,
 // and its tasks are in the state, not in the conversation.
@@ -71,6 +72,7 @@ async function isSafe($: Engine, ask: CompactAsk, list: readonly Worker[]): Prom
   if (list.some(w => ACTIVE.has(w.status))) return false
   if ((await readPendingRows($)).length > 0) return false
   if ((await readTakeovers($)).some(mark => mark.missed === undefined)) return false
+  if ((await readWaiting($)).some(task => task.missed === undefined)) return false
   if (ask.after === 'idle') return true
   const round = await readRound($)
   if (round.startedAt !== 0 && round.closedAt === 0) return false

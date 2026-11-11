@@ -39,7 +39,12 @@ export const DELEGATE_SPEC = {
       worker: {
         type: 'string',
         description:
-          "Name or address of a worker in the roster to give this to, forks and the Agent tool's agents included; it keeps its context and its agent type. A busy worker gets the task as a message in the middle of its current one, so prefer a free worker; one answering another worker gets it once that ends.",
+          "Name or address of a worker in the roster to give this to, forks and the Agent tool's agents included; it keeps its context and its agent type. A busy worker gets the task as a message in the middle of its current one unless `after` names it, so prefer a free worker; one answering another worker gets it once that ends.",
+      },
+      after: {
+        type: 'string',
+        description:
+          "Name or address of a busy worker whose run this task waits for. The task is held and given when that run ends, as a task of its own: to that worker, to the one `worker` names, or to a new one with `fresh`. If that run fails or is stopped it is not given, and you are told. For another worker, say in the task what it needs of that run's result; it can ask that worker with SendMessage.",
       },
       fresh: {
         type: 'boolean',
@@ -68,7 +73,7 @@ export const DELEGATE_SPEC = {
  */
 export const ROSTER_SPEC = {
   name: 'roster',
-  description: `List the crew, busy workers first, then the most recent, at most ${ROSTER_ROWS} rows: each worker's name, SendMessage address, status, where it works, last task and, while busy, what it is doing. Idle, done and stopped workers are free to take a task. One "answering <name>" was woken by that worker, and your tasks wait for it; tasks "not delivered" go with the next one you give it. The ${ROSTER_REPORTS} latest workers not busy show their last report cut to ${ROSTER_REPORT_CUT} characters; \`worker\` shows one alone, with more of it. Use it to pick the worker that should continue earlier work, to find an address for SendMessage or TaskStop, or to see who is busy where.`,
+  description: `List the crew, busy workers first, then the most recent, at most ${ROSTER_ROWS} rows: each worker's name, SendMessage address, status, where it works, last task and, while busy, what it is doing. Idle, done and stopped workers are free to take a task. One "answering <name>" was woken by that worker, and your tasks wait for it; tasks "not delivered" go with the next one you give it, and tasks "held behind its run" go when that run ends. The ${ROSTER_REPORTS} latest workers not busy show their last report cut to ${ROSTER_REPORT_CUT} characters; \`worker\` shows one alone, with more of it. Use it to pick the worker that should continue earlier work, to find an address for SendMessage or TaskStop, or to see who is busy where.`,
   inputSchema: {
     type: 'object',
     properties: {

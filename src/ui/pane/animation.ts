@@ -7,6 +7,7 @@ import { relayIfDue } from '../../crew/relay'
 import { hasHeldFirsts, keepFirstDrawn } from '../../crew/feed'
 import { syncCrew } from '../../crew/sync'
 import { releaseIfDue } from '../../crew/takeover'
+import { waitingIfDue } from '../../crew/waiting'
 import { quiet } from '../../engine'
 import type { Engine } from '../../engine'
 import type { Cells } from '../../figure/raster'
@@ -165,9 +166,13 @@ export function tick($: Engine) {
   if (hasHeldFirsts()) void quiet($, keepFirstDrawn($), 'first drawn')
   relayIfDue($)
   // The engine's statuses now and then, and the marks of woken workers whose
-  // run ended at the next tick after it did.
+  // run ended, and the tasks that waited for a run, at the next tick after
+  // it did.
   if (state.frame % SYNC_FRAMES === 0) void quiet($, syncCrew($), 'sync')
-  else releaseIfDue($)
+  else {
+    releaseIfDue($)
+    waitingIfDue($)
+  }
   if (state.frame % LINES_FRAMES === LINES_PHASE) void quiet($, ensureLines($), 'mood lines')
 }
 
