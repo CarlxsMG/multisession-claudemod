@@ -18,6 +18,12 @@ export const COMPACT = 'mcp__crew__compact'
 export const MAIN_ADDRESS = 'main'
 /** The agent type of a worker nobody asked another type for: the engine's default, which the roster leaves unsaid. */
 export const DEFAULT_TYPE = 'general-purpose'
+/**
+ * The engine's own agent types that edit no file and start no agent: a worker
+ * of one is not told how to commit, write comments or fork itself. By name
+ * alone: a type the crew does not know may edit, and hears every rule.
+ */
+export const READ_ONLY_TYPES: ReadonlySet<string> = new Set(['Explore', 'Plan'])
 /** The pane's timer: one frame of the figures, and the beat the rest of the tick counts in. */
 export const TICK_MS = 400
 /** The teammates a worker's brief lists; the orchestrator gives it any other address. */

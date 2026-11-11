@@ -34,6 +34,9 @@ All notable changes to crew are written here. The format follows
 
 - The pane's feed shows the newest message first, so what just happened is at the top without
   scrolling; when not every message fits, the oldest are the ones left out.
+- A worker started as `Explore` or `Plan`, which edit nothing, no longer reads how to commit, write
+  comments or fork itself: about 1100 characters less at its start. Every other type, a
+  project's own agents included, reads the whole preamble as before.
 
 ### Fixed
 

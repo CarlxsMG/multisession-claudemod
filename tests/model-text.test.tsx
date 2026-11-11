@@ -109,6 +109,15 @@ test('what a worker hears when it starts: in its repository, beside teammates, a
   expectText('fork.ofMain', seen.prompts[4])
 })
 
+test('what a worker of a read-only type hears when it starts', async ($, on) => {
+  let spawned = 0
+  const seen = recording()
+  engine(on, { nextId: () => `agent-${++spawned}`, seen })
+  await start($)
+  await delegate($, { task: 'Find where sessions are stored', title: 'Sessions', repo: '/work/api', subagent_type: 'Explore' })
+  expectText('preamble.readOnly', seen.prompts[0])
+})
+
 test('what a worker hears in a worktree of its own, and an agent it starts there', async ($, on) => {
   let spawned = 0
   const seen = recording()
