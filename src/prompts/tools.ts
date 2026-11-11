@@ -6,8 +6,9 @@ import { DELEGATION_RULES } from './orchestrator'
 const DELEGATE_ABOUT = `Hand a task to a crew worker: a named background subagent, general-purpose unless \`subagent_type\` says otherwise, that reports back when done. Goes to the worker you name; else to the free worker this tool started in that repository, of that type and on that model (the session's when unset), that last finished a task, if it did within ${REUSE_WARM_MIN} min (its context is still cached), or the next such it can reach; it keeps its context; else to a new one. Returns at once: the worker's address, and who else is busy where it works.`
 
 // Policy plugins can keep out a system section but not a tool description, so
-// the rules ride here too, for the orchestrator alone and only while
-// delegation is on; its brief or the latest "[crew]" note says whether it is.
+// the rules ride here and nowhere else, for the orchestrator alone and only
+// while delegation is on; its brief or the latest "[crew]" note says whether
+// it is.
 const DELEGATE_RULES_FOR = `These rules are for the main assistant, the crew's orchestrator, while delegation is ON (its crew brief or the latest "[crew]" note says whether it is); a worker or fork reading them ignores them and does its own task.`
 
 /**
@@ -42,12 +43,12 @@ export const DELEGATE_SPEC = {
       },
       fresh: {
         type: 'boolean',
-        description: 'Start a new worker instead of reusing a free one: for unrelated work, or parts that run in parallel.',
+        description: 'Start a new worker instead of reusing a free one.',
       },
       subagent_type: {
         type: 'string',
         description:
-          "Agent type for a new worker, as the Agent tool lists them: `Explore` for read-only searches, `Plan`, the project's own agents. General-purpose when unset. Only a worker of the same type is reused; a fork starts from the Agent tool instead.",
+          "Agent type for a new worker, as the Agent tool lists them: `Explore` for a read-only search across many files, `Plan` for a design, the project's own agents. General-purpose when unset. Only a worker of the same type is reused; a fork starts from the Agent tool instead.",
       },
       model: {
         type: 'string',
@@ -60,10 +61,14 @@ export const DELEGATE_SPEC = {
   isDeferred: false,
 } as const
 
-/** The roster tool's spec. */
+/**
+ * The roster tool's spec. A row says its own fields, so the description holds
+ * only what a row does not: which statuses are free, what its marks mean, and
+ * the limits.
+ */
 export const ROSTER_SPEC = {
   name: 'roster',
-  description: `List the crew, busy workers first, then the most recent, at most ${ROSTER_ROWS} rows. Each row: name, SendMessage address, status (starting, working or waiting while busy; idle, done or stopped when free to take a task; failed), "fork of" or "started by" the worker that started it, repository or "worktree of" it for a worker in a git worktree, agent type when not general-purpose, model, tasks, tokens and last task; a busy worker also shows what it is doing, and an agent the worker that started it woke with a message shows "answering <name>" and how many of your tasks wait for it; "not delivered: <why>" means they did not reach it, and go with the next task you give it. The ${ROSTER_REPORTS} latest workers not busy (failed included) show their last report cut to ${ROSTER_REPORT_CUT} characters; pass \`worker\` for one worker with its last report at more length (up to ${ROSTER_FULL_REPORT_CUT} characters). A worker taken off the list comes back when it works again. Use it to pick the worker that should continue earlier work, to find an address for SendMessage or TaskStop, or to see who is busy where.`,
+  description: `List the crew, busy workers first, then the most recent, at most ${ROSTER_ROWS} rows: each worker's name, SendMessage address, status, where it works, last task and, while busy, what it is doing. Idle, done and stopped workers are free to take a task. One "answering <name>" was woken by that worker, and your tasks wait for it; tasks "not delivered" go with the next one you give it. The ${ROSTER_REPORTS} latest workers not busy show their last report cut to ${ROSTER_REPORT_CUT} characters; \`worker\` shows one alone, with more of it. Use it to pick the worker that should continue earlier work, to find an address for SendMessage or TaskStop, or to see who is busy where.`,
   inputSchema: {
     type: 'object',
     properties: {
