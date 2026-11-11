@@ -22,6 +22,12 @@ import { drawToolCard, drawToolResult, drawToolUse } from '../src/ui/transcript/
 import { drawUserCard, drawUserMessage } from '../src/ui/transcript/user-message'
 import { chooseUsageProbe } from '../src/usage/limits'
 
+// A drawing's `.catch`: the event passed on, which replays what the hook's
+// last `next` answered, or draws what is beneath it when there was none.
+function passOn<E, R>(_: unknown, e: E, next: (e: E) => R): R {
+  return next(e)
+}
+
 // The tools whose calls the crew draws as its rows in the conversation.
 const CREW_TOOLS = ['mcp__crew__delegate', 'SendMessage', 'TaskStop']
 
@@ -32,12 +38,15 @@ const CREW_TOOLS = ['mcp__crew__delegate', 'SendMessage', 'TaskStop']
 // A hook that fails (throws, overruns, answers a wrong shape) is the engine's
 // to skip: what is beneath it runs in its place, or what its last `next`
 // answered stands, and the engine reports it by name. Every hook here but a
-// guard wants just that, a crew row falling back to the engine's. So only a
-// guard, whose failing must not let through what it guards, carries a `.catch`,
-// and says what that is: one that only passes the event on changes no outcome,
-// and has the engine report as failed closed a hook that failed open. The
-// validator's "gating hook without .catch" names an event that lets a hook
-// refuse, not a hook that does.
+// guard and a drawing wants just that. A guard, whose failing must not let
+// through what it guards, carries a `.catch` that says what that is. A drawing
+// carries one that passes the event on (`next` replays what it last answered),
+// so its row is the engine's: the test kit fails a test whose render hook the
+// engine had to skip, the fallback the crew means included. Any other hook
+// with one that only passes the event on would change no outcome, and have the
+// engine report as failed closed a hook that failed open. The validator's
+// "gating hook without .catch" names an event that lets a hook refuse, not a
+// hook that does.
 export const register: Register = (on, options) => {
   chooseLocale(options.language)
   chooseUsageProbe(options.usageProbe)
@@ -103,7 +112,7 @@ export const register: Register = (on, options) => {
 
   // ---- the pane ----
 
-  on('ui.render', { component: 'Pane', requestId: 'crew' }, ($, e) => drawPane($, e))
+  on('ui.render', { component: 'Pane', requestId: 'crew' }, ($, e) => drawPane($, e)).catch(passOn)
 
   // ---- the conversation's crew rows ----
   // Drawn only: the stored transcript, and what any model reads, stay as they
@@ -112,12 +121,12 @@ export const register: Register = (on, options) => {
   // terminal draws bubbles, the desktop app and VS Code one-line cards a press
   // opens (see crewCard), and every other surface, the phone's among them, the
   // engine's own rows: a matcher selects only the surfaces it names.
-  on('ui.render', { component: 'ToolUse', surface: 'terminal', props: { tool: CREW_TOOLS } }, ($, e, next) => drawToolUse($, e, next))
-  on('ui.render', { component: 'ToolUse', surface: ['desktop', 'vscode'], props: { tool: CREW_TOOLS } }, ($, e, next) => drawToolCard($, e, next))
+  on('ui.render', { component: 'ToolUse', surface: 'terminal', props: { tool: CREW_TOOLS } }, ($, e, next) => drawToolUse($, e, next)).catch(passOn)
+  on('ui.render', { component: 'ToolUse', surface: ['desktop', 'vscode'], props: { tool: CREW_TOOLS } }, ($, e, next) => drawToolCard($, e, next)).catch(passOn)
   on('ui.render', { component: 'ToolResult', surface: ['terminal', 'desktop', 'vscode'], props: { tool: CREW_TOOLS } }, ($, e, next) =>
     drawToolResult($, e, next),
-  )
-  on('ui.render', { component: 'UserMessage', surface: 'terminal' }, ($, e, next) => drawUserMessage($, e, next))
-  on('ui.render', { component: 'UserMessage', surface: ['desktop', 'vscode'] }, ($, e, next) => drawUserCard($, e, next))
-  on('ui.render', { component: 'Placed' }, ($, e, next) => drawPlaced($, e, next))
+  ).catch(passOn)
+  on('ui.render', { component: 'UserMessage', surface: 'terminal' }, ($, e, next) => drawUserMessage($, e, next)).catch(passOn)
+  on('ui.render', { component: 'UserMessage', surface: ['desktop', 'vscode'] }, ($, e, next) => drawUserCard($, e, next)).catch(passOn)
+  on('ui.render', { component: 'Placed' }, ($, e, next) => drawPlaced($, e, next)).catch(passOn)
 }

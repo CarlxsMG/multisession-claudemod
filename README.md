@@ -120,7 +120,7 @@ To work on the plugin itself, see [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ## Requirements
 
-- Claude Code 2.1.318 or later (the release the tests and validation run on in CI).
+- Claude Code 2.1.322 or later (the release the tests and validation run on in CI).
 - For the pane docked to the right: a wide terminal in full screen (from about 110 to 144
   columns). In a narrower terminal the pane opens above the prompt.
 - For the usage windows: a Claude subscription. With an API key they do not show.

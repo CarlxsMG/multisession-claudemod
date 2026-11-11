@@ -19,9 +19,11 @@ the plugin's `userConfig` values (`language`, `usageProbe`, `napAfter`, `compact
   (the crew's own tools answer their calls this way).
 - **A hook that fails** (throws, overruns, answers a wrong shape) is skipped: what is beneath it
   runs in its place, or what its last `next` answered stands, so a render hook's row falls back to
-  the engine's own drawing. Only a guard carries a **`.catch(handler)`**, which answers for it:
+  the engine's own drawing. A guard carries a **`.catch(handler)`**, which answers for it:
   `delegate` answers `DELEGATE_FAILED`, and a send that may already have gone out answers
-  undelivered (`SEND_UNSURE`) rather than send twice. `hooks/register.tsx` states the rule.
+  undelivered (`SEND_UNSURE`) rather than send twice. Each `ui.render` hook carries one that passes
+  the event on, the same fallback answered rather than skipped, as the test kit requires of a
+  drawing. `hooks/register.tsx` states the rule.
 - **State** (`$.state`): typed **atoms**, declared in `src/state/atoms.ts` against the contract in
   `types/index.d.ts`. They hold the session's data and outlive a reload or an update of the
   plugin. A drawing that reads an atom is drawn again when the atom changes.

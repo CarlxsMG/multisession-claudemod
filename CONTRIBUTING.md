@@ -6,7 +6,7 @@ defines its vocabulary; read it before changing more than one file.
 
 ## Setup
 
-You need Claude Code 2.1.318 or later (the release CI pins, `CLAUDE_CODE_VERSION` in
+You need Claude Code 2.1.322 or later (the release CI pins, `CLAUDE_CODE_VERSION` in
 `.github/workflows/ci.yml`) and Node.js for `npx`.
 
 1. Clone the repository.

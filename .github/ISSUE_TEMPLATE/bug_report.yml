@@ -25,7 +25,7 @@ body:
     attributes:
       label: Claude Code version
       description: What `claude --version` prints.
-      placeholder: 2.1.318 (Claude Code)
+      placeholder: 2.1.322 (Claude Code)
     validations:
       required: true
   - type: input
