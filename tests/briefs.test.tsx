@@ -1,11 +1,13 @@
 import { expect } from 'claude-code/testing'
 import { DEFAULT_LOOK } from '../src/figure/look'
-import { DELEGATE_SPEC } from '../src/prompts/tools'
+import { ROSTER_FULL_REPORT_CUT, ROSTER_REPORTS, ROSTER_REPORT_CUT, ROSTER_ROWS } from '../src/config'
+import { DELEGATION_RULES } from '../src/prompts/orchestrator'
+import { DELEGATE_SPEC, ROSTER_SPEC } from '../src/prompts/tools'
 import { lookCode } from '../src/figure/share-code'
 import { VIBES } from '../src/persona/vibes'
 import { COMMENT_LINE, COMPOSER, GIT_LINE, NOVA_OFF, NOVA_ON, PANE, composeBrief, crewCommand, engine, spawnAgent, startTold, test } from './support/crew'
 
-test('the brief is part of the system prompt, and its rules of the delegate tool', async ($, on) => {
+test('the brief is part of the system prompt, and the delegation rules of the delegate tool alone', async ($, on) => {
   const seen = { prompts: [] as string[], sends: [] as string[], tools: [] as string[] }
   engine(on, { seen })
   on('prompt.compose', () => ({ sections: [{ id: 'intro', text: 'You are Claude Code.', scope: 'shared' as const }] }))
@@ -18,39 +20,62 @@ test('the brief is part of the system prompt, and its rules of the delegate tool
   )
   expect(section?.text).toMatch(/Delegation OFF: do the work yourself; use the crew only when the user asks\./)
   expect(section?.text).not.toMatch(/If you are a subagent reading this/)
-  expect(seen.tools).toHaveLength(1)
-  const rules = section?.text.split('\n\n')[1]?.split('\nPersona:')[0] ?? ''
-  expect(rules).toMatch(/^- Delegate everything/)
-  expect(seen.tools[0]!.endsWith(`\n\n${rules}`)).toBe(true)
-  expect(seen.tools[0]).not.toMatch(/You are Nova|Persona:/)
   expect(section?.text).toMatch(/You are Nova/)
-  expect(section?.text).toMatch(
+  expect(section?.text).toMatch(/\nPersona: Nova is /)
+  // A rule read in both places is paid for twice in every request: the
+  // brief points at the rules, and holds none of them.
+  expect(section?.text).toMatch(/the crew does the work\. How to delegate: the rules in mcp__crew__delegate's description\.\nPersona:/)
+  expect(section?.text.split('\n')).toHaveLength(4)
+  for (const rule of DELEGATION_RULES.split('\n')) {
+    expect(rule.startsWith('- ')).toBe(true)
+    expect(section?.text.includes(rule)).toBe(false)
+  }
+  expect(seen.tools).toHaveLength(1)
+  expect(seen.tools[0]!.endsWith(`\n\n${DELEGATION_RULES}`)).toBe(true)
+  expect(seen.tools[0]).not.toMatch(/You are Nova|Persona:/)
+
+  const description = seen.tools[0]!
+  expect(description).toMatch(
     /- Delegate everything but answers from what you already know: reading files, running commands, edits, reviews, tests\. Doing it yourself looks quicker, but sessions run long/,
   )
-  expect(section?.text).not.toMatch(/more than a couple of tool calls|run the tests, a diffstat/)
-  expect(section?.text).toMatch(/several mcp__crew__delegate calls in one message, each with `fresh: true` or naming its own free worker/)
-  expect(section?.text).toMatch(
-    /or give each a git worktree \(Agent tool, `isolation: "worktree"`\)\.\n- Git: workers commit their own work, never on the main branch; merge into it, or push, only once the user says so\. A comment says why the code is as it is now, never its history\.\n/,
+  expect(description).not.toMatch(/more than a couple of tool calls|run the tests, a diffstat/)
+  expect(description).toMatch(/several mcp__crew__delegate calls in one message, each `fresh` or naming its own free worker/)
+  expect(description).toMatch(
+    /or give each a git worktree \(Agent tool, `isolation: "worktree"`\)\.\n- Reuse context: a worker keeps all it read, also after it reports\. /,
   )
-  expect(section?.text).toMatch(
-    /\n- Workers are models: write to them tersely, with no pleasantries, persona or prose\. A brief is complete in facts \(a new worker has not seen this conversation\); a follow-up carries only what is new\.\n/,
-  )
-  expect(section?.text).toMatch(/Reuse context: a worker keeps all it read, also after it reports/)
-  expect(section?.text).toMatch(/subagent_type: "Explore"/)
-  expect(section?.text).toMatch(
+  expect(description).toMatch(/goes to the worker that knows it, named with `worker`, once its report is back; unrelated work goes to a `fresh` one\.\n/)
+  expect(description).toMatch(/\n- Git: workers commit their own work, never on the main branch; merge into it, or push, only once the user says so\.\n/)
+  expect(description).toMatch(/\n- Workers are models: write to them tersely, with no pleasantries, persona or prose; `task` says what a brief holds\.\n/)
+  expect(description).toMatch(
     /A fork \(Agent tool, `subagent_type: "fork"`\) inherits and rereads this whole conversation, so its prompt is just the directive: /,
   )
-  expect(section?.text).toMatch(
+  expect(description).toMatch(
     /- For a larger build, have one worker investigate and then fork itself once per part \(say frontend, backend and the Jira tickets\)/,
   )
-  expect(section?.text).toMatch(/Name the parts and the files each owns; it reports once its forks have\./)
-  expect(section?.text).toMatch(/Steer with SendMessage \(addresses in mcp__crew__roster\)/)
-  expect(section?.text).toMatch(/a finished worker wakes with its context/)
-  expect(section?.text).toMatch(/TaskStop a worker heading the wrong way/)
-  expect(section?.text).toMatch(/don't poll mcp__crew__roster for them/)
-  expect(section?.text).toMatch(/To check a report, have a worker run the check/)
-  // What left the brief lives in the delegate tool's parameters.
-  expect(section?.text).not.toMatch(/haiku|`title`/)
+  expect(description).toMatch(/Name the parts and the files each owns; it reports once its forks have\./)
+  expect(description).toMatch(/Steer with SendMessage \(addresses in mcp__crew__roster\)/)
+  expect(description).toMatch(/a finished worker wakes with its context/)
+  expect(description).toMatch(/TaskStop a worker heading the wrong way/)
+  expect(description).toMatch(/don't poll mcp__crew__roster for them/)
+  expect(description).toMatch(/To check a report, have a worker run the check/)
+  // What an argument does is said in its own description, not in a rule.
+  expect(description).not.toMatch(/haiku|`title`|"Explore"|A comment says why|A brief is complete in facts/)
+  const args = DELEGATE_SPEC.inputSchema.properties
+  expect(args.subagent_type.description).toMatch(/`Explore` for a read-only search across many files, `Plan` for a design/)
+  expect(args.task.description).toMatch(/Complete in facts, as a new worker has not seen this conversation/)
+  expect(args.fresh.description).toBe('Start a new worker instead of reusing a free one.')
+})
+
+test('the roster tool states its limits as the config has them', async () => {
+  const limit = `up to ${ROSTER_FULL_REPORT_CUT} characters`
+  expect(ROSTER_SPEC.inputSchema.properties.worker.description.includes(limit)).toBe(true)
+  expect(ROSTER_SPEC.description.includes(`at most ${ROSTER_ROWS} rows`)).toBe(true)
+  expect(ROSTER_SPEC.description.includes(`The ${ROSTER_REPORTS} latest workers not busy show their last report cut to ${ROSTER_REPORT_CUT} characters`)).toBe(
+    true,
+  )
+  // The one number a text may hold of each limit is the config's.
+  const numbers = `${ROSTER_SPEC.description} ${ROSTER_SPEC.inputSchema.properties.worker.description}`.match(/\d+/g) ?? []
+  expect(numbers.sort()).toEqual([ROSTER_ROWS, ROSTER_REPORTS, ROSTER_REPORT_CUT, ROSTER_FULL_REPORT_CUT].map(String).sort())
 })
 
 test('workers are told to report in a few lines, and who to talk to', async ($, on) => {
@@ -416,7 +441,9 @@ test('the next message carries one "[crew]" note with the latest state, and the 
   expect(contexts[3]).toBeUndefined()
   await crewCommand($, 'mode on')
   await submit('Reparte')
-  expect(contexts[4]![0]).toMatch(/^\[crew\] The user changed the crew settings\. Delegation is ON: you orchestrate, per the crew brief\. You are Luna\./)
+  expect(contexts[4]![0]).toMatch(
+    /^\[crew\] The user changed the crew settings\. Delegation is ON: you orchestrate, by the rules in mcp__crew__delegate's description\. You are Luna\./,
+  )
 })
 
 test('settings changed after the last note went out are told with the first message of the next load', async ($, on) => {

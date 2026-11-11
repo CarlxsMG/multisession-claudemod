@@ -24,8 +24,8 @@ happens.
   doing and its run's time and calls.
 - **A feed of the crew's messages**, newest first: the two newest as chat bubbles that type out,
   older ones as one quiet line each.
-- **Delegation by default.** With Delegate ON, the orchestrator's system prompt and the
-  `delegate` tool's description tell it to hand everything but quick answers to the crew, to
+- **Delegation by default.** With Delegate ON, the orchestrator's system prompt says it leads a
+  crew, and the `delegate` tool's description tells it to hand everything but quick answers to the crew, to
   reuse the worker that already knows an area, to run independent parts in parallel and to
   steer workers with `SendMessage`. The brief is frozen for the load, so the prompt cache stays
   whole; later changes reach the model as one short `[crew]` note with your next message.
