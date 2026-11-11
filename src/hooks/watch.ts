@@ -7,6 +7,7 @@ import { beforeTaskStop, noteBackground } from '../background/sweep'
 import { DELEGATE, PLUGIN, PROGRESS } from '../config'
 import { overlapNote } from '../crew/edits'
 import { gistOf, markCall, markCrewCall, setJob, setOrch } from '../crew/feed'
+import { SHELL_TOOLS, noteOwnWorktree } from '../crew/own-worktree'
 import { noteSendGist } from '../crew/sends'
 import { forgetIsolated, noteIsolated, takeNote } from '../crew/spawn'
 import { findWorker } from '../crew/workers'
@@ -76,6 +77,9 @@ export async function watchCall($: Engine, e: Parameters<WatchCallHook>[1], next
   const stopping = e.tool === 'TaskStop' ? await quiet($, beforeTaskStop($, e), 'background stop') : undefined
   const done = await next(e)
   if (isTodos && e.agentId !== undefined && done.result !== undefined) await noteTodos($, e.agentId, call, done.result)
+  // A worker's shell call that ran and made a worktree: it edits apart from now on.
+  if (e.agentId !== undefined && SHELL_TOOLS.has(e.tool) && done.deny === undefined && done.isError !== true)
+    await quiet($, noteOwnWorktree($, e.agentId, call.command), 'own worktree')
   if (isBackground) await quiet($, noteBackground($, e.tool, e, e.agentId, done, stopping), 'background task')
   return done
 }

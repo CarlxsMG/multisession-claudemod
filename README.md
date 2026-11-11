@@ -41,7 +41,8 @@ happens.
 - **Workers that report briefly and work safely.** Every worker hears that its report goes back to
   a conversation that must stay small: `DONE`, `PARTIAL` or `BLOCKED` and the result first, then
   facts, with what it checked told apart from what it did not. In a git repository it commits
-  its own work on a `crew/*` branch or worktree, never on the main branch unless you asked.
+  its own work in a worktree of its own, on a `crew/*` branch or the one the orchestrator's brief
+  names, never on the main branch unless you asked.
 - **Workers talk to each other.** A message to a busy teammate arrives at its next tool call; one
   to a free teammate wakes it, sent on from the main conversation so its report comes back to the
   orchestrator. A task for a worker that another worker just woke waits and follows once that run

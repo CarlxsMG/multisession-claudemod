@@ -30,7 +30,7 @@ import { adoptHanded, keepHandoff, noteSpawnMode, takeIntent } from './delegate'
 import { ORCH_ID, enlist, say, setJob } from './feed'
 import { bareTitle, namedTitle } from './title'
 import { spawnTypeOf } from './worker-type'
-import { claimName, findWorker, makeWorker, matesOf, patchWorker, prune, shelve, takenNow, unclaimNames, unshelve } from './workers'
+import { apartIds, claimName, findWorker, makeWorker, matesOf, patchWorker, prune, shelve, takenNow, unclaimNames, unshelve } from './workers'
 
 // What an Agent call's model reads after its result, by tool_use_id: when
 // the crew named its agent otherwise than the call did, the name its card
@@ -124,11 +124,13 @@ type Identified = Awaited<ReturnType<typeof identify>>
 // What its agent hears first, and whether it works in a worktree.
 async function briefFor($: Engine, e: SpawnEvent, who: Identified) {
   const { look, list, intent, isCrew, parent, reportsTo, cwd, name } = who
-  const inWorktree = new Set(await readWorktrees($))
+  const isolated = await readWorktrees($)
   // Its own worktree, or the one of the worker that starts it, where it
-  // starts too unless the call sends it elsewhere.
+  // starts too unless the call sends it elsewhere. Only a worktree the engine
+  // made counts here: one a worker made for itself is not where its agents
+  // start.
   const own = await takeIsolated($, e.tool_use_id)
-  const shared = !own && e.cwd === undefined && parent !== undefined && inWorktree.has(parent.id)
+  const shared = !own && e.cwd === undefined && parent !== undefined && isolated.includes(parent.id)
   // Delegate's workers hear the crew's preamble in either mode; with
   // delegation off, the Agent tool's agents start as they were asked.
   const briefed = isCrew || (await readIsOn($))
@@ -145,7 +147,7 @@ async function briefFor($: Engine, e: SpawnEvent, who: Identified) {
           cwd,
           mates ?? [],
           own ? 'own' : shared ? 'parent' : undefined,
-          inWorktree,
+          apartIds(list, isolated),
           // Its type as delegate asked it, which the engine may not carry through.
           READ_ONLY_TYPES.has(intent?.type || e.subagentType),
         ) + e.prompt

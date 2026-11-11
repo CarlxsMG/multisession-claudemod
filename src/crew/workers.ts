@@ -117,6 +117,14 @@ export function makeWorker(
 export const byActivity = (a: Worker, b: Worker): number => Number(ACTIVE.has(b.status)) - Number(ACTIVE.has(a.status)) || b.updatedAt - a.updatedAt
 
 /**
+ * The ids of the workers that edit apart from the repository they are listed
+ * in: those the engine started in a worktree (`isolated`), and those that
+ * made one for themselves.
+ */
+export const apartIds = (list: readonly Worker[], isolated: readonly string[]): Set<string> =>
+  new Set([...isolated, ...list.filter(w => w.isApart === true).map(w => w.id)])
+
+/**
  * The teammates a worker named `name`, in `cwd`, hears of: the busy ones and
  * those in its repository, most active first, up to `MATES`.
  */
