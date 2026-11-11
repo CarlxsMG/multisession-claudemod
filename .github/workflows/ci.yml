@@ -11,7 +11,7 @@ permissions:
 env:
   # The Claude Code release crew's tests and validation are known to pass on. Raise it once
   # they pass on the new one locally.
-  CLAUDE_CODE_VERSION: 2.1.318
+  CLAUDE_CODE_VERSION: 2.1.322
   # The Prettier release the code is formatted with. A new one can move lines, so raise it in a
   # commit of its own that holds the reformat, and list that commit in .git-blame-ignore-revs.
   PRETTIER_VERSION: 3.9.10

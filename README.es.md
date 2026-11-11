@@ -119,7 +119,7 @@ Para trabajar en el propio plugin, mira [CONTRIBUTING.md](CONTRIBUTING.md) (en i
 
 ## Requisitos
 
-- Claude Code 2.1.318 o posterior (la versión con que pasan los tests y la validación en CI).
+- Claude Code 2.1.322 o posterior (la versión con que pasan los tests y la validación en CI).
 - Para el panel acoplado a la derecha: una terminal ancha a pantalla completa (desde unas 110–144
   columnas). En una más estrecha, el panel se abre encima del prompt.
 - Para ver el uso: una suscripción de Claude. Con una API key no aparece.
