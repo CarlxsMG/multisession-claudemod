@@ -16,14 +16,27 @@ const REPORT_RULE =
   "report the outcome first, then only facts: branch and commits or files changed, check results, blockers, decisions needed. Don't restate the task or narrate your steps; no pleasantries, headings or diffs; quote a line only when a decision depends on it."
 
 // What closes a new task for a worker that heard the preamble: its plan
-// starts again with the task, so it is declared again.
-const AGAIN = `Report as before. 3+ steps: ${PROGRESS} again from step 0.`
+// starts again with the task, at its first step.
+const AGAIN = `Report as before. 3+ steps: ${PROGRESS} again from step 1.`
 
 /**
  * How a new task for a worker ends: one the crew started heard the preamble
  * and reports as before; another agent (`asked` null) is told how.
  */
 export const taskClose = (asked: string | null | undefined): string => (asked !== null ? AGAIN : `When done, ${REPORT_RULE}`)
+
+// Teammates as a worker reads them: each one's name, its address and where
+// it works. `apart` holds the ids of those in a worktree of their own.
+const namedMates = (mates: readonly Worker[], apart: ReadonlySet<string>): string =>
+  mates.map(w => `${w.name} ("${w.address}", ${apart.has(w.id) ? 'own worktree of ' : ''}${basename(w.cwd)})`).join(', ')
+
+/**
+ * The line a new task carries, ahead of how it ends, of the teammates the
+ * worker was not told of, as the caller chose them; '' for none. `knowsSome`:
+ * it was told of teammates before, in its preamble, so these are new to it.
+ */
+export const newMates = (mates: readonly Worker[], apart: ReadonlySet<string>, knowsSome: boolean): string =>
+  mates.length === 0 ? '' : `${knowsSome ? 'New teammates' : 'Teammates'} you can reach with SendMessage: ${namedMates(mates, apart)}.\n`
 
 /** The tasks that waited for a woken worker, sent as one once its run ends. */
 export const heldTasks = (held: readonly { task: string; title: string }[]): string =>
@@ -43,7 +56,9 @@ export const gitRules = (cwd: string, you: string): string =>
 /**
  * `reportsTo` is who it reports to: the orchestrator, or the worker that
  * started it. `mates` are the teammates it hears of, as the caller chose them;
- * `apart` holds the ids of workers in a worktree of their own.
+ * `apart` holds the ids of workers in a worktree of their own. `isReadOnly`
+ * is for a worker of a type that edits nothing and starts no agent: it is not
+ * told how to fork itself, commit or write comments.
  */
 export function workerPreamble(
   name: string,
@@ -53,14 +68,21 @@ export function workerPreamble(
   mates: readonly Worker[],
   worktree: 'own' | 'parent' | undefined,
   apart: ReadonlySet<string>,
+  isReadOnly: boolean,
 ) {
-  const named = mates.map(w => `${w.name} ("${w.address}", ${apart.has(w.id) ? 'own worktree of ' : ''}${basename(w.cwd)})`).join(', ')
+  const named = namedMates(mates, apart)
   const where =
     worktree === 'own'
       ? `- You work in your own git worktree of ${cwd}, where your shell starts: stay in it, not in ${cwd}. Finish the task there, commit on its branch, and give its path and branch in your report.`
       : worktree === 'parent'
         ? `- You work in ${reportsTo}'s git worktree of ${cwd}, where your shell starts: stay in it, not in ${cwd}, and commit your own work there.`
         : `- Your repository is ${cwd}. Your shell may start elsewhere: cd there or use absolute paths under it. Finish the task end to end there.`
+  // What only a worker that starts agents and edits files can apply, each
+  // with the line break that follows it.
+  const forks = isReadOnly
+    ? ''
+    : `- Parallel parts, once you have read what they need: fork yourself once per part (Agent tool, \`subagent_type: "fork"\`). Each starts from your context, so give it only its part and files; report the whole once they report.\n`
+  const git = isReadOnly ? '' : `${gitRules(cwd, name.toLowerCase())}\n`
   return `[crew] You are ${name}, a worker in ${orchName}'s crew. ${orchName} orchestrates and talks with the user; you do the hands-on work. All you send goes to models: terse, facts only, nothing the reader already knows.
 ${where}
 - Teammates you can reach with SendMessage: ${named || 'none yet'}. Coordinate directly when your work touches theirs.
@@ -69,10 +91,8 @@ ${where}
 - Someone waits on you: SendMessage it as soon as you have what it needs.
 - You keep this context after you report: ${reportsTo}'s follow-ups carry only what is new.
 - Run only commands that end: no \`tail -f\`, \`watch\`, \`--watch\` modes or unbounded \`while true\`. Background only what must outlive a call; TaskStop every background shell and Monitor you started before your final report, and name in it any server left running, with its port.
-- Parallel parts, once you have read what they need: fork yourself once per part (Agent tool, \`subagent_type: "fork"\`). Each starts from your context, so give it only its part and files; report the whole once they report.
-- 3+ steps: declare your plan with ${PROGRESS}, step 0 of N (the N steps you will actually take), then call it as you start each step, 1 to N, in the same message as that step's first tool call.
-${gitRules(cwd, name.toLowerCase())}
-- Your final message goes back into ${reportsTo}'s conversation, which must stay small: ${REPORT_RULE}
+${forks}- 3+ steps: call ${PROGRESS} as you start each step, 1 to N (the N steps you will actually take), in the same message as that step's first tool call.
+${git}- Your final message goes back into ${reportsTo}'s conversation, which must stay small: ${REPORT_RULE}
 
 Task:
 `

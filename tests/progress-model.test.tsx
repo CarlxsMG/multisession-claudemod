@@ -82,12 +82,23 @@ test('workers hear when to call progress, and forks do not', async ($, on) => {
   await $.session.start({ cwd: '/work/main', surface: 'terminal', isInteractive: true })
   await $.tool.call({ tool: DELEGATE, task: 'Investigate the checkout', repo: '/work/shop' })
   expect(seen.prompts[0]).toMatch(
-    /\n- 3\+ steps: declare your plan with mcp__crew__progress, step 0 of N \(the N steps you will actually take\), then call it as you start each step, 1 to N, in the same message as that step's first tool call\.\n- In a git repository/,
+    /\n- 3\+ steps: call mcp__crew__progress as you start each step, 1 to N \(the N steps you will actually take\), in the same message as that step's first tool call\.\n- In a git repository/,
   )
+  expect(seen.prompts[0]).not.toMatch(/step 0/)
   await spawnAgent($, { prompt: 'Do the frontend', description: 'Frontend', subagentType: 'fork', fork: true, parentAgentId: 'agent-1' })
   await spawnAgent($, { prompt: 'Draft the plan', description: 'Plan', subagentType: 'fork', fork: true })
   expect(seen.prompts).toHaveLength(3)
   for (const prompt of seen.prompts.slice(1)) expect(prompt).not.toMatch(/progress/)
+})
+
+test('a first call at step 1 sets the plan, with no step 0 before it', async ($, on) => {
+  const { delegate } = await progressCrew($, on)
+  const roster = async () => String((await $.tool.call({ tool: 'mcp__crew__roster' })).result)
+  await delegate('Fix the tests', '/work/api', 'Arreglar tests')
+  expect(await progress($, 'agent-1', 1, 4, 'Leer')).toBe('ok; next: step 2 of 4, as you start it.')
+  expect(await roster()).toMatch(/^- Pip: address "pip", \w+, step 1\/4, repo \/work\/api, /m)
+  expect(await progress($, 'agent-1', 2, 4, 'Arreglar')).toBe('ok; next: step 3 of 4, as you start it.')
+  expect(await roster()).toMatch(/^- Pip: address "pip", \w+, step 2\/4, repo \/work\/api, /m)
 })
 
 test('the progress tool answers a worker with the step it owes next, through the last', async ($, on) => {

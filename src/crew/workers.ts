@@ -94,7 +94,10 @@ export const findWorker = <W extends Member>(list: readonly W[], key: string): W
 }
 
 /** A worker that starts now, on its first task, with the seed its color and figure come from. */
-export function makeWorker(fields: Pick<Worker, 'id' | 'name' | 'address' | 'task' | 'type' | 'cwd' | 'status' | 'model' | 'asked'>, now: number): Worker {
+export function makeWorker(
+  fields: Pick<Worker, 'id' | 'name' | 'address' | 'task' | 'type' | 'cwd' | 'status' | 'model' | 'asked' | 'mates'>,
+  now: number,
+): Worker {
   return {
     ...fields,
     activity: '',
@@ -122,6 +125,25 @@ export const matesOf = (list: readonly Worker[], name: string, cwd: string): Wor
     .filter(w => w.name !== name && (ACTIVE.has(w.status) || samePath(w.cwd, cwd)))
     .sort(byActivity)
     .slice(0, MATES)
+
+/**
+ * The teammates of `matesOf` a worker was not told of yet: what a new task
+ * tells it, as its preamble told it the ones there when it started.
+ */
+export const untoldMatesOf = (list: readonly Worker[], worker: Pick<Worker, 'name' | 'cwd' | 'mates'>): Worker[] =>
+  matesOf(
+    list.filter(w => !(worker.mates ?? []).includes(w.address)),
+    worker.name,
+    worker.cwd,
+  )
+
+// How many addresses a worker is kept as told of, the latest: one let go is
+// told again, should that teammate still be there.
+const MATES_TOLD = 60
+
+/** A worker's `mates` once it is told of `more`. */
+export const toldMates = (worker: Pick<Worker, 'mates'>, more: readonly Worker[]): string[] =>
+  [...(worker.mates ?? []), ...more.map(w => w.address)].slice(-MATES_TOLD)
 
 // The workers the list keeps besides the active ones, the most recent.
 const KEPT_IDLE = 24

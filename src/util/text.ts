@@ -7,6 +7,20 @@ export const cut = (text: string, max: number): string => (text.length <= max ? 
 /** `text` on one line: every run of whitespace a single space. */
 export const flat = (text: string): string => text.replace(/\s+/g, ' ').trim()
 
+/**
+ * `text` with its line breaks kept and cut to `max` characters: no space at
+ * a line's end, no blank line at either end, and never two in a row.
+ */
+export function lines(text: string, max: number): string {
+  const tidy = text
+    .split(/\r?\n/)
+    .map(line => line.trimEnd())
+    .join('\n')
+    .replace(/\n{3,}/g, '\n\n')
+    .trim()
+  return tidy.length <= max ? tidy : `${tidy.slice(0, max - 1).trimEnd()}…`
+}
+
 /** `text` flattened to one line and cut to `max` columns. */
 export const oneLine = (text: string, max: number): string => cut(flat(text), max)
 

@@ -18,6 +18,12 @@ export const COMPACT = 'mcp__crew__compact'
 export const MAIN_ADDRESS = 'main'
 /** The agent type of a worker nobody asked another type for: the engine's default, which the roster leaves unsaid. */
 export const DEFAULT_TYPE = 'general-purpose'
+/**
+ * The engine's own agent types that edit no file and start no agent: a worker
+ * of one is not told how to commit, write comments or fork itself. By name
+ * alone: a type the crew does not know may edit, and hears every rule.
+ */
+export const READ_ONLY_TYPES: ReadonlySet<string> = new Set(['Explore', 'Plan'])
 /** The pane's timer: one frame of the figures, and the beat the rest of the tick counts in. */
 export const TICK_MS = 400
 /** The teammates a worker's brief lists; the orchestrator gives it any other address. */
@@ -28,7 +34,14 @@ export const ROSTER_ROWS = 12
 export const ROSTER_REPORTS = 3
 /** How much of a last report the roster shows: in a row of the list, and for one worker asked for alone. */
 export const ROSTER_REPORT_CUT = 120
-export const ROSTER_FULL_REPORT_CUT = 1200
+export const ROSTER_FULL_REPORT_CUT = 8000
+/**
+ * The workers whose last report is kept whole, the latest, for the roster to
+ * show one asked for alone; and how much of a report every worker keeps on
+ * one line, which the roster's list is cut from.
+ */
+export const REPORTS_KEEP = 24
+export const REPORT_LINE_CUT = 1200
 /** The least time between two compactions the crew starts, which the compact tool's spec states. */
 export const COMPACT_GAP_MIN = 10
 /**
