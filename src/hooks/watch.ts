@@ -5,6 +5,7 @@ import type { HookFor } from 'claude-code'
 import { BACKGROUND_TOOLS } from '../background/tasks'
 import { beforeTaskStop, noteBackground } from '../background/sweep'
 import { DELEGATE, PLUGIN, PROGRESS } from '../config'
+import { overlapNote } from '../crew/edits'
 import { gistOf, markCall, markCrewCall, setJob, setOrch } from '../crew/feed'
 import { noteSendGist } from '../crew/sends'
 import { forgetIsolated, noteIsolated, takeNote } from '../crew/spawn'
@@ -12,7 +13,8 @@ import { findWorker } from '../crew/workers'
 import { quiet } from '../engine'
 import type { Engine } from '../engine'
 import { t } from '../i18n'
-import { describe } from '../progress/phase'
+import { holdEdit } from '../progress/calls'
+import { describe, editedPath } from '../progress/phase'
 import { noteCall } from '../progress/run-store'
 import { TODO_TOOLS, noteTodos } from '../progress/todos'
 import { readMembers } from '../state/atoms'
@@ -23,7 +25,8 @@ type WatchCallHook = HookFor<'tool.call'>
 /**
  * Follows every tool call but the progress tool's: a spawn into a worktree
  * and the name its agent took, who a SendMessage reaches, a worker's
- * activity, phase and plan, and the tasks left running in the background.
+ * activity, phase and plan, the files it edits, and the tasks left running
+ * in the background.
  */
 export async function watchCall($: Engine, e: Parameters<WatchCallHook>[1], next: Parameters<WatchCallHook>[2]) {
   if ((e.tool as string) === PROGRESS) return next(e)
@@ -56,6 +59,16 @@ export async function watchCall($: Engine, e: Parameters<WatchCallHook>[1], next
     if (done.deny !== undefined) await forgetIsolated($, String(call.tool_use_id))
     const note = takeNote(e.tool_use_id)
     return note === undefined || done.deny !== undefined ? done : { ...done, context: [...(done.context ?? []), note] }
+  }
+  const edited = e.agentId !== undefined ? editedPath(call) : undefined
+  if (e.agentId !== undefined && edited !== undefined) {
+    const done = await next(e)
+    if (done.deny !== undefined) return done
+    // The word on another worker's edits of this file is read before the
+    // edit counts as this worker's own; it rides after the tool's result.
+    const note = await quiet($, overlapNote($, e.agentId, edited), 'edit overlap')
+    holdEdit(e.agentId, edited)
+    return note === undefined ? done : { ...done, context: [...(done.context ?? []), note] }
   }
   const isTodos = e.agentId !== undefined && TODO_TOOLS.has(e.tool)
   const isBackground = BACKGROUND_TOOLS.has(e.tool)

@@ -43,7 +43,7 @@ the debug log. Its `unrecognized` logs there an engine text the crew reads in no
 | --- | --- |
 | `hooks/register.tsx` | Every hook, each matcher written inline. Nothing else. |
 | `src/hooks/` | The hook bodies: the session's events (`session.ts`), the `/crew` command (`commands.ts`), the crew's tools (`tools.ts`), every tool call watched (`watch.ts`), turn starts and ends (`turns.ts`), the system prompt and the user's messages (`prompt.ts`), compaction (`compact.ts`). |
-| `src/crew/` | The crew itself: the worker list and its statuses (`workers.ts`), `delegate` (`delegate.ts`), the spawn hook (`spawn.ts`) and the name it puts ahead of an agent's title (`title.ts`) and of a worker's background shell or Monitor (`shell-title.ts`), the send hook (`sends.ts`), relays (`relay.ts`), takeovers and held tasks (`takeover.ts`), tasks that wait for a run to end (`waiting.ts`), compactions the crew starts (`compaction.ts`), one way to send and record (`deliver.ts`), the sync with the engine's agents (`sync.ts`), the user's message to a worker (`message.ts`), what the pane and the rows are drawn from (`feed.ts`), and the roster's data (`roster.ts`). |
+| `src/crew/` | The crew itself: the worker list and its statuses (`workers.ts`), `delegate` (`delegate.ts`), the spawn hook (`spawn.ts`) and the name it puts ahead of an agent's title (`title.ts`) and of a worker's background shell or Monitor (`shell-title.ts`), the send hook (`sends.ts`), relays (`relay.ts`), takeovers and held tasks (`takeover.ts`), workers that end with no report or go quiet (`silence.ts`), tasks that wait for a run to end (`waiting.ts`), compactions the crew starts (`compaction.ts`), one way to send and record (`deliver.ts`), the sync with the engine's agents (`sync.ts`), the user's message to a worker (`message.ts`), what the pane and the rows are drawn from (`feed.ts`), the roster's data (`roster.ts`), and the files runs in flight have edited (`edits.ts`). |
 | `src/guard/runaway.ts` | The guard on Bash and PowerShell calls: it refuses a command that would not end (`tail -f`, `watch`, a watch mode, an endless loop), the main session's and every worker's. |
 | `src/prompts/` | Nearly every text a model reads ([docs/model-behavior.md](docs/model-behavior.md) lists them all): the orchestrator's brief and `[crew]` note (`orchestrator.ts`), the workers' preamble and the texts the crew sends them (`worker.ts`), the tool specs (`tools.ts`), the tool results and their parsers (`results.ts`), the roster's text (`roster.ts`), and what the `/crew` command answers (`commands.ts`). |
 | `src/progress/` | Progress, which no model reads: `run-store.ts` is the only module that records runs with the engine, `calls.ts` holds tool calls for the pane's next frame, `todos.ts` reads a plan off a todo list, `status.ts` pins the status line, `placed.ts` places the rows and keeps the check-in interval, and `tick.ts` is the progress tick; `runs.ts`, `round.ts`, `plan.ts`, `phase.ts`, `check-in.ts` are pure; `text/` builds the status line, the team view, the cards and the placed rows. |
@@ -110,6 +110,7 @@ under, so it never changes even where the code name differs.
 | `background` | `background` | `background-1` | Shells and Monitors left running in the background, whose each is, its process and when its owner's turn ended, up to 100 |
 | `compactAsk` | `compaction` | `compactAsk-1` | The compaction the orchestrator or `compactAt` asked for, until a safe moment runs it, and when the crew last ran one |
 | `waiting` | `waiting` | `waiting-1` | Tasks a delegate call's `after` holds until a worker's run ends, and those not given, until the orchestrator is told |
+| `silences` | `silences` | `silences-1` | Workers no report will come from, and busy ones nothing was heard from for long, until the orchestrator is told |
 
 The last five hold what a call under way leaves for the hooks that follow it, which a reload of
 the plugin's code may come between: a spawn auto mode handed to the orchestrator, an Agent call
@@ -123,10 +124,10 @@ touches only in the file that declares the atom.
 What the hooks, the timers and the drawings of one load leave each other in memory, not worth a
 write to `$.state`: the names Agent calls' agents were renamed to, the relay and release flags,
 the names given, the agents the engine listed, the check-in interval, the status line, its
-widths and the run times, the tool calls and the end-of-task rows' first drawings held for the next
+widths and the run times, the tool calls, the files edited and the end-of-task rows' first drawings held for the next
 frame (a drawing may not write the state), the usage probe's permission and time, the pane's
 frame, the look it last showed, rasters and the redraws it owes, the last `[crew]` check, the mood lines asked for, and
-the kinds of engine wording logged, and whether a compaction the crew started is under way, when the main turn last ended and the auto-compaction threshold as last read. It is one typed object
+the kinds of engine wording logged, the workers told of another's edit of a file, and whether a compaction the crew started is under way, when the main turn last ended and the auto-compaction threshold as last read. It is one typed object
 in parts, each read and written only by the module its comment names; another module goes
 through that module's functions. It imports types only.
 
@@ -224,7 +225,9 @@ holds no look, and is turned down as a bad code.
    (`lapseHandoffs`). Only the turn's end does that, as by then every Agent call of the turn has
    spawned.
 7. The result names the worker and its address, and warns (`Heads-up: …`) when another worker
-   is busy in the same repository.
+   is busy in the same repository, with the files each such worker's run has edited so far
+   (`editsInFlight`), as seen from the repository: the latest four by name, the earlier ones
+   counted, or that it has edited none yet.
 
 ### Spawning (every agent)
 
@@ -287,6 +290,14 @@ agents.
   the workers and one of the runs: the pane draws both, so a write per call would draw it whole
   for each call. `endRun` writes them first, so a run ends with all its calls. A worker's plan comes from the progress tool (`setPlan`), or from its todo
   list (`noteTodos`) when it declared none.
+- The file a call of an editing tool changes (`Edit`, `MultiEdit`, `Write`, `NotebookEdit`) is
+  kept on the run once the call has run (`holdEdit`, written with the frame's calls into
+  `Run.edited`): each file once, in the order first edited, the latest 40. A file changed through
+  the shell is not seen. When a worker edits a file that another worker's run in flight has
+  edited, it reads after its own edit's result who that worker is, and to settle the file with
+  it (`overlapNote`, `src/crew/edits.ts`): once for each worker, other worker and file of a load.
+  Nothing is refused: two workers may be meant to change one file in turn. Paths are compared
+  whole, so workers in different worktrees of one repository never overlap.
 - `turn.complete` ends the run (`endRun`) as done, failed or stopped, puts the report's first
   line in the feed, shows an end toast, and, for a worker whose report goes to another worker,
   queues an end line for the conversation. A run whose end never arrived is closed by the
@@ -407,6 +418,15 @@ the engine lists no more, with nothing heard from it for a minute (`GONE_MS`), t
 end, or `stopped` when that end never reached the crew and the engine had listed it. Which agents
 it listed is an atom: the engine may drop one around a reload, where no sync of the next load sees it.
 
+No report comes from a worker ended that way, and none from one that is stuck, so the orchestrator,
+which is told not to poll, would wait for good. The sync notes both as a **silence**
+(`src/crew/silence.ts`): `gone`, a busy worker it just ended with no end of its run heard, and
+`quiet`, a busy worker with no tool call, turn or message for `QUIET_MIN` (10 minutes), unless it
+has a busy agent of its own to wait for; it looks for those every 30 s at most. Each is said once, at the end of the next delegate or
+roster result of the main conversation or in a `[crew]` note on the person's next message, and a
+toast says it at once. A quiet worker heard from again is forgotten, so its next quiet spell is
+told anew. A worker's own calls are told nothing.
+
 ## Rendering
 
 - **The pane** (`ui.render`, component `Pane`, request id `crew`). It opens only when a surface is
@@ -479,7 +499,8 @@ is noticed in the debug log: `unrecognized($, kind, detail)` (`src/engine.ts`) w
 ## Invariants
 
 - **No progress reaches a model**, except the progress tool's reply and an active worker's step
-  in the roster.
+  in the roster. The files a run in flight has edited are not progress but what is taken: a
+  delegate result's heads-up names them, and a worker reads of another's edit of a file it edits.
 - **The brief is frozen per process**, reloads included; later changes reach the model as one `[crew]` note with the
   next user message.
 - **Text a model reads is English and pinned** by `tests/golden/model-text.ts`; a change there is

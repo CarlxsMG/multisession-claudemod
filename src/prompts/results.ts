@@ -238,14 +238,28 @@ export const unapplied = (items: readonly string[]): string =>
 export const started = (name: string, address: string, id: string | undefined, cwd: string, why: string, headsUp: string): string =>
   `${STARTED}${name} (address "${address}", id ${id ?? '?'}) in ${cwd}, ${why}.${headsUp}`
 
+// The files of a busy worker a heads-up names, the latest; the rest are counted.
+const HEADS_UP_FILES = 4
+
+// A busy worker's edits so far, for the heads-up: the latest files by name,
+// the earlier ones counted, or that it has made none.
+function editsSoFar(files: readonly string[]): string {
+  if (files.length === 0) return 'none yet'
+  const more = files.length - HEADS_UP_FILES
+  return files.slice(-HEADS_UP_FILES).join(', ') + (more > 0 ? ` and ${more} more` : '')
+}
+
 /**
- * A line for the result when other workers are busy in the repository, ''
- * when none is.
+ * The lines for the result when other workers are busy in the repository, ''
+ * when none is: who, and the files each one's run has edited so far, by its
+ * name, as the caller gives them. Only the editing tools are seen, so the
+ * second line says what was edited, not what is free.
  */
-export function headsUp(busy: readonly string[]): string {
+export function headsUp(busy: readonly string[], edits: ReadonlyMap<string, readonly string[]> = new Map()): string {
   if (busy.length === 0) return ''
   const many = busy.length > 1
-  return `\nHeads-up: ${busy.join(', ')} ${many ? 'are' : 'is'} working in this repository; keep files apart or wait for ${many ? 'their reports' : 'its report'}.`
+  const who = `\nHeads-up: ${busy.join(', ')} ${many ? 'are' : 'is'} working in this repository; keep files apart or wait for ${many ? 'their reports' : 'its report'}.`
+  return `${who}\nFiles edited so far: ${busy.map(name => `${name}: ${editsSoFar(edits.get(name) ?? [])}`).join('; ')}.`
 }
 
 /**
@@ -302,6 +316,23 @@ export const notGiven = (title: string, behind: string, why: string): string => 
 
 /** The note a user message carries of a task that was not given while no crew tool was called. */
 export const notGivenNote = (title: string, behind: string, why: string): string => `[crew] The ${notGivenBody(title, behind, why)}`
+
+/**
+ * A worker the engine dropped while it was busy, with no end of its run
+ * heard: no report will come. The caller puts `crew: ` or `[crew] ` ahead.
+ */
+export const goneSilent = (w: Pick<Worker, 'name' | 'address' | 'task'>): string =>
+  `${w.name} (address "${w.address}") ended without a report: the engine dropped it while it was on "${w.task}". Take that task as not done: give it again, to ${w.name} by name or to another worker.`
+
+/**
+ * A busy worker nothing was heard from for `minutes`: what it was last seen
+ * doing, and the `step` of its plan when it declared one, as its roster row
+ * says them. The caller puts `crew: ` or `[crew] ` ahead.
+ */
+export function quietSilent(w: Pick<Worker, 'name' | 'address' | 'task' | 'status' | 'activity'>, minutes: number, step: string | undefined): string {
+  const doing = [...(w.activity ? [`last seen: ${w.activity}`] : []), ...(step !== undefined ? [`step ${step}`] : [])].join(', ')
+  return `${w.name} (address "${w.address}") is ${w.status} on "${w.task}" and nothing was heard from it for ${minutes} min${doing ? ` (${doing})` : ''}. It may be on a long command, waiting for the user's approval, or stuck: ask it with SendMessage, or TaskStop it and give the task again.`
+}
 
 /**
  * What delegate answers an agent that calls it: who it reports to, and how it

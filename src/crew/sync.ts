@@ -7,6 +7,7 @@ import type { Engine } from '../engine'
 import { readDropped, readListed, readRuns, readWorkers, updateDropped, updateListed, updateWorkers } from '../state/atoms'
 import { appendKept } from '../util/bounded'
 import { enlist } from './feed'
+import { noteGone, watchQuiet } from './silence'
 import { release } from './takeover'
 import { releaseWaiting } from './waiting'
 import { bareTitle } from './title'
@@ -34,9 +35,10 @@ const isRevived = (w: Worker, status: WorkerStatus) => FINISHED.has(w.status) &&
 /**
  * How each busy worker the engine lists no more, and nothing was heard
  * from for `GONE_MS`, ended: as its run did, else stopped once the engine
- * had listed it. The progress tick closes a run left open.
+ * had listed it. The progress tick closes a run left open. `unheard` takes
+ * the ids of the ones whose run's end never reached the crew.
  */
-async function goneEnds($: Engine, list: readonly Worker[], infos: readonly AgentInfo[], now: number) {
+async function goneEnds($: Engine, list: readonly Worker[], infos: readonly AgentInfo[], now: number, unheard: Set<string>) {
   const here = new Set(infos.map(info => info.id))
   const quietOnes = list.filter(w => ACTIVE.has(w.status) && !here.has(w.id) && now - w.updatedAt >= GONE_MS)
   const ends = new Map<string, WorkerStatus>()
@@ -44,8 +46,10 @@ async function goneEnds($: Engine, list: readonly Worker[], infos: readonly Agen
   const runs = await readRuns($)
   const listed = new Set(await readListed($))
   for (const w of quietOnes) {
-    const end = runs.find(r => r.id === w.id)?.end || (listed.has(w.id) ? 'stopped' : '')
+    const heard = runs.find(r => r.id === w.id)?.end
+    const end = heard || (listed.has(w.id) ? 'stopped' : '')
     if (end !== '') ends.set(w.id, end)
+    if (end !== '' && !heard) unheard.add(w.id)
   }
   return ends
 }
@@ -98,7 +102,8 @@ export async function syncAgents($: Engine) {
     return !shelf.has(info.id) || ACTIVE.has(status)
   })
   const now = await $.clock.now()
-  const ends = await goneEnds($, list, infos, now)
+  const unheard = new Set<string>()
+  const ends = await goneEnds($, list, infos, now, unheard)
   if (changed.length === 0 && ends.size === 0) return
   // A stranger takes a name no other member has, the engine's when that
   // fits, which stays its address unless another member has it.
@@ -108,9 +113,11 @@ export async function syncAgents($: Engine) {
   const cwd = await $.session.cwd()
   const back = new Set<string>()
   const out: Worker[] = []
+  const gone: Worker[] = []
   const saved = await updateWorkers($, current => {
     back.clear()
     out.length = 0
+    gone.length = 0
     const next = [...current]
     for (const { info, status } of changed) {
       const at = next.findIndex(w => w.id === info.id)
@@ -147,12 +154,15 @@ export async function syncAgents($: Engine) {
       // Heard from since the list was read: not gone.
       if (w === undefined || !ACTIVE.has(w.status) || now - w.updatedAt < GONE_MS) continue
       next[at] = { ...w, status: end, activity: '', updatedAt: now }
+      if (unheard.has(id)) gone.push(w)
     }
     return prune(next, out)
   })
   if (back.size > 0) await updateDropped($, list => list.filter(w => !back.has(w.id)))
   await shelve($, out)
   await enlist($, saved)
+  // No report comes from these: the orchestrator is told, once.
+  await noteGone($, gone, now)
 }
 
 // The name and address an agent the crew did not start takes.
@@ -164,6 +174,7 @@ function nameOf(taken: ReadonlySet<string>, info: { id: string; name?: string })
 /** The engine's statuses, then the marks they lift and the tasks that waited for a run they end. */
 export async function syncCrew($: Engine) {
   await quiet($, syncAgents($), 'sync')
+  await quiet($, watchQuiet($, await $.clock.now()), 'quiet workers')
   await release($)
   await releaseWaiting($, false)
 }

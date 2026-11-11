@@ -61,8 +61,10 @@ const opened = atom({ plugin: 'crew', key: 'opened' } as const, [], { shape: 'op
 // shows ('' until read).
 const mainModel = atom({ plugin: 'crew', key: 'model' } as const, '', { shape: 'model-1' })
 // Each worker's current or latest run, the round the runs make up, and the
-// rows placed in the conversation about them. Only the pane's team view and
-// the placed rows read these: none of it reaches a model.
+// rows placed in the conversation about them. The pane's team view and the
+// placed rows read these; of it all a model reads an active worker's step,
+// in the roster, and the files a run in flight has edited, in a delegate
+// result's heads-up and in the word a worker reads on another's file.
 const runs = atom({ plugin: 'crew', key: 'runs' } as const, [], { shape: 'runs-1' })
 const round = atom({ plugin: 'crew', key: 'round' } as const, NO_ROUND, { shape: 'round-1' })
 const checkins = atom({ plugin: 'crew', key: 'checkins' } as const, [], { shape: 'checkins-1' })
@@ -98,6 +100,9 @@ const waiting = atom({ plugin: 'crew', key: 'waiting' } as const, [], { shape: '
 // The latest workers' last reports, whole: apart from the workers, which are
 // written at every change of a status and keep one line of each.
 const reports = atom({ plugin: 'crew', key: 'reports' } as const, [], { shape: 'reports-1' })
+// The workers no report will come from, and the busy ones nothing was heard
+// from for long, until the orchestrator is told.
+const silences = atom({ plugin: 'crew', key: 'silences' } as const, [], { shape: 'silences-1' })
 
 // What an atom holds, as a change to it takes and gives it.
 type Change<A> = A extends Atom<infer T> ? (value: T) => T : never
@@ -405,4 +410,12 @@ export function readReports($: StateDollar) {
 
 export function updateReports($: StateDollar, change: Change<typeof reports>) {
   return update($, reports, change)
+}
+
+export function readSilences($: StateDollar) {
+  return read($, silences)
+}
+
+export function updateSilences($: StateDollar, change: Change<typeof silences>) {
+  return update($, silences, change)
 }
