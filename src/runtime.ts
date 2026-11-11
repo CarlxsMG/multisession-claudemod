@@ -40,6 +40,12 @@ function fresh() {
      * in that mode.
      */
     handoffs: { isUnreviewed: false },
+    /**
+     * `src/crew/persist.ts`: whether a turn ended since the crew was last
+     * looked at for a change worth saving, when that was, and what it was
+     * then, without what changes at every call ('' before the first look).
+     */
+    persist: { isDue: false, at: -Infinity, signature: '' },
     /** `src/crew/silence.ts`: when the crew was last looked over for quiet workers. */
     silence: { at: -Infinity },
     /** `src/crew/workers.ts`: the names given in this load, the moment each is chosen. */

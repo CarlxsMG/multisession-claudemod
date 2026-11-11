@@ -8,6 +8,10 @@ All notable changes to crew are written here. The format follows
 
 ### Added
 
+- A conversation resumed after Claude Code restarts finds its crew again: the workers by the
+  same names and addresses, with what each was last given and reported. Workers that were busy
+  come back stopped, and the orchestrator is told which ones, and which held tasks did not go.
+  The crew of the latest 10 conversations is kept in the plugin's store.
 - The orchestrator hears of a worker that will not report: one Claude Code dropped while it was
   busy, and one that has been busy for 10 minutes with no tool call, turn or message. It is told
   once, with its next crew tool call or your next message, and a toast tells you at the moment,

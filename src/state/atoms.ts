@@ -13,7 +13,7 @@ import { NO_ROUND } from '../progress/round'
  * versions of the plugin: what an earlier version stored is read under the
  * same key, so a key never changes.
  */
-export const STORE_KEYS = { look: 'look', isOn: 'isOn', lines: 'lines', toldBy: 'toldBy', progress: 'progress' } as const
+export const STORE_KEYS = { look: 'look', isOn: 'isOn', lines: 'lines', toldBy: 'toldBy', progress: 'progress', crews: 'crews' } as const
 
 // Change a tag when that value's fields change: it declines what an earlier
 // version stored, which outlives a reload. A variable says what its atom
