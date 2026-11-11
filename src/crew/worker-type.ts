@@ -3,9 +3,10 @@
 // agent but the orchestrator's own (`delegate`, `compact`), whose
 // descriptions would ride in every request of a worker that is refused both.
 // The orchestrator still asks for, and reads of, a general-purpose worker:
-// the type is the crew's way of starting it, kept out of the model's list.
-import type { HookFor } from 'claude-code'
-
+// the type is the crew's way of starting it. The model is offered the type
+// like any other: the engine asks the same question before it resumes an
+// agent that ended, so a type kept from the model is one whose workers a
+// message can no longer wake.
 import { DEFAULT_TYPE } from '../config'
 import { quiet } from '../engine'
 import type { Engine } from '../engine'
@@ -30,12 +31,3 @@ export async function registerWorkerType($: Engine) {
  * for the default one, once the engine has it; any other as asked.
  */
 export const spawnTypeOf = (asked: string): string => (asked === DEFAULT_TYPE && type.name !== undefined ? type.name : asked)
-
-type OfferHook = HookFor<'agent.offer'>
-/**
- * Keeps the crew's type out of the agent types the model is offered: a worker
- * starts through `delegate`, which briefs it, puts it on the list and reuses it.
- */
-export function hideWorkerType(_: Engine, __: Parameters<OfferHook>[1]) {
-  return { isOffered: false }
-}

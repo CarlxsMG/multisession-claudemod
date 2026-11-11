@@ -171,8 +171,8 @@ function runOptions(e: SpawnEvent, who: Identified) {
   const intendedRun = isCrew && intent?.task !== undefined ? { background: true, ...(e.cwd === undefined && !samePath(cwd, sessionCwd) ? { cwd } : {}) } : {}
   // Delegate's own spawn is of the type delegate meant, the crew's own for
   // the default one, whether or not the engine carried it through. One the
-  // orchestrator started keeps the type its Agent call named: the model is
-  // not offered the crew's.
+  // orchestrator started keeps the type its Agent call named, which the
+  // handoff spelt out for it.
   const typed = isCrew && intent?.task === undefined ? { subagentType: spawnTypeOf(intent?.type || DEFAULT_TYPE) } : {}
   return { ...model, ...intendedRun, ...typed }
 }
