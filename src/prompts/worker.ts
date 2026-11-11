@@ -3,7 +3,7 @@
 // messages the crew passes on. tests/golden/model-text.ts holds each text as
 // it is.
 import type { Relay, Worker } from '../../types'
-import { COMPACT, DELEGATE, PROGRESS, ROSTER } from '../config'
+import { COMPACT, DELEGATE, PROGRESS, REPORT_WORDS, ROSTER, ROSTER_REPORT_CUT } from '../config'
 import { basename } from '../util/path'
 
 /**
@@ -38,9 +38,11 @@ export const relayText = (r: Relay, orchName: string): string =>
   `[crew] From ${r.by} ("${r.address}"), passed on by the crew: your report goes to ${orchName}; what ${r.by} needs back, SendMessage it.\n\n${r.text}`
 
 // Whoever reads a report wrote the task: it needs the outcome and the facts
-// it lacks, not the task told back.
-const REPORT_RULE =
-  "report the outcome first, then only facts: branch and commits or files changed, check results, blockers, decisions needed. Don't restate the task or narrate your steps; no pleasantries, headings or diffs; quote a line only when a decision depends on it."
+// it lacks, not the task told back. The first line is all the roster's list
+// shows of a report, so it says whether the task is finished and what came
+// of it; what was run is told apart from what was not, so that a check is
+// not asked for twice.
+const REPORT_RULE = `open with DONE, PARTIAL or BLOCKED and the outcome, in one line of ${ROSTER_REPORT_CUT} characters at most (the roster's list shows only that much); then only facts: branch and commits or files changed, the checks you ran with their results and what you did not verify, blockers, decisions needed. ${REPORT_WORDS} words at most unless the task sets a length. Don't restate the task or narrate your steps; no pleasantries, headings or diffs; quote a line only when a decision depends on it.`
 
 // What closes a new task for a worker that heard the preamble: its plan
 // starts again with the task, at its first step.

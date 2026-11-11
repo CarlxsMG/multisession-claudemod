@@ -2,6 +2,9 @@
 // what workers and forks hear, the tools' results, what /crew answers and the
 // Haiku prompt. A refactor keeps them byte for byte; a change in wording is a
 // deliberate change to tests/golden/model-text.ts, in a commit of its own.
+import type { KeptCrew } from '../types'
+import { KEPT_SHAPE } from '../src/crew/persist'
+import { makeWorker } from '../src/crew/workers'
 import { expect } from 'claude-code/testing'
 import type { TestBody } from 'claude-code/testing'
 import type { On, UiCopyResult } from 'claude-code'
@@ -376,6 +379,36 @@ test('a worker no report will come from, and one that went quiet: the user messa
   await progress($, 'agent-2', 1, 3, 'Read the styles')
   await clock.advance(10 * 60_000 + 40_000)
   expectText('result.quietSilent', (await roster($, { worker: 'pip' })).split('\n').pop())
+})
+
+test('a worker that was busy when Claude Code restarted, as the first message after it says', async ($, on) => {
+  const contexts: (readonly string[] | undefined)[] = []
+  on('prompt.submit', (_, e) => {
+    contexts.push(e.context)
+    return { text: e.text }
+  })
+  const now = 1_000_000
+  const bolt = {
+    ...makeWorker(
+      { id: 'agent-2', name: 'Bolt', address: 'bolt', task: 'Styles', type: 'general-purpose', cwd: '/work/api', status: 'working', model: 'm', asked: '' },
+      now,
+    ),
+  }
+  const kept: KeptCrew = {
+    shape: KEPT_SHAPE,
+    at: now,
+    workers: [bolt],
+    dropped: [],
+    parents: [],
+    worktrees: [],
+    takeovers: [],
+    waiting: [],
+    compaction: { ask: null, lastAt: 0 },
+  }
+  engine(on, { seen: recording(), stored: { crews: { 'sess-1': kept } } })
+  await start($)
+  await $.prompt.submit({ text: 'Where were we?', wait: false, origin: { kind: 'composer' } })
+  expectText('note.cutSilent', contexts[0]?.join('\n'))
 })
 
 test('one held task goes alone', async ($, on) => {

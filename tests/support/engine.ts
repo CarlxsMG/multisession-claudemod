@@ -21,7 +21,8 @@ export function test(name: string, ...rest: TestRest) {
 // the delegate descriptions registered, `specs` every tool registration,
 // `undelivered` the reason a send is not delivered, `gone` that reason for
 // the sends to one agent, by its id, `refuse` auto mode's refusal of the
-// plugin's own spawns and `refused` how many it refused, `refuseAgent` a refusal of every other spawn.
+// plugin's own spawns and `refused` how many it refused, `refuseAgent` a refusal of every other spawn,
+// `store` what the plugin's store holds, which a test that gives it reads as the plugin writes it.
 export type Seen = {
   prompts: string[]
   sends: string[]
@@ -38,6 +39,7 @@ export type Seen = {
   refused?: number
   refuseAgent?: string
   opens?: string[]
+  store?: Record<string, unknown>
 }
 
 // What a test's engine answers: the ids of new agents, the model a spawn
@@ -73,7 +75,17 @@ export function engine(on: On, options: EngineOptions = {}) {
   } = options
   const clock = mock.clock(on, { now: 1_000_000 })
   mock.env(on, host.env ?? {})
-  mock.store(on, stored)
+  // A store the test can read stands in for the kit's, with what it holds at the start.
+  const store = seen?.store
+  if (store === undefined) mock.store(on, stored)
+  else {
+    Object.assign(store, stored)
+    on('store.get', (_, e) => ({ value: store[e.key] }))
+    on('store.set', (_, e) => {
+      store[e.key] = e.value
+      return { value: undefined }
+    })
+  }
   on('session.id', () => ({ value: session() }))
   on('command.register', () => ({ value: { command: 'crew' } }))
   on('tool.register', (_, e) => {

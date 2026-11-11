@@ -152,6 +152,18 @@ settles (read on every drawing, through `t()` and `onScreen`), and the colour-fi
 | `lines` | Haiku's batch of mood lines, signed `locale\|name\|vibe\|phrase` |
 | `toldBy` | Per conversation (its session id), the settings its last `[crew]` note told, up to 100 |
 | `progress` | The check-in interval in minutes, 0 for off |
+| `crews` | Per conversation (its session id), the crew as it stood: the list and the shelf, parents, worktrees, takeovers with their held tasks, tasks waiting for a run, and the compaction asked for; the latest 10, each tagged `crew-1` |
+
+The state ends with its process, so a conversation resumed after Claude Code restarts would find
+no crew. `saveCrew` (`src/crew/persist.ts`, from the progress tick) writes the record after a
+turn ended, the orchestrator's or a worker's, when it changed, at most every 10 s; between turns
+the timer reads nothing, and a tool call alone writes nothing; `restoreCrew` reads it back at
+`session.start` when the session has no crew and the store has a record under its id with the
+tag this version writes. A worker that was busy comes back `stopped`, and the orchestrator is
+told once (a `cut` silence); a held task whose run the restart ended is told as missed, not sent;
+a task that waited for a stopped run is told as not given. Whether a message still reaches a
+restored worker is the engine's to say: a send that fails says so as any other. Relays and
+handoffs under way are not kept. A reload keeps the state, so nothing is read back over it.
 
 ### Share codes
 

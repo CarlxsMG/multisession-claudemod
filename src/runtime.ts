@@ -41,6 +41,12 @@ function fresh() {
      */
     handoffs: { isUnreviewed: false },
     /**
+     * `src/crew/persist.ts`: whether a turn ended since the crew was last
+     * looked at for a change worth saving, when that was, and what it was
+     * then, without what changes at every call ('' before the first look).
+     */
+    persist: { isDue: false, at: -Infinity, signature: '' },
+    /**
      * `src/crew/worker-type.ts`: the full name of the crew's agent type once
      * the engine registered it, undefined until then and when it refused.
      */

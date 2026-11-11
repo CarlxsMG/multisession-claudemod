@@ -39,7 +39,8 @@ happens.
   summary to keep the workers, tasks in flight, your decisions, branches and pull requests, and
   the crew's roster follows it.
 - **Workers that report briefly and work safely.** Every worker hears that its report goes back to
-  a conversation that must stay small: result first, then facts. In a git repository it commits
+  a conversation that must stay small: `DONE`, `PARTIAL` or `BLOCKED` and the result first, then
+  facts, with what it checked told apart from what it did not. In a git repository it commits
   its own work on a `crew/*` branch or worktree, never on the main branch unless you asked.
 - **Workers talk to each other.** A message to a busy teammate arrives at its next tool call; one
   to a free teammate wakes it, sent on from the main conversation so its report comes back to the

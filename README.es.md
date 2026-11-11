@@ -35,7 +35,8 @@ falla en tiempo real.
   nuevo. `mcp__crew__roster` le lista el equipo al modelo. Los workers llaman a
   `mcp__crew__progress` para declarar su plan y el paso en que están.
 - **Workers que informan breve y trabajan con cuidado.** Cada worker sabe que su informe vuelve a
-  una conversación que debe quedarse pequeña: primero el resultado, luego los hechos. En un
+  una conversación que debe quedarse pequeña: primero `DONE`, `PARTIAL` o `BLOCKED` y el resultado,
+  luego los hechos, distinguiendo lo que comprobó de lo que no. En un
   repositorio git hace commit de su trabajo en una rama o worktree `crew/*`, nunca en la rama
   principal salvo que lo hayas pedido.
 - **Los workers hablan entre sí.** Un mensaje a un compañero ocupado le llega en su siguiente

@@ -1,6 +1,6 @@
 import { expect } from 'claude-code/testing'
 import { DEFAULT_LOOK } from '../src/figure/look'
-import { ROSTER_FULL_REPORT_CUT, ROSTER_REPORTS, ROSTER_REPORT_CUT, ROSTER_ROWS } from '../src/config'
+import { REPORT_WORDS, ROSTER_FULL_REPORT_CUT, ROSTER_REPORTS, ROSTER_REPORT_CUT, ROSTER_ROWS } from '../src/config'
 import { DELEGATION_RULES } from '../src/prompts/orchestrator'
 import { DELEGATE_SPEC, ROSTER_SPEC } from '../src/prompts/tools'
 import { lookCode } from '../src/figure/share-code'
@@ -57,7 +57,10 @@ test('the brief is part of the system prompt, and the delegation rules of the de
   expect(description).toMatch(/a finished worker wakes with its context/)
   expect(description).toMatch(/TaskStop a worker heading the wrong way/)
   expect(description).toMatch(/don't poll mcp__crew__roster for them/)
-  expect(description).toMatch(/To check a report, have a worker run the check/)
+  expect(description).toMatch(
+    /A report opens with DONE, PARTIAL or BLOCKED: one that is not DONE says what is left or asks a question, and the answer goes back to the same worker\.\n/,
+  )
+  expect(description).toMatch(/To check what a report left unverified, have a worker run the check/)
   // What an argument does is said in its own description, not in a rule.
   expect(description).not.toMatch(/haiku|`title`|"Explore"|A comment says why|A brief is complete in facts/)
   const args = DELEGATE_SPEC.inputSchema.properties
@@ -88,7 +91,7 @@ test('workers are told to report in a few lines, and who to talk to', async ($, 
   await $.session.start({ cwd: '/work/main', surface: 'terminal', isInteractive: true })
   await $.tool.call({ tool: 'mcp__crew__delegate', task: 'Run the tests', repo: '/work/api' })
   expect(seen.prompts[0]).toMatch(
-    /goes back into Nova's conversation, which must stay small: report the outcome first, then only facts: branch and commits or files changed, check results, blockers, decisions needed\. Don't restate the task or narrate your steps; no pleasantries, headings or diffs; quote a line only when a decision depends on it\./,
+    /goes back into Nova's conversation, which must stay small: open with DONE, PARTIAL or BLOCKED and the outcome, in one line of 120 characters at most \(the roster's list shows only that much\); then only facts: branch and commits or files changed, the checks you ran with their results and what you did not verify, blockers, decisions needed\. 200 words at most unless the task sets a length\. Don't restate the task or narrate your steps; no pleasantries, headings or diffs; quote a line only when a decision depends on it\./,
   )
   expect(seen.prompts[0]).toMatch(/you do the hands-on work\. All you send goes to models: terse, facts only, nothing the reader already knows\.\n/)
   expect(seen.prompts[0]).toMatch(/Teammates you can reach with SendMessage: none yet\./)
@@ -101,6 +104,9 @@ test('workers are told to report in a few lines, and who to talk to', async ($, 
   expect(seen.prompts[0]).toMatch(GIT_LINE)
   expect(seen.prompts[0]).toMatch(/\n- 3\+ steps: call mcp__crew__progress as you start each step/)
   expect(seen.prompts[0]).toMatch(/\n- A message reaches a busy teammate at its next tool call/)
+  // The first line is told to fit what the roster's list shows of a report.
+  expect(seen.prompts[0]!.includes(`in one line of ${ROSTER_REPORT_CUT} characters at most (the roster's list shows only that much)`)).toBe(true)
+  expect(seen.prompts[0]!.includes(`${REPORT_WORDS} words at most unless the task sets a length.`)).toBe(true)
 
   await $.turn.complete({ answer: 'Hecho', durationMs: 1000, isAborted: false, turnId: 't1', agentId: 'agent-1', reason: 'answer' })
   await $.tool.call({ tool: 'mcp__crew__delegate', task: 'Now the login', repo: '/work/api' })
@@ -121,7 +127,7 @@ test('a fork of the main session hears how to report and the git rules', async (
   const fork = { prompt: 'Draft the migration plan', description: 'Plan', subagentType: 'fork', fork: true }
   await spawnAgent($, fork)
   expect(seen.prompts[0]).toMatch(
-    /^\[crew\] Your final message goes back into Nova's conversation, which must stay small: report the outcome first, then only facts: branch and commits or files changed/,
+    /^\[crew\] Your final message goes back into Nova's conversation, which must stay small: open with DONE, PARTIAL or BLOCKED and the outcome, in one line of 120 characters at most \(the roster's list shows only that much\); then only facts: branch and commits or files changed/,
   )
   expect(seen.prompts[0]).toMatch(GIT_LINE)
   expect(seen.prompts[0]).toMatch(/`git worktree add \.\.\/main-pip -b crew\/pip-<topic>`/)
@@ -139,7 +145,9 @@ test("a worker's fork hears only how to report: the git rules it has from its pa
   expect(seen.prompts[0]).toMatch(GIT_LINE)
   const fork = { prompt: 'Do the frontend', description: 'Frontend', subagentType: 'fork', fork: true, parentAgentId: 'agent-1' }
   await spawnAgent($, fork)
-  expect(seen.prompts[1]).toMatch(/^\[crew\] Your final message goes back into Pip's conversation, which must stay small: report the outcome/)
+  expect(seen.prompts[1]).toMatch(
+    /^\[crew\] Your final message goes back into Pip's conversation, which must stay small: open with DONE, PARTIAL or BLOCKED and the outcome/,
+  )
   expect(seen.prompts[1]).toMatch(/quote a line only when a decision depends on it\.\n\nDo the frontend$/)
   expect(seen.prompts[1]).not.toMatch(/git status|A comment says|a worker in Nova's crew|Teammates/)
 })
@@ -235,7 +243,7 @@ test("with delegation off, delegate's workers still hear the preamble and the Ag
   expect(await delegate({ task: 'Run the tests' })).toMatch(/^Started Pip/)
   expect(seen.prompts[0]).toMatch(/^\[crew\] You are Pip, a worker in Nova's crew\./)
   expect(seen.prompts[0]).toMatch(/Your repository is \/work\/api\./)
-  expect(seen.prompts[0]).toMatch(/which must stay small: report the outcome/)
+  expect(seen.prompts[0]).toMatch(/which must stay small: open with DONE, PARTIAL or BLOCKED and the outcome/)
   await spawnAgent($, { prompt: 'Look around', description: 'Look', subagentType: 'general-purpose', tool_use_id: 'toolu_1' })
   expect(seen.prompts[1]).toBe('Look around')
 
@@ -246,7 +254,7 @@ test("with delegation off, delegate's workers still hear the preamble and the Ag
   // The Agent tool's agent never heard how to report, nor who is there: it is told in full.
   expect(await delegate({ task: 'Look further', worker: 'agent-2' })).toMatch(/^Given to Bolt/)
   expect(seen.sends[1]).toMatch(
-    /^Look further\n\nTeammates you can reach with SendMessage: Pip \("pip", api\)\.\nWhen done, report the outcome first, then only facts: branch and commits or files changed, check results, blockers, decisions needed\. Don't restate the task/,
+    /^Look further\n\nTeammates you can reach with SendMessage: Pip \("pip", api\)\.\nWhen done, open with DONE, PARTIAL or BLOCKED and the outcome, in one line of 120 characters at most \(the roster's list shows only that much\); then only facts: branch and commits or files changed, the checks you ran with their results and what you did not verify, blockers, decisions needed\. 200 words at most unless the task sets a length\. Don't restate the task/,
   )
   // Nor the git rules: a fork of the main session starts as it was asked too.
   await spawnAgent($, { prompt: 'Draft it', description: 'Draft', subagentType: 'fork', fork: true, tool_use_id: 'toolu_2' })
