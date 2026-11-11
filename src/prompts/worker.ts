@@ -40,6 +40,13 @@ const namedMates = (mates: readonly Worker[], apart: ReadonlySet<string>): strin
 export const newMates = (mates: readonly Worker[], apart: ReadonlySet<string>, knowsSome: boolean): string =>
   mates.length === 0 ? '' : `${knowsSome ? 'New teammates' : 'Teammates'} you can reach with SendMessage: ${namedMates(mates, apart)}.\n`
 
+/**
+ * What a worker reads after it edited a file that the run in flight of
+ * another worker, `name`, has edited too.
+ */
+export const sameFile = (name: string, address: string, path: string): string =>
+  `[crew] ${name} ("${address}") has edited ${basename(path)} in its task in flight. Before you change this file again, settle with ${name} who does (SendMessage): two workers on one file overwrite each other.`
+
 /** The tasks that waited for a woken worker, sent as one once its run ends. */
 export const heldTasks = (held: readonly { task: string; title: string }[]): string =>
   held.length === 1 ? held[0]!.task : `${held.length} tasks, in order:\n\n${held.map((h, i) => `## ${i + 1}. ${h.title}\n${h.task}`).join('\n\n')}`

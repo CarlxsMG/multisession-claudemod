@@ -252,10 +252,12 @@ export const GOLDEN: Record<string, string> = {
   "result.startedBesideBusy": [
     "Started Bolt (address \"bolt\", id ?) in /work/api, as `fresh` asked.",
     "Heads-up: Pip is working in this repository; keep files apart or wait for its report.",
+    "Files edited so far: Pip: none yet.",
   ].join('\n'),
   "result.givenBesideBusy": [
     "Given to Pip (address \"pip\") in /work/api, the free worker of that type and model there that last finished a task; context kept: last task \"Login\", finished 0s ago, 0 tokens used.",
     "Heads-up: Bolt is working in this repository; keep files apart or wait for its report.",
+    "Files edited so far: Bolt: none yet.",
   ].join('\n'),
   "result.givenOverOthers": "Given to Luna (address \"luna\") in /work/api, the free worker of that type and model there that last finished a task (also free: Tito, Mika, Bolt and 1 more; name one with `worker` to pick it); context kept: last task \"Search\", finished 0s ago, 0 tokens used.",
   "result.givenUnapplied": "Given to Pip (address \"pip\") in /work/api, as named; context kept. Not applied, as a named worker stays as it is: `repo` /work/web (it works in /work/api); `subagent_type` Explore (it is general-purpose); `model` opus (it runs on test-model); `fresh` (it is not a new worker).",
@@ -275,16 +277,24 @@ export const GOLDEN: Record<string, string> = {
   "result.noRepo": "crew: /work/missing does not exist.",
   "result.noModel": "crew: no model \"gpt-5\"; nothing started. Models: sonnet, opus, fable, or none for the session's.",
   "result.notForWorkers": "crew: delegate is Nova's tool, not a worker's; nothing started. To split your task, fork yourself once per part (Agent tool, `subagent_type: \"fork\"`) and report the whole; for work beyond it, ask Nova in your report.",
+  "result.startedBesideEdits": [
+    "Started Mika (address \"mika\", id ?) in /work/api, as `fresh` asked.",
+    "Heads-up: Pip, Bolt are working in this repository; keep files apart or wait for their reports.",
+    "Files edited so far: Pip: src/auth/token.ts, src/auth/login.ts, src/auth/logout.ts, src/auth/signup.ts and 1 more; Bolt: src/auth/login.ts.",
+  ].join('\n'),
+  "edit.sameFile": "[crew] Pip (\"pip\") has edited login.ts in its task in flight. Before you change this file again, settle with Pip who does (SendMessage): two workers on one file overwrite each other.",
   "result.unreachable": "crew: could not reach Bolt: the agent is gone",
   "result.startedAfterIdle": "Started Mika (address \"mika\", id ?) in /work/api, as no free worker of that type and model there finished a task in the last 4 min, so none has its context cached (also free: Bolt, Pip; name one with `worker` to pick it).",
   "result.startedAfterLost": [
     "Started Mika (address \"mika\", id ?) in /work/api, as Bolt, free there, could not be reached (the agent is gone).",
     "Heads-up: Pip is working in this repository; keep files apart or wait for its report.",
+    "Files edited so far: Pip: none yet.",
   ].join('\n'),
   "result.givenAfterLost": "Given to Tito (address \"tito\") in /work/api, the next free worker of that type and model there (also free: Mika, Bolt, Pip; name one with `worker` to pick it), as Luna could not be reached (the agent is gone); context kept: last task \"Deploy\", finished 1s ago, 0 tokens used.",
   "result.startedAfterLostMany": [
     "Started Rex (address \"rex\", id ?) in /work/api, as Luna (the agent is gone), Mika (the agent is gone) and Bolt (the agent is gone), free there, could not be reached, and no more were tried (also free: Pip; name one with `worker` to pick it).",
     "Heads-up: Tito is working in this repository; keep files apart or wait for its report.",
+    "Files edited so far: Tito: none yet.",
   ].join('\n'),
   "result.unsureSend": "crew: the task may have reached Luna (address \"luna\"): its send failed on its way, so no other worker was tried and none started. See whether Luna is working (mcp__crew__roster with `worker` \"luna\"): if it is, it has the task and reports to you; if not, give the task again.",
   "result.unsureSendAfterLost": "crew: the task may have reached Mika (address \"mika\"): its send failed on its way, so no other worker was tried and none started. Before it, Luna could not be reached (the agent is gone). See whether Mika is working (mcp__crew__roster with `worker` \"mika\"): if it is, it has the task and reports to you; if not, give the task again.",
@@ -295,6 +305,7 @@ export const GOLDEN: Record<string, string> = {
   "note.handedStartedOtherModel": [
     "[crew] This agent is Bolt (address \"bolt\", id agent-2), the worker delegate had you start, in /work/api: a new one, as `fresh` asked. It runs on the session's model, as delegate was asked, not on \"sonnet\".",
     "Heads-up: Pip is working in this repository; keep files apart or wait for its report.",
+    "Files edited so far: Pip: none yet.",
   ].join('\n'),
   "result.renamedAgent": "[crew] The crew calls this agent Bolt, not \"researcher-auth\": a worker's name is 2 to 4 characters and no other worker's. SendMessage reaches it as \"researcher-auth\".",
   "result.failed": [
@@ -309,6 +320,7 @@ export const GOLDEN: Record<string, string> = {
   "result.afterOver": [
     "Given to Bolt (address \"bolt\") in /work/api, as named; context kept.",
     "Heads-up: Pip is working in this repository; keep files apart or wait for its report.",
+    "Files edited so far: Pip: none yet.",
     "Nothing waited: Bolt, named in `after`, is not busy.",
   ].join('\n'),
   "task.afterTogether": [
@@ -328,6 +340,9 @@ export const GOLDEN: Record<string, string> = {
   ].join('\n'),
   "note.notGiven": "[crew] The task \"Docs\", held behind Bolt, was not given: Bolt's run was stopped. Give it again if it still stands.",
   "result.afterNeedsWorker": "crew: nothing held: auto mode reviews only calls you write, so a new worker cannot start on its own when Mika's run ends. Give the task once Mika reports, or name a worker for it with `worker`.",
+  "note.goneSilent": "[crew] Pip (address \"pip\") ended without a report: the engine dropped it while it was on \"Login\". Take that task as not done: give it again, to Pip by name or to another worker.",
+  "result.quietSilent": "crew: Bolt (address \"bolt\") is working on \"Styles\" and nothing was heard from it for 10 min (last seen: Read styles.css, step 1/3). It may be on a long command, waiting for the user's approval, or stuck: ask it with SendMessage, or TaskStop it and give the task again.",
+  "note.cutSilent": "[crew] Bolt (address \"bolt\") was on \"Styles\" when Claude Code restarted, which ended its run: it is stopped. Take that task as not done: give it again, to Bolt by name, which keeps what it had read if the engine can resume it, or to another worker.",
   "result.heldMore": "Held for Bolt (address \"agent-2\"): Bolt is answering Pip, whose message woke it. It gets this task when that run ends, and reports to you. 2 tasks held; they go together.",
   "note.heldMissed": "[crew] The 2 tasks held for Bolt (address \"agent-2\") did not reach it: the agent is gone. They go with the next task you give Bolt; or give them to another worker word for word, which takes them off Bolt.",
   "result.heldMissed": "crew: the 3 tasks held for Bolt (address \"agent-2\") did not reach it: its transcript is locked. They go with the next task you give Bolt; or give them to another worker word for word, which takes them off Bolt.",
@@ -336,7 +351,7 @@ export const GOLDEN: Record<string, string> = {
     "crew: the task held for Bolt (address \"agent-2\") is let go: Mika has it now.",
   ].join('\n'),
   "result.heldDropped": "crew: Bolt (address \"agent-2\") could not be reached again: the agent is gone. The 2 tasks held for it are let go, this one included: \"Docs\", \"Changelog\". Give them to another worker.",
-  "result.heldWentFirst": "Given to Bolt (address \"agent-2\") in /work/api, as named; context kept. The 3 tasks held for it went first, in the same message.\nHeads-up: Pip is working in this repository; keep files apart or wait for its report.",
+  "result.heldWentFirst": "Given to Bolt (address \"agent-2\") in /work/api, as named; context kept. The 3 tasks held for it went first, in the same message.\nHeads-up: Pip is working in this repository; keep files apart or wait for its report.\nFiles edited so far: Pip: none yet.",
   "task.heldTogether": [
     "2 tasks, in order:",
     "",

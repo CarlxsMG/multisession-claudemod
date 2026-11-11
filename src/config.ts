@@ -56,6 +56,12 @@ export const REPORT_WORDS = 200
  * short of the cache's life leaves room for the send to reach it.
  */
 export const REUSE_WARM_MIN = 4
+/**
+ * How long a busy worker gives no sign of life (a tool call, a turn, a
+ * message) before the orchestrator is told it went quiet: long enough that
+ * an ordinary build, test run or model request does not trip it.
+ */
+export const QUIET_MIN = 10
 /** The least time between two compactions the crew starts, which the compact tool's spec states. */
 export const COMPACT_GAP_MIN = 10
 /**

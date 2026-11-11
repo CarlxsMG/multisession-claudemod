@@ -2,6 +2,9 @@
 // what workers and forks hear, the tools' results, what /crew answers and the
 // Haiku prompt. A refactor keeps them byte for byte; a change in wording is a
 // deliberate change to tests/golden/model-text.ts, in a commit of its own.
+import type { KeptCrew } from '../types'
+import { KEPT_SHAPE } from '../src/crew/persist'
+import { makeWorker } from '../src/crew/workers'
 import { expect } from 'claude-code/testing'
 import type { TestBody } from 'claude-code/testing'
 import type { On, UiCopyResult } from 'claude-code'
@@ -153,6 +156,19 @@ test("delegate's results: started, given, busy repositories, and what it turns d
   seen.undelivered = 'the agent is gone'
   expectText('result.unreachable', await delegate($, { task: 'Polish it', worker: 'bolt' }))
   expectText('result.startedAfterLost', await delegate($, { task: 'Polish it', title: 'Polish', repo: '/work/api' }))
+})
+
+test('the heads-up of a busy worker that has edited files, and what a worker reads on a file another has edited', async ($, on) => {
+  let spawned = 0
+  engine(on, { nextId: () => `agent-${++spawned}`, seen: recording() })
+  await start($)
+  await delegate($, { task: 'Fix the login', title: 'Login', repo: '/work/api' })
+  await delegate($, { task: 'Fix the styles', title: 'Styles', repo: '/work/api', fresh: true })
+  for (const name of ['session', 'token', 'login', 'logout', 'signup'])
+    await $.tool.call({ tool: 'Edit', file_path: `/work/api/src/auth/${name}.ts`, agentId: 'agent-1' } as never)
+  const edited = (await $.tool.call({ tool: 'Edit', file_path: '/work/api/src/auth/login.ts', agentId: 'agent-2' } as never)) as { context?: string[] }
+  expectText('edit.sameFile', edited.context?.join('\n'))
+  expectText('result.startedBesideEdits', await delegate($, { task: 'Write the docs', title: 'Docs', repo: '/work/api', fresh: true }))
 })
 
 test("delegate's result for a free worker picked over others that were free", async ($, on) => {
@@ -334,6 +350,64 @@ test('a task that waited for a run and was not given: the next delegate result, 
   seen.refuse = NO_VERDICT
   await delegate($, { task: 'Fix the header', title: 'Header', repo: '/work/web', fresh: true })
   expectText('result.afterNeedsWorker', await delegate($, { task: 'Try the footer', title: 'Try', repo: '/work/web', fresh: true, after: 'mika' }))
+})
+
+test('a worker no report will come from, and one that went quiet: the user message note and the next crew result', async ($, on) => {
+  const contexts: (readonly string[] | undefined)[] = []
+  on('prompt.submit', (_, e) => {
+    contexts.push(e.context)
+    return { text: e.text }
+  })
+  let spawned = 0
+  const listed = new Map<string, 'running'>()
+  const clock = engine(on, {
+    nextId: () => `agent-${++spawned}`,
+    agents: () => [...listed].map(([id, status]) => ({ id, description: id, type: 'general-purpose', status })),
+    seen: recording(),
+  })
+  await start($)
+  await delegate($, { task: 'Fix the login', title: 'Login', repo: '/work/api' })
+  await delegate($, { task: 'Fix the styles', title: 'Styles', repo: '/work/api', fresh: true })
+  for (const id of ['agent-1', 'agent-2']) listed.set(id, 'running')
+  await clock.advance(4000)
+  listed.delete('agent-1')
+  await clock.advance(70_000)
+  await $.prompt.submit({ text: 'How is it going?', wait: false, origin: { kind: 'composer' } })
+  expectText('note.goneSilent', contexts[0]?.join('\n'))
+  await $.tool.call({ tool: 'Read', file_path: '/work/api/src/styles.css', agentId: 'agent-2' })
+  await progress($, 'agent-2', 1, 3, 'Read the styles')
+  await clock.advance(10 * 60_000 + 40_000)
+  expectText('result.quietSilent', (await roster($, { worker: 'pip' })).split('\n').pop())
+})
+
+test('a worker that was busy when Claude Code restarted, as the first message after it says', async ($, on) => {
+  const contexts: (readonly string[] | undefined)[] = []
+  on('prompt.submit', (_, e) => {
+    contexts.push(e.context)
+    return { text: e.text }
+  })
+  const now = 1_000_000
+  const bolt = {
+    ...makeWorker(
+      { id: 'agent-2', name: 'Bolt', address: 'bolt', task: 'Styles', type: 'general-purpose', cwd: '/work/api', status: 'working', model: 'm', asked: '' },
+      now,
+    ),
+  }
+  const kept: KeptCrew = {
+    shape: KEPT_SHAPE,
+    at: now,
+    workers: [bolt],
+    dropped: [],
+    parents: [],
+    worktrees: [],
+    takeovers: [],
+    waiting: [],
+    compaction: { ask: null, lastAt: 0 },
+  }
+  engine(on, { seen: recording(), stored: { crews: { 'sess-1': kept } } })
+  await start($)
+  await $.prompt.submit({ text: 'Where were we?', wait: false, origin: { kind: 'composer' } })
+  expectText('note.cutSilent', contexts[0]?.join('\n'))
 })
 
 test('one held task goes alone', async ($, on) => {

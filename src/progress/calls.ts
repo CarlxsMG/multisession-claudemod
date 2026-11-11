@@ -11,15 +11,29 @@ import type { Engine } from '../engine'
 import { runtime } from '../runtime'
 import type { HeldCalls } from '../runtime'
 import { updateRuns, updateWorkers } from '../state/atoms'
-import { countCall } from './runs'
+import { samePath } from '../util/path'
+import { addEdits, countCall } from './runs'
 
 const holding = runtime.calls
 
 /** A worker's call, for the next write: what it does now and its kind. */
 export function holdCall(id: string, activity: string, kind: Phase | undefined, at: number) {
-  const calls = holding.held.get(id)?.calls ?? []
-  holding.held.set(id, { activity, calls: [...calls, { kind, at }] })
+  const held = holding.held.get(id)
+  holding.held.set(id, { activity, calls: [...(held?.calls ?? []), { kind, at }], edited: held?.edited ?? [] })
 }
+
+/**
+ * A file a worker's editing call changed, for the next write, each file
+ * once. Held once the call has run: one that was refused changed nothing.
+ */
+export function holdEdit(id: string, path: string) {
+  const held = holding.held.get(id) ?? { activity: '', calls: [], edited: [] }
+  if (held.edited.some(known => samePath(known, path))) return
+  holding.held.set(id, { ...held, edited: [...held.edited, path] })
+}
+
+/** The files held for the next write, by worker: what its runs do not have yet. */
+export const heldEdits = (): [string, string[]][] => [...holding.held].flatMap(([id, h]) => (h.edited.length > 0 ? [[id, h.edited] as [string, string[]]] : []))
 
 /** Whether any call waits to be written. */
 export const hasHeldCalls = (): boolean => holding.held.size > 0
@@ -27,8 +41,9 @@ export const hasHeldCalls = (): boolean => holding.held.size > 0
 /**
  * Writes the calls held so far, after any write already under way: the
  * workers' counts, and each open run's count, last sign of life and phase,
- * call by call. A worker whose status changed after its last call (its turn
- * ended, say) takes its count only: what it did and when are no longer news.
+ * call by call, and the files it edited. A worker whose status changed
+ * after its last call (its turn ended, say) takes its count only: what it
+ * did and when are no longer news.
  */
 export function writeCalls($: Engine): Promise<void> {
   // Writes go one after another: one that closes a run waits for the frame's.
@@ -44,11 +59,22 @@ async function write($: Engine, taken: [string, HeldCalls][]) {
   await updateWorkers($, list =>
     list.map(w => {
       const h = byId.get(w.id)
-      if (h === undefined) return w
+      // An edit held after the frame took its call brings no call of its own.
+      if (h === undefined || h.calls.length === 0) return w
       const last = h.calls[h.calls.length - 1]!.at
       const isNews = ACTIVE.has(w.status) && w.updatedAt <= last
       return { ...w, tools: w.tools + h.calls.length, ...(isNews ? { activity: h.activity, updatedAt: last } : {}) }
     }),
   )
-  await updateRuns($, list => taken.reduce((runs, [id, h]) => h.calls.reduce((acc, c) => countCall(acc, id, c.kind, c.at), runs), list))
+  await updateRuns($, list =>
+    taken.reduce(
+      (runs, [id, h]) =>
+        addEdits(
+          h.calls.reduce((acc, c) => countCall(acc, id, c.kind, c.at), runs),
+          id,
+          h.edited,
+        ),
+      list,
+    ),
+  )
 }

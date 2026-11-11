@@ -5,6 +5,7 @@
 import type { Orch, Run, Worker } from '../../types'
 import { sweepBackground } from '../background/sweep'
 import { compactWhenSafe } from '../crew/compaction'
+import { saveCrew } from '../crew/persist'
 import { ACTIVE } from '../crew/workers'
 import { quiet } from '../engine'
 import type { Engine } from '../engine'
@@ -71,6 +72,7 @@ async function progressTick($: Engine) {
     // A row that stands is drawn again, so it follows even while the main turn runs.
     await followCheckIn($, await readRound($), now)
     await quiet($, sweepBackground($, now), 'background sweep')
+    await quiet($, saveCrew($, now), 'save crew')
 
     if (isMainBusy(await readOrch($))) return
     // The lines that wait, before any summary of their round.
