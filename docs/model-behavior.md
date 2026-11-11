@@ -165,3 +165,7 @@ the `/crew` command's line in the command menu.
    the brief, and spends the `delegate` description's room.
 4. A new text gets a golden key, an `expectText` in `tests/model-text.test.tsx` that goes through
    the hook that sends it, and a row here.
+5. The `task` argument of `delegate` tells the orchestrator what a worker's preamble already
+   gives (the report format and the git, progress and messaging rules), so that briefs do not
+   repeat them. Take one of those out of `workerPreamble` and that sentence is no longer true:
+   `tests/briefs.test.tsx` holds the two together.
