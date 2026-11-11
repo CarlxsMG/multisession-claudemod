@@ -31,3 +31,12 @@ export const ROSTER_REPORT_CUT = 120
 export const ROSTER_FULL_REPORT_CUT = 1200
 /** The least time between two compactions the crew starts, which the compact tool's spec states. */
 export const COMPACT_GAP_MIN = 10
+/**
+ * How soon after the main conversation's turn ended the crew may start a
+ * compaction it queued. The summary request reads the whole transcript again,
+ * and the prompt cache holds its prefix for 5 minutes after the last request:
+ * past that the transcript is billed uncached, so the ask waits for the next
+ * turn's end. The minute short of the cache's life leaves room for the tick
+ * and the request to reach it.
+ */
+export const COMPACT_WARM_MIN = 4

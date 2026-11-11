@@ -366,8 +366,11 @@ threshold (read with `$.session.usage({ breakdown: 'summary' })` once a minute; 
 free to read). A turn cannot compact itself, so the ask waits in `compactAsk`, and the progress tick
 runs it (`compactWhenSafe`) while the main turn is not under way, no worker is busy, no row is due
 and no takeover stands; `after: "reports"` also waits for the round to close and for a main turn
-since the last run ended. The crew starts at most one every 10 minutes (`COMPACT_GAP_MIN`) and does
-not wait for it: one a turn that began refuses stays queued for the next safe moment; one that
+since the last run ended. It also runs only within 4 minutes of the main turn's end
+(`COMPACT_WARM_MIN`): the summary request reads the whole transcript again, and past the prompt
+cache's 5 minutes it is billed uncached, so an ask that misses the window stays queued until the
+tick after the next main turn ends. The crew starts at most one every 10 minutes (`COMPACT_GAP_MIN`)
+and does not wait for it: one a turn that began refuses stays queued for the next safe moment; one that
 stands or is skipped clears its ask, with a toast.
 
 ### Keeping in step with the engine

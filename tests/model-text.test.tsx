@@ -373,6 +373,7 @@ test("the line on when to compact, in its own section of the system prompt, and 
   const clock = engine(on)
   on('session.compact', () => ({ messages: [{ role: 'user' as const, text: 'Summary.', toolUses: [] }] }))
   on('ui.toast', () => ({ value: undefined }))
+  on('turn.start', (_, e) => ({ turnId: e.turnId }))
   composed(on)
   await start($)
   const sections = (
@@ -380,7 +381,10 @@ test("the line on when to compact, in its own section of the system prompt, and 
   ).sections
   expectText('brief.compact', sections.find(s => s.id === 'crew:compact')?.text)
   const compact = async (input: Record<string, unknown>) => String((await $.tool.call({ tool: 'mcp__crew__compact', ...input } as never)).result)
+  // The orchestrator asks in a turn of its own, whose end lets the compaction run.
+  await $.turn.start({ text: '', turnId: 'm1' })
   expectText('result.compactQueued', await compact({ focus: 'the billing phase' }))
+  await $.turn.complete({ answer: '', durationMs: 1, isAborted: false, turnId: 'm1', reason: 'answer' })
   await clock.advance(2000)
   expectText('result.compactQueuedWait', await compact({ after: 'reports' }))
   expectText('result.compactNotForWorkers', await compact({ agentId: 'agent-1' }))
