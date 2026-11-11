@@ -8,7 +8,7 @@ export const GOLDEN: Record<string, string> = {
     "Persona: Nova is cheerful and encouraging, a warm teammate. Let it color greetings and short status lines only; technical content stays precise and plain.",
   ].join('\n'),
   "spec.delegate.description": [
-    "Hand a task to a crew worker: a named background subagent, general-purpose unless `subagent_type` says otherwise, that reports back when done. Goes to the worker you name; else to the free worker this tool started in that repository, of that type and on that model (the session's when unset), that last finished a task, if it did within 4 min (its context is still cached), or the next such it can reach; it keeps its context; else to a new one. Returns at once: the worker's address, and who else is busy where it works.",
+    "Hand a task to a crew worker: a named background subagent, general-purpose unless `subagent_type` says otherwise, that reports back when done. Goes to the worker you name; else to the free worker this tool started in that repository, of that type and on that model (the session's when unset), that last finished a task, if it did within 4 min (its context is still cached) and holds under 100k tokens, or the next such it can reach; it keeps its context; else to a new one. Returns at once: the worker's address, and who else is busy where it works.",
     "",
     "These rules are for the main assistant, the crew's orchestrator, while delegation is ON (its crew brief or the latest \"[crew]\" note says whether it is); a worker or fork reading them ignores them and does its own task.",
     "",
@@ -68,7 +68,7 @@ export const GOLDEN: Record<string, string> = {
   "spec.roster": [
     "{",
     "  \"name\": \"roster\",",
-    "  \"description\": \"List the crew, busy workers first, then the most recent, at most 12 rows: each worker's name, SendMessage address, status, where it works, last task and, while busy, what it is doing. Idle, done and stopped workers are free to take a task. One \\\"answering <name>\\\" was woken by that worker, and your tasks wait for it; tasks \\\"not delivered\\\" go with the next one you give it, and tasks \\\"held behind its run\\\" go when that run ends. The 3 latest workers not busy show their last report cut to 120 characters; `worker` shows one alone, with more of it. Use it to pick the worker that should continue earlier work, to find an address for SendMessage or TaskStop, or to see who is busy where.\",",
+    "  \"description\": \"List the crew, busy workers first, then the most recent, at most 12 rows: each worker's name, SendMessage address, status, where it works, last task and, while busy, what it is doing; \\\"context\\\" is what its conversation holds, in tokens, which every request of it sends again. Idle, done and stopped workers are free to take a task. One \\\"answering <name>\\\" was woken by that worker, and your tasks wait for it; tasks \\\"not delivered\\\" go with the next one you give it, and tasks \\\"held behind its run\\\" go when that run ends. The 3 latest workers not busy show their last report cut to 120 characters; `worker` shows one alone, with more of it. Use it to pick the worker that should continue earlier work, to find an address for SendMessage or TaskStop, or to see who is busy where.\",",
     "  \"inputSchema\": {",
     "    \"type\": \"object\",",
     "    \"properties\": {",
@@ -295,6 +295,13 @@ export const GOLDEN: Record<string, string> = {
   ].join('\n'),
   "edit.sameFile": "[crew] Pip (\"pip\") has edited login.ts in its task in flight. Before you change this file again, settle with Pip who does (SendMessage): two workers on one file overwrite each other.",
   "result.unreachable": "crew: could not reach Bolt: the agent is gone",
+  "roster.oneContext": [
+    "- Pip: address \"pip\", done, repo /work/api, model test-model, 1 task, 0 tokens, context ~38k, last task \"Login\", finished 0s ago",
+    "  last report: Done: 3 files changed, tests green.",
+  ].join('\n'),
+  "result.givenHolding": "Given to Pip (address \"pip\") in /work/api, the free worker of that type and model there that last finished a task; context kept: last task \"Login\", finished 0s ago, 0 tokens used, context ~38k.",
+  "result.startedAfterLarge": "Started Bolt (address \"bolt\", id ?) in /work/api, as every free worker of that type and model there holds over 100k tokens of context, which each of its requests sends again (also free: Pip; name one with `worker` to pick it).",
+  "result.startedAfterIdleOrLarge": "Started Mika (address \"mika\", id ?) in /work/api, as every free worker of that type and model there either finished its last task over 4 min ago or holds over 100k tokens of context (also free: Pip, Bolt; name one with `worker` to pick it).",
   "result.startedAfterIdle": "Started Mika (address \"mika\", id ?) in /work/api, as no free worker of that type and model there finished a task in the last 4 min, so none has its context cached (also free: Bolt, Pip; name one with `worker` to pick it).",
   "result.startedAfterLost": [
     "Started Mika (address \"mika\", id ?) in /work/api, as Bolt, free there, could not be reached (the agent is gone).",

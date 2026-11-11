@@ -1,9 +1,9 @@
 // The crew's tools as the models see them: names, descriptions and input
 // schemas. tests/golden/model-text.ts holds each spec as it is.
-import { COMPACT_GAP_MIN, REUSE_WARM_MIN, ROSTER_FULL_REPORT_CUT, ROSTER_REPORT_CUT, ROSTER_REPORTS, ROSTER_ROWS } from '../config'
+import { COMPACT_GAP_MIN, REUSE_CONTEXT_MAX, REUSE_WARM_MIN, ROSTER_FULL_REPORT_CUT, ROSTER_REPORT_CUT, ROSTER_REPORTS, ROSTER_ROWS } from '../config'
 import { DELEGATION_RULES } from './orchestrator'
 
-const DELEGATE_ABOUT = `Hand a task to a crew worker: a named background subagent, general-purpose unless \`subagent_type\` says otherwise, that reports back when done. Goes to the worker you name; else to the free worker this tool started in that repository, of that type and on that model (the session's when unset), that last finished a task, if it did within ${REUSE_WARM_MIN} min (its context is still cached), or the next such it can reach; it keeps its context; else to a new one. Returns at once: the worker's address, and who else is busy where it works.`
+const DELEGATE_ABOUT = `Hand a task to a crew worker: a named background subagent, general-purpose unless \`subagent_type\` says otherwise, that reports back when done. Goes to the worker you name; else to the free worker this tool started in that repository, of that type and on that model (the session's when unset), that last finished a task, if it did within ${REUSE_WARM_MIN} min (its context is still cached) and holds under ${REUSE_CONTEXT_MAX / 1000}k tokens, or the next such it can reach; it keeps its context; else to a new one. Returns at once: the worker's address, and who else is busy where it works.`
 
 // Policy plugins can keep out a system section but not a tool description, so
 // the rules ride here and nowhere else, for the orchestrator alone and only
@@ -73,7 +73,7 @@ export const DELEGATE_SPEC = {
  */
 export const ROSTER_SPEC = {
   name: 'roster',
-  description: `List the crew, busy workers first, then the most recent, at most ${ROSTER_ROWS} rows: each worker's name, SendMessage address, status, where it works, last task and, while busy, what it is doing. Idle, done and stopped workers are free to take a task. One "answering <name>" was woken by that worker, and your tasks wait for it; tasks "not delivered" go with the next one you give it, and tasks "held behind its run" go when that run ends. The ${ROSTER_REPORTS} latest workers not busy show their last report cut to ${ROSTER_REPORT_CUT} characters; \`worker\` shows one alone, with more of it. Use it to pick the worker that should continue earlier work, to find an address for SendMessage or TaskStop, or to see who is busy where.`,
+  description: `List the crew, busy workers first, then the most recent, at most ${ROSTER_ROWS} rows: each worker's name, SendMessage address, status, where it works, last task and, while busy, what it is doing; "context" is what its conversation holds, in tokens, which every request of it sends again. Idle, done and stopped workers are free to take a task. One "answering <name>" was woken by that worker, and your tasks wait for it; tasks "not delivered" go with the next one you give it, and tasks "held behind its run" go when that run ends. The ${ROSTER_REPORTS} latest workers not busy show their last report cut to ${ROSTER_REPORT_CUT} characters; \`worker\` shows one alone, with more of it. Use it to pick the worker that should continue earlier work, to find an address for SendMessage or TaskStop, or to see who is busy where.`,
   inputSchema: {
     type: 'object',
     properties: {

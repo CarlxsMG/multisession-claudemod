@@ -22,6 +22,7 @@ import {
 } from '../state/atoms'
 import { appendKept } from '../util/bounded'
 import { lines } from '../util/text'
+import { contextOf } from './context'
 import { syncAgents, syncCrew } from './sync'
 import { ACTIVE, apartIds, byActivity, findWorker } from './workers'
 
@@ -58,8 +59,9 @@ export async function rosterText($: Engine, key?: string, isMain = true): Promis
   const plans = new Map((await readRuns($)).flatMap(r => (isOpen(r) && r.plan !== undefined ? [[r.id, r.plan] as const] : [])))
   const waiting = (await readWaiting($)).filter(w => w.missed === undefined)
   const now = await $.clock.now()
-  const factsOf = ({ id, status }: Worker): RowFacts => ({
+  const factsOf = ({ id, status, context }: Worker): RowFacts => ({
     isActive: ACTIVE.has(status),
+    context: contextOf({ id, context }),
     takeover: woken.get(id),
     behind: waiting.filter(w => w.after === id).length,
     parent: parents.get(id),

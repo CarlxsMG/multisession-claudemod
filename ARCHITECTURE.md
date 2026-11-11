@@ -43,7 +43,7 @@ the debug log. Its `unrecognized` logs there an engine text the crew reads in no
 | --- | --- |
 | `hooks/register.tsx` | Every hook, each matcher written inline. Nothing else. |
 | `src/hooks/` | The hook bodies: the session's events (`session.ts`), the `/crew` command (`commands.ts`), the crew's tools (`tools.ts`), every tool call watched (`watch.ts`), turn starts and ends (`turns.ts`), the system prompt and the user's messages (`prompt.ts`), compaction (`compact.ts`). |
-| `src/crew/` | The crew itself: the worker list and its statuses (`workers.ts`), `delegate` (`delegate.ts`), the crew's own agent type (`worker-type.ts`), the spawn hook (`spawn.ts`) and the name it puts ahead of an agent's title (`title.ts`) and of a worker's background shell or Monitor (`shell-title.ts`), the send hook (`sends.ts`), relays (`relay.ts`), takeovers and held tasks (`takeover.ts`), workers that end with no report or go quiet (`silence.ts`), tasks that wait for a run to end (`waiting.ts`), the worktree a worker makes for itself (`own-worktree.ts`), compactions the crew starts (`compaction.ts`), one way to send and record (`deliver.ts`), the sync with the engine's agents (`sync.ts`), the user's message to a worker (`message.ts`), what the pane and the rows are drawn from (`feed.ts`), the roster's data (`roster.ts`), and the files runs in flight have edited (`edits.ts`). |
+| `src/crew/` | The crew itself: the worker list and its statuses (`workers.ts`), `delegate` (`delegate.ts`), the crew's own agent type (`worker-type.ts`), what each worker's conversation holds (`context.ts`), the spawn hook (`spawn.ts`) and the name it puts ahead of an agent's title (`title.ts`) and of a worker's background shell or Monitor (`shell-title.ts`), the send hook (`sends.ts`), relays (`relay.ts`), takeovers and held tasks (`takeover.ts`), workers that end with no report or go quiet (`silence.ts`), tasks that wait for a run to end (`waiting.ts`), the worktree a worker makes for itself (`own-worktree.ts`), compactions the crew starts (`compaction.ts`), one way to send and record (`deliver.ts`), the sync with the engine's agents (`sync.ts`), the user's message to a worker (`message.ts`), what the pane and the rows are drawn from (`feed.ts`), the roster's data (`roster.ts`), and the files runs in flight have edited (`edits.ts`). |
 | `src/guard/runaway.ts` | The guard on Bash and PowerShell calls: it refuses a command that would not end (`tail -f`, `watch`, a watch mode, an endless loop), the main session's and every worker's. |
 | `src/prompts/` | Nearly every text a model reads ([docs/model-behavior.md](docs/model-behavior.md) lists them all): the orchestrator's brief and `[crew]` note (`orchestrator.ts`), the workers' preamble and the texts the crew sends them (`worker.ts`), the tool specs (`tools.ts`), the tool results and their parsers (`results.ts`), the roster's text (`roster.ts`), and what the `/crew` command answers (`commands.ts`). |
 | `src/progress/` | Progress, which no model reads: `run-store.ts` is the only module that records runs with the engine, `calls.ts` holds tool calls for the pane's next frame, `todos.ts` reads a plan off a todo list, `status.ts` pins the status line, `placed.ts` places the rows and keeps the check-in interval, and `tick.ts` is the progress tick; `runs.ts`, `round.ts`, `plan.ts`, `phase.ts`, `check-in.ts` are pure; `text/` builds the status line, the team view, the cards and the placed rows. |
@@ -127,7 +127,7 @@ the names given, the agents the engine listed, the check-in interval, the status
 widths and the run times, the tool calls, the files edited and the end-of-task rows' first drawings held for the next
 frame (a drawing may not write the state), the usage probe's permission and time, the pane's
 frame, the look it last showed, rasters and the redraws it owes, the last `[crew]` check, the mood lines asked for, and
-the kinds of engine wording logged, the crew's agent type as the engine registered it, the workers told of another's edit of a file, and whether a compaction the crew started is under way, when the main turn last ended and the auto-compaction threshold as last read. It is one typed object
+the kinds of engine wording logged, what each agent's conversation held at its last response, the crew's agent type as the engine registered it, the workers told of another's edit of a file, and whether a compaction the crew started is under way, when the main turn last ended and the auto-compaction threshold as last read. It is one typed object
 in parts, each read and written only by the module its comment names; another module goes
 through that module's functions. It imports types only.
 
@@ -198,12 +198,14 @@ holds no look, and is turned down as a bad code.
 3. It picks the worker: the one named, else (without `fresh`) the most recent free worker that
    `delegate` started in that repository, of the same type and on the model asked for (the
    session's when none) however its own call named that model, that is not woken by another
-   worker, and whose last turn ended within `REUSE_WARM_MIN` (4 minutes); else none. Waking a
+   worker, whose last turn ended within `REUSE_WARM_MIN` (4 minutes) and whose conversation holds
+   no more than `REUSE_CONTEXT_MAX` (100k tokens); else none. Waking a
    worker sends its whole conversation again, and past the prompt cache's 5 minutes that is
    billed uncached, for a task that may have nothing to do with what it holds: a free worker
-   idle longer is reused only when named, and the result names it. The result of an unnamed
-   reuse says what the worker's context holds: its last task, when it finished and the tokens
-   its turns used.
+   idle longer is reused only when named, and the result names it. So is one that holds more
+   than the ceiling: every request of a worker sends all it holds again, which a task that needs
+   none of it pays at each. The result of an unnamed reuse says what the worker's context holds:
+   its last task, when it finished, the tokens its turns used and how much it holds.
 4. A reused worker gets the task through `deliver`, a send from the main conversation, with a
    short reminder of how to report and, when teammates are there that it was not told of (its
    `mates` hold the addresses it was), a line naming them; held tasks that once missed it go
@@ -305,6 +307,22 @@ The mark stays for the worker's life: the crew cannot tell a worker that went ba
 repository from one still in its worktree. What it does not see: a path in quotes with a space in
 it, and an `add` that failed inside a command that ended well. A wrong mark hides only the
 worker's name in a heads-up; two workers that edit one file are still told so, by the file's path.
+
+### What a worker's conversation holds
+
+`turn.complete` gives a turn's usage summed over its requests: what the turn cost, not how large
+the conversation is. So the crew reads it off each response: `noteStep` (`src/crew/context.ts`) is
+a hook on `turn.step`, the model's response as it streams, the main conversation's and every
+agent's. It passes the stream on untouched (`yield* next(e)`) and, when the response of an agent
+ends, keeps the sum of its usage (input, cache read, cache write and output: what the next
+request sends again) in memory. Nothing is written per request; when the worker's turn ends,
+`onTurnComplete` keeps the figure on the worker (`context`). The roster shows it (`context ~38k`),
+an unnamed reuse reads it for the ceiling, and its result says it.
+
+A response of 1000 output tokens passes as about 130 chunks. Measured on Claude Code 2.1.322
+with a hook that only counted and passed on, three runs each way: the requests took 5.4 to 5.7 s
+with the hook and 6.1 to 10.6 s without, so nothing the hook adds shows against the model's own
+variation.
 
 ### Names
 
