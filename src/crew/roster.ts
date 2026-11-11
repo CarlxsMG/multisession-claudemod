@@ -23,7 +23,7 @@ import {
 import { appendKept } from '../util/bounded'
 import { lines } from '../util/text'
 import { syncAgents, syncCrew } from './sync'
-import { ACTIVE, byActivity, findWorker } from './workers'
+import { ACTIVE, apartIds, byActivity, findWorker } from './workers'
 
 /**
  * Keeps a worker's report whole, with its line breaks, among the latest
@@ -50,7 +50,7 @@ export async function rosterText($: Engine, key?: string, isMain = true): Promis
   // from the shelf, where it stays until something wakes it.
   const one = isOne ? (findWorker(list, key) ?? findWorker(await readDropped($), key)) : undefined
   if (list.length === 0 && one === undefined) return emptyCrew(look.name)
-  const inWorktree = new Set(await readWorktrees($))
+  const inWorktree = apartIds(one === undefined ? list : [...list, one], await readWorktrees($))
   const parents = new Map((await readParents($)).map(p => [p.id, p]))
   const woken = new Map((await readTakeovers($)).map(t => [t.id, t]))
   // The one part of progress a model reads: an active worker's step, so the

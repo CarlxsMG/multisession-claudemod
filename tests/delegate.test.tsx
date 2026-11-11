@@ -1030,6 +1030,57 @@ test('an agent in a worktree of its own is not busy in the repository, and says 
   expect(await roster()).toMatch(/^- Pip: address "agent-1", done, worktree of \/work\/main, /m)
 })
 
+test('a worker that makes a worktree for itself is not busy in the repository from then on', async ($, on) => {
+  let spawned = 0
+  const seen = { prompts: [] as string[], sends: [] as string[] }
+  // The engine answers a shell call as the test says: run, or failed.
+  const shell = { fails: false }
+  on('tool.call', { tool: 'Bash' }, () =>
+    shell.fails
+      ? { result: 'fatal: invalid reference: origin/main', isError: true as const, text: 'fatal: invalid reference: origin/main' }
+      : { result: { stdout: '', stderr: '', interrupted: false } },
+  )
+  engine(on, { nextId: () => `agent-${++spawned}`, seen })
+  await $.session.start({ cwd: '/work/main', surface: 'terminal', isInteractive: true })
+  const delegate = async (input: Record<string, unknown>) => String((await $.tool.call({ tool: 'mcp__crew__delegate', ...input })).result)
+  const roster = async () => String((await $.tool.call({ tool: 'mcp__crew__roster' })).result)
+  const bash = (agentId: string, command: string) => $.tool.call({ tool: 'Bash', command, agentId } as never)
+
+  await delegate({ task: 'Fix the login', fresh: true })
+  expect(await delegate({ task: 'Fix the styles', fresh: true })).toMatch(/\nHeads-up: Pip is working in this repository; /)
+
+  // A look at the worktrees, and an add that failed, make none.
+  await bash('agent-1', 'git worktree list')
+  shell.fails = true
+  await bash('agent-1', 'git worktree add ../main-pip -b crew/pip-login origin/main')
+  shell.fails = false
+  expect(await roster()).toMatch(/^- Pip: address "pip", [^\n]*, repo \/work\/main, /m)
+
+  await bash('agent-1', 'cd /work/main && git worktree add ../main-pip -b crew/pip-login')
+  expect(await roster()).toMatch(/^- Pip: address "pip", [^\n]*, worktree of \/work\/main, /m)
+  expect(await roster()).toMatch(/^- Bolt: address "bolt", [^\n]*, repo \/work\/main, /m)
+
+  // The next worker there hears of Bolt alone, and is told where Pip works.
+  const third = await delegate({ task: 'Update the docs', fresh: true })
+  expect(third).toMatch(/\nHeads-up: Bolt is working in this repository; /)
+  expect(third).not.toMatch(/Pip/)
+  expect(seen.prompts[2]).toMatch(/Pip \("pip", own worktree of main\)/)
+  expect(seen.prompts[2]).toMatch(/Bolt \("bolt", main\)/)
+
+  // An agent it starts begins in the repository: the engine knows nothing of
+  // the worktree, so it is not told that its shell starts there.
+  await spawnAgent($, { prompt: 'Write the tests', description: 'Tests', subagentType: 'general-purpose', tool_use_id: 'toolu_9', parentAgentId: 'agent-1' })
+  expect(seen.prompts[3]).toMatch(/\n- Your repository is \/work\/main\. /)
+  expect(seen.prompts[3]).not.toMatch(/git worktree of \/work\/main, where your shell starts/)
+
+  // A task given to it says where it is, and warns it of nobody there.
+  await $.turn.complete({ answer: 'Hecho', durationMs: 1, isAborted: false, turnId: 't1', agentId: 'agent-1', reason: 'answer' })
+  expect(await delegate({ task: 'Now the logout', worker: 'pip' })).toMatch(
+    /^Given to Pip \(address "pip"\) in a worktree of \/work\/main, as named; context kept\./,
+  )
+  expect(await roster()).toMatch(/^- Pip: address "pip", [^\n]*, worktree of \/work\/main, /m)
+})
+
 test('delegate calls made at once never share a name or a worker', async ($, on) => {
   let spawned = 0
   engine(on, { nextId: () => `agent-${++spawned}` })

@@ -97,6 +97,10 @@ All notable changes to crew are written here. The format follows
   the main branch, and the orchestrator is told to put either in the brief, so a project's own
   branch names are followed and your go-ahead reaches the worker. The orchestrator's rules no
   longer say "never on the main branch" nor point at the Agent tool's `isolation`.
+- The crew knows of a worktree a worker made for itself with `git worktree add`: the roster says
+  `worktree of`, and a task given in that repository no longer warns that the worker is busy
+  there. A worker's shell calls are read for it; a path in quotes with a space is not.
+
 ### Fixed
 
 - In the desktop app the editor's palettes show their coloured cells, its steppers their ◀ ▶
