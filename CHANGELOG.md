@@ -37,6 +37,11 @@ All notable changes to crew are written here. The format follows
 - A worker started as `Explore` or `Plan`, which edit nothing, no longer reads how to commit, write
   comments or fork itself: about 1100 characters less at its start. Every other type, a
   project's own agents included, reads the whole preamble as before.
+- The crew keeps a worker's last report whole, with its line breaks and up to 8000 characters,
+  where it kept 1200 on one line, and `mcp__crew__roster` shows it so for one worker asked for
+  alone. After a compaction the orchestrator can read a long report again, a list of files or of
+  check results included, without waking the worker that wrote it. The roster's list is as short
+  as before.
 
 ### Fixed
 

@@ -92,6 +92,9 @@ const background = atom({ plugin: 'crew', key: 'background' } as const, [], { sh
 // The compaction the orchestrator or the threshold asked for, until a safe
 // moment runs it, and when the crew last ran one.
 const compaction = atom({ plugin: 'crew', key: 'compactAsk' } as const, { ask: null, lastAt: 0 }, { shape: 'compactAsk-1' })
+// The latest workers' last reports, whole: apart from the workers, which are
+// written at every change of a status and keep one line of each.
+const reports = atom({ plugin: 'crew', key: 'reports' } as const, [], { shape: 'reports-1' })
 
 // What an atom holds, as a change to it takes and gives it.
 type Change<A> = A extends Atom<infer T> ? (value: T) => T : never
@@ -383,4 +386,12 @@ export function readCompaction($: StateDollar) {
 
 export function updateCompaction($: StateDollar, change: Change<typeof compaction>) {
   return update($, compaction, change)
+}
+
+export function readReports($: StateDollar) {
+  return read($, reports)
+}
+
+export function updateReports($: StateDollar, change: Change<typeof reports>) {
+  return update($, reports, change)
 }

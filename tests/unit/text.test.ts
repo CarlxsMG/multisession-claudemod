@@ -2,8 +2,16 @@ import { expect } from 'claude-code/testing'
 
 import { describe } from '../../src/progress/phase'
 import { ago } from '../../src/util/time'
-import { cut, firstText, flat, headLines, oneLine, textOf, unwrapPasted, wrapText } from '../../src/util/text'
+import { cut, firstText, flat, headLines, lines, oneLine, textOf, unwrapPasted, wrapText } from '../../src/util/text'
 import { test } from '../support/crew'
+
+test('lines keeps the line breaks, tidies the blank ones and cuts with an ellipsis', () => {
+  expect(lines('  a  \r\n\r\n\n\n  b\t\nc\n\n', 20)).toBe('a\n\n  b\nc')
+  expect(lines('one line', 20)).toBe('one line')
+  expect(lines('ab\ncdefgh', 6)).toBe('ab\ncd…')
+  expect(lines('abc  \n  def', 5)).toBe('abc…')
+  expect(lines(' \n ', 5)).toBe('')
+})
 
 test('one line flattens the whitespace and cuts with an ellipsis', () => {
   expect(oneLine('  a\n b  ', 10)).toBe('a b')

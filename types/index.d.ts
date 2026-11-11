@@ -305,6 +305,12 @@ export type BackgroundTask = {
 }
 
 /**
+ * A worker's last report as it wrote it, line breaks kept, by its id: what
+ * the roster shows of one worker asked for alone.
+ */
+export type Report = { id: string; text: string }
+
+/**
  * A compaction of the main conversation waiting for a safe moment: what the
  * summary should stress (`focus`, '' for nothing more than the crew's), what
  * it waits for (`idle`: no worker busy; `reports`: also the round over and
@@ -355,6 +361,7 @@ declare module 'claude-code' {
       noteFirst: Shaped<NoteFirst[]>
       background: Shaped<BackgroundTask[]>
       compactAsk: Shaped<Compaction>
+      reports: Shaped<Report[]>
     }
   }
 }

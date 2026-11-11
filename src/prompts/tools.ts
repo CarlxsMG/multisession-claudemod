@@ -69,7 +69,7 @@ export const ROSTER_SPEC = {
     properties: {
       worker: {
         type: 'string',
-        description: 'Name or address of one worker to show alone, with its last report at more length (up to 1200 characters), instead of the list.',
+        description: `Name or address of one worker to show alone, with its last report at more length (up to ${ROSTER_FULL_REPORT_CUT} characters), instead of the list.`,
       },
     },
   },

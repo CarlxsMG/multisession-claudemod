@@ -93,6 +93,7 @@ under, so it never changes even where the code name differs.
 | `takeovers` | `takeovers` | `takeovers-1` | Woken agents, who they answer, and their held tasks |
 | `relays` | `relays` | `relays-1` | Workers' messages to free teammates, waiting for the next tick |
 | `jobs` | `jobs` | `jobs-1` | What each worker was last given: a task's title or a message's gist |
+| `reports` | `reports` | `reports-1` | The latest 24 workers' last reports, whole and with their line breaks, up to 8000 characters each: what the roster shows of one worker asked for alone |
 | `opened` | `opened` | `opened-1` | Crew rows a press opened whole |
 | `model` | `mainModel` | `model-1` | The main session's model id |
 | `runs` | `runs` | `runs-1` | Each worker's current or latest run |
