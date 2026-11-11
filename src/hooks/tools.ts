@@ -4,6 +4,7 @@ import type { MatchedHook } from 'claude-code'
 import { askCompaction } from '../crew/compaction'
 import { delegateInTurn, refuseWorker } from '../crew/delegate'
 import { rosterText } from '../crew/roster'
+import { tellSilent } from '../crew/silence'
 import { releaseWaiting, tellWaiting } from '../crew/waiting'
 import { quiet } from '../engine'
 import type { Engine } from '../engine'
@@ -26,12 +27,17 @@ export async function delegateTool($: Engine, e: CrewToolCall) {
   // first; the ones that could not be given, this result says.
   await quiet($, releaseWaiting($, true), 'waiting')
   const result = await delegateInTurn($, e, e.tool_use_id)
-  return { result: [result, ...((await quiet($, tellWaiting($), 'waiting told')) ?? [])].join('\n') }
+  const notGiven = (await quiet($, tellWaiting($), 'waiting told')) ?? []
+  const silent = (await quiet($, tellSilent($), 'silent told')) ?? []
+  return { result: [result, ...notGiven, ...silent].join('\n') }
 }
 
 /** The roster tool: the crew as the model reads it, or one worker in full. */
 export async function rosterTool($: Engine, e: CrewToolCall) {
-  return { result: await rosterText($, rawStringArg(e, 'worker'), e.agentId === undefined) }
+  const roster = await rosterText($, rawStringArg(e, 'worker'), e.agentId === undefined)
+  // A worker's look at the roster is told nothing of the others: the word is the orchestrator's.
+  if (e.agentId !== undefined) return { result: roster }
+  return { result: [roster, ...((await quiet($, tellSilent($), 'silent told')) ?? [])].join('\n') }
 }
 
 /**

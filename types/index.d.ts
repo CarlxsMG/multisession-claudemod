@@ -184,6 +184,17 @@ export type Waiting = {
 }
 
 /**
+ * A worker the orchestrator would wait for in vain (`id`). `gone`: the
+ * engine dropped it while it was busy and no end of its run reached the
+ * crew, so no report comes. `quiet`: it is busy and nothing was heard from
+ * it since `since`, its last sign of life when that was noted. `isTold` once
+ * the orchestrator has heard so, in a tool's result or a user message's
+ * note: a gone one then leaves the list, a quiet one stays until the worker
+ * is heard from again.
+ */
+export type Silence = { id: string; kind: 'gone' | 'quiet'; since: number; isTold?: boolean }
+
+/**
  * A worker's message to a free teammate (`id`), which the main conversation
  * sends on: who wrote it (`by`, with its id and address), its text and gist.
  */
@@ -391,6 +402,7 @@ declare module 'claude-code' {
       background: Shaped<BackgroundTask[]>
       compactAsk: Shaped<Compaction>
       waiting: Shaped<Waiting[]>
+      silences: Shaped<Silence[]>
       reports: Shaped<Report[]>
     }
   }

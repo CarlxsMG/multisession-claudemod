@@ -344,6 +344,8 @@ export const GOLDEN: Record<string, string> = {
   ].join('\n'),
   "note.notGiven": "[crew] The task \"Docs\", held behind Bolt, was not given: Bolt's run was stopped. Give it again if it still stands.",
   "result.afterNeedsWorker": "crew: nothing held: auto mode reviews only calls you write, so a new worker cannot start on its own when Mika's run ends. Give the task once Mika reports, or name a worker for it with `worker`.",
+  "note.goneSilent": "[crew] Pip (address \"pip\") ended without a report: the engine dropped it while it was on \"Login\". Take that task as not done: give it again, to Pip by name or to another worker.",
+  "result.quietSilent": "crew: Bolt (address \"bolt\") is working on \"Styles\" and nothing was heard from it for 10 min (last seen: Read styles.css, step 1/3). It may be on a long command, waiting for the user's approval, or stuck: ask it with SendMessage, or TaskStop it and give the task again.",
   "result.heldMore": "Held for Bolt (address \"agent-2\"): Bolt is answering Pip, whose message woke it. It gets this task when that run ends, and reports to you. 2 tasks held; they go together.",
   "note.heldMissed": "[crew] The 2 tasks held for Bolt (address \"agent-2\") did not reach it: the agent is gone. They go with the next task you give Bolt; or give them to another worker word for word, which takes them off Bolt.",
   "result.heldMissed": "crew: the 3 tasks held for Bolt (address \"agent-2\") did not reach it: its transcript is locked. They go with the next task you give Bolt; or give them to another worker word for word, which takes them off Bolt.",
