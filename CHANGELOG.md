@@ -59,6 +59,11 @@ All notable changes to crew are written here. The format follows
   is passed over and named in the result, and still takes a task when the orchestrator names it.
   The result of an unnamed reuse says what the worker holds (its last task, when it finished, the
   tokens it used), and the roster says when each free worker finished.
+- A worker's report opens with `DONE`, `PARTIAL` or `BLOCKED` and the outcome, in a first line
+  short enough for the roster's list to show whole, then says which checks it ran and what it did
+  not verify, in 200 words unless its task sets another length. The orchestrator sees at a glance
+  whether a task is finished, sends a question back to the worker that asked it, and has checked
+  only what a report left unverified.
 
 ### Fixed
 

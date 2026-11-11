@@ -687,7 +687,7 @@ test('a worker named for a task hears of who is busy in its own repository', asy
   expect(apart).toMatch(/^Given to Tito \(address "agent-4"\) in a worktree of \/work\/main, as named; context kept\.$/)
   expect(apart).not.toMatch(/Heads-up/)
   // It was not started by delegate: it hears the whole report rule.
-  expect(seen.sends[seen.sends.length - 1]).toMatch(/^Fix the rest\n\nWhen done, report the outcome first, then only facts: /)
+  expect(seen.sends[seen.sends.length - 1]).toMatch(/^Fix the rest\n\nWhen done, open with DONE, PARTIAL or BLOCKED and the outcome, /)
 })
 
 test('a named worker stays as it is, and the result notes what the call asked that it is not', async ($, on) => {

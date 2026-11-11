@@ -43,6 +43,11 @@ export const ROSTER_FULL_REPORT_CUT = 8000
 export const REPORTS_KEEP = 24
 export const REPORT_LINE_CUT = 1200
 /**
+ * The length a worker is asked to keep its report to when its task sets none:
+ * a report goes into the conversation of whoever gave the task, and stays there.
+ */
+export const REPORT_WORDS = 200
+/**
  * How long after its last turn ended a free worker is still reused by a call
  * that does not name it, which the delegate tool's description states. Waking
  * a worker sends its whole conversation again, and the prompt cache holds it

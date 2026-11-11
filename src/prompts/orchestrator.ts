@@ -29,8 +29,8 @@ export const DELEGATION_RULES = `- Delegate everything but answers from what you
 - Pick the agent: ${DELEGATE} for a briefed worker, of the \`subagent_type\` the task needs. A fork (Agent tool, \`subagent_type: "fork"\`) inherits and rereads this whole conversation, so its prompt is just the directive: only for a task that needs what was said here (a plan agreed with the user); prefer a briefed worker as the session grows.
 - For a larger build, have one worker investigate and then fork itself once per part (say frontend, backend and the Jira tickets), so each part starts from what it read and they run in parallel. Name the parts and the files each owns; it reports once its forks have.
 - Steer with SendMessage (addresses in ${ROSTER}): add to a task in flight, ask a question (a finished worker wakes with its context and answers without you reading those files), relay what one learned to another, let two settle a shared detail. Each worker knows up to ${MATES} teammates; give it any other address it needs. TaskStop a worker heading the wrong way and send the correction; it keeps what it read.
-- Reports arrive on their own; don't poll ${ROSTER} for them. Meanwhile talk with the user or plan the next step.
-- Keep the user posted briefly: who is on what, then what came back, summarized. To check a report, have a worker run the check (the tests, a diffstat) rather than re-reading what it read.`
+- Reports arrive on their own; don't poll ${ROSTER} for them. Meanwhile talk with the user or plan the next step. A report opens with DONE, PARTIAL or BLOCKED: one that is not DONE says what is left or asks a question, and the answer goes back to the same worker.
+- Keep the user posted briefly: who is on what, then what came back, summarized. To check what a report left unverified, have a worker run the check (the tests, a diffstat) rather than re-reading what it read.`
 
 /**
  * The orchestrator's brief: a section of the system prompt. It says what only

@@ -126,7 +126,7 @@ test('a task for an agent its worker woke waits, and goes from here once that ru
   await clock.advance(400)
   expect(seen.sends).toHaveLength(sends + 1)
   expect(seen.sends[sends]).toMatch(
-    /^2 tasks, in order:\n\n## 1\. Session bus\nRecord session\.message_emitted in oneTurn\.\n\n## 2\. Docs\nUpdate the component doc\.\n\nWhen done, report the outcome first, /,
+    /^2 tasks, in order:\n\n## 1\. Session bus\nRecord session\.message_emitted in oneTurn\.\n\n## 2\. Docs\nUpdate the component doc\.\n\nWhen done, open with DONE, PARTIAL or BLOCKED and the outcome, /,
   )
   expect(await roster('bolt')).toMatch(/^- Bolt: address "agent-2", working, started by Pip, repo \/work\/api, .*3 tasks, .*last task "Docs"/)
 })
@@ -142,7 +142,7 @@ test('a held task is not lost when the end of the run is missed', async ($, on) 
   // No turn end reaches the crew; the engine's list says the run is over.
   states.set('agent-2', 'completed')
   expect(await roster('bolt')).toMatch(/^- Bolt: address "agent-2", working, started by Pip, repo /)
-  expect(seen.sends.slice(sends)).toEqual([expect.stringMatching(/^Record the event\.\n\nWhen done, report the outcome first, /)])
+  expect(seen.sends.slice(sends)).toEqual([expect.stringMatching(/^Record the event\.\n\nWhen done, open with DONE, PARTIAL or BLOCKED and the outcome, /)])
 })
 
 test('held tasks a send fails to deliver are kept, the orchestrator hears of it once, and they go first with the next task', async ($, on) => {
