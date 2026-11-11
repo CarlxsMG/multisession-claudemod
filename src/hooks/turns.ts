@@ -7,6 +7,7 @@ import { REPORT_LINE_CUT } from '../config'
 import { noteMainTurnEnd } from '../crew/compaction'
 import { lapseHandoffs } from '../crew/delegate'
 import { ORCH_ID, say, setOrch } from '../crew/feed'
+import { saveSoon } from '../crew/persist'
 import { keepReport } from '../crew/roster'
 import { releaseSoon } from '../crew/takeover'
 import { releaseWaiting, waitingSoon } from '../crew/waiting'
@@ -49,6 +50,8 @@ type OnTurnCompleteHook = HookFor<'turn.complete'>
  * background tasks are left for the progress tick to stop.
  */
 export async function onTurnComplete($: Engine, e: Parameters<OnTurnCompleteHook>[1], next: Parameters<OnTurnCompleteHook>[2]) {
+  // What the store keeps of the crew changes with a turn: the next tick saves it.
+  saveSoon()
   if (e.agentId === undefined) {
     // No cheer for a turn that came to nothing: the figure just rests.
     const isFailed = e.isAborted || e.reason === 'error' || e.reason === 'refusal'
