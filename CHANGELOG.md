@@ -77,6 +77,11 @@ All notable changes to crew are written here. The format follows
   looks like, the files it owns or only reads, the checks to run, what you allowed in git and what
   the report must answer. It also says the worker already knows how to report and the git and
   progress rules, so briefs stop repeating them.
+- A worker's report opens with `DONE`, `PARTIAL` or `BLOCKED` and the outcome, in a first line
+  short enough for the roster's list to show whole, then says which checks it ran and what it did
+  not verify, in 200 words unless its task sets another length. The orchestrator sees at a glance
+  whether a task is finished, sends a question back to the worker that asked it, and has checked
+  only what a report left unverified.
 - When a task goes to a repository where other workers are busy, the heads-up now names the files
   each of them has edited so far, or says it has edited none yet, where it only named the
   workers. And a worker that edits a file another worker has edited in its task in flight is told
