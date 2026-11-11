@@ -293,9 +293,25 @@ test('held tasks that did not reach their worker: the next delegate result, the 
   await clock.advance(400)
   await $.prompt.submit({ text: 'How is it going?', wait: false, origin: { kind: 'composer' } })
   expectText('note.heldMissed', contexts[0]?.join('\n'))
+  // Another reason than the first: the tasks are kept.
+  seen.undelivered = 'its transcript is locked'
   expectText('result.heldMissed', await give({ task: 'Write the changelog.', title: 'Changelog', worker: 'bolt' }))
   seen.undelivered = undefined
   expectText('result.heldWentFirst', await give({ task: 'Tag the release.', title: 'Release', worker: 'bolt' }))
+})
+
+test('held tasks that missed their worker and are let go: one given to another worker word for word, the rest when it cannot be reached again', async ($, on) => {
+  const { seen, clock, delegate: give, done } = await wokenCrew($, on)
+  await $.tool.call({ tool: 'Read', file_path: '/work/api/src/bus.ts', agentId: 'agent-2' })
+  await give({ task: 'Record the event.', title: 'Session bus', worker: 'bolt' })
+  await give({ task: 'Update the doc.', title: 'Docs', worker: 'bolt' })
+  seen.undelivered = 'the agent is gone'
+  await done('agent-2')
+  await clock.advance(400)
+  seen.undelivered = undefined
+  expectText('result.heldLetGo', await give({ task: 'Record the event.', title: 'Session bus', repo: '/work/web' }))
+  seen.gone = { 'agent-2': 'the agent is gone' }
+  expectText('result.heldDropped', await give({ task: 'Write the changelog.', title: 'Changelog', worker: 'bolt' }))
 })
 
 test("a worker's message to a free teammate, as the teammate reads it", async ($, on) => {

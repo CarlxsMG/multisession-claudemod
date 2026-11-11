@@ -299,8 +299,13 @@ export const GOLDEN: Record<string, string> = {
   ].join('\n'),
   "result.held": "Held for Bolt (address \"agent-2\"): Bolt is answering Pip, whose message woke it. It gets this task when that run ends, and reports to you.",
   "result.heldMore": "Held for Bolt (address \"agent-2\"): Bolt is answering Pip, whose message woke it. It gets this task when that run ends, and reports to you. 2 tasks held; they go together.",
-  "note.heldMissed": "[crew] The 2 tasks held for Bolt (address \"agent-2\") did not reach it: the agent is gone. They go with the next task you give Bolt, or give them to another worker.",
-  "result.heldMissed": "crew: the 3 tasks held for Bolt (address \"agent-2\") did not reach it: the agent is gone. They go with the next task you give Bolt, or give them to another worker.",
+  "note.heldMissed": "[crew] The 2 tasks held for Bolt (address \"agent-2\") did not reach it: the agent is gone. They go with the next task you give Bolt; or give them to another worker word for word, which takes them off Bolt.",
+  "result.heldMissed": "crew: the 3 tasks held for Bolt (address \"agent-2\") did not reach it: its transcript is locked. They go with the next task you give Bolt; or give them to another worker word for word, which takes them off Bolt.",
+  "result.heldLetGo": [
+    "Started Mika (address \"mika\", id ?) in /work/web, as no free worker of that type and model was there.",
+    "crew: the task held for Bolt (address \"agent-2\") is let go: Mika has it now.",
+  ].join('\n'),
+  "result.heldDropped": "crew: Bolt (address \"agent-2\") could not be reached again: the agent is gone. The 2 tasks held for it are let go, this one included: \"Docs\", \"Changelog\". Give them to another worker.",
   "result.heldWentFirst": "Given to Bolt (address \"agent-2\") in /work/api, as named; context kept. The 3 tasks held for it went first, in the same message.\nHeads-up: Pip is working in this repository; keep files apart or wait for its report.",
   "task.heldTogether": [
     "2 tasks, in order:",
