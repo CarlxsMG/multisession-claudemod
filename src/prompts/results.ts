@@ -36,7 +36,8 @@ export const unsureSend = (w: Pick<Worker, 'name' | 'address'>, lost: readonly L
 function missedBody(w: Pick<Worker, 'name' | 'address'>, count: number, reason: string): string {
   const wait = count === 1 ? 'It goes' : 'They go'
   const why = reason.replace(/^crew: /, '').replace(/\.$/, '')
-  return `held for ${w.name} (address "${w.address}") did not reach it: ${why}. ${wait} with the next task you give ${w.name}, or give ${count === 1 ? 'it' : 'them'} to another worker.`
+  const it = count === 1 ? 'it' : 'them'
+  return `held for ${w.name} (address "${w.address}") did not reach it: ${why}. ${wait} with the next task you give ${w.name}; or give ${it} to another worker word for word, which takes ${it} off ${w.name}.`
 }
 
 /** A tool's word on tasks held for a worker that did not reach it. */
@@ -46,6 +47,23 @@ export const heldMissed = (w: Pick<Worker, 'name' | 'address'>, count: number, r
 /** The note a user message carries of tasks that missed their worker while no crew tool was called. */
 export const heldMissedNote = (w: Pick<Worker, 'name' | 'address'>, count: number, reason: string): string =>
   `[crew] ${count === 1 ? 'The task' : `The ${count} tasks`} ${missedBody(w, count, reason)}`
+
+/**
+ * What a delegate result adds when its task is one that was held for another
+ * worker, `w`, and missed it: `w` is not sent it again.
+ */
+export const heldLetGo = (w: Pick<Worker, 'name' | 'address'>, to: string): string =>
+  `crew: the task held for ${w.name} (address "${w.address}") is let go: ${to} has it now.`
+
+/**
+ * A worker whose held tasks missed it could not be reached again, for the
+ * same reason, and the engine lists it no more: the tasks held for it, the
+ * call's own last, are let go, each by its title.
+ */
+export function heldDropped(w: Pick<Worker, 'name' | 'address'>, titles: readonly string[], reason: string): string {
+  const why = reason.replace(/^crew: /, '').replace(/\.$/, '')
+  return `crew: ${w.name} (address "${w.address}") could not be reached again: ${why}. The ${titles.length} tasks held for it are let go, this one included: ${titles.map(title => `"${title}"`).join(', ')}. Give them to another worker.`
+}
 
 /** What a task given to a worker whose held tasks once missed it adds: those went first. */
 export const heldWentFirst = (count: number): string => ` ${count === 1 ? 'The task' : `The ${count} tasks`} held for it went first, in the same message.`

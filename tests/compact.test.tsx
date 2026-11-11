@@ -3,7 +3,7 @@ import type { TestBody } from 'claude-code/testing'
 import type { On, SessionCompactInput, SessionContextBreakdown } from 'claude-code'
 
 import { COMPACT_MAIN, COMPACT_WORKER } from '../src/prompts/compact'
-import { engine, progressCrew, test } from './support/crew'
+import { engine, progressCrew, test, wokenCrew } from './support/crew'
 
 type Dollar = Parameters<TestBody>[0]
 
@@ -171,6 +171,37 @@ test('a compaction that waits for reports runs only after a turn of the orchestr
   await done()
   await clock.advance(2000)
   expect(ran).toEqual([COMPACT_MAIN])
+})
+
+test('a compaction waits for the run of an agent its worker woke, and not for held tasks that missed their worker', async ($, on) => {
+  const { ran } = scheduledCompactor(on)
+  for (const call of ['ui.status', 'ui.toast'] as const) on(call, () => ({ value: undefined }))
+  on('ui.place', (_, e) => ({ value: { isPlaced: true as const, requestId: e.id } }))
+  on('turn.start', (_, e) => ({ turnId: e.turnId }))
+  const { seen, clock, delegate, roster, done } = await wokenCrew($, on)
+  let turns = 0
+  const ask = async () => {
+    const turnId = `m${++turns}`
+    await $.turn.start({ text: '', turnId })
+    await compactCall($, {})
+    await $.turn.complete({ answer: '', durationMs: 1, isAborted: false, turnId, reason: 'answer' })
+  }
+  await delegate({ task: 'Record the event.', title: 'Session bus', worker: 'bolt' })
+  await done('agent-1')
+
+  // Bolt still answers Pip: its run, and the task that waits for it, hold the compaction.
+  await ask()
+  await clock.advance(3000)
+  expect(ran).toHaveLength(0)
+
+  // The run ends and the task does not reach Bolt: the mark stays, and holds nothing back.
+  seen.undelivered = 'the agent is gone'
+  await done('agent-2')
+  await clock.advance(1000)
+  expect(await roster('bolt')).toMatch(/, 1 task waiting, not delivered: the agent is gone, /)
+  await clock.advance(3000)
+  expect(ran).toEqual([COMPACT_MAIN])
+  expect(await roster('bolt')).toMatch(/, 1 task waiting, not delivered: /)
 })
 
 test("a worker is told the compact tool is the orchestrator's, and nothing is queued", async ($, on) => {
