@@ -74,6 +74,12 @@ export type Worker = {
   tasks: number
   /** The tokens its turns used. */
   tokens: number
+  /**
+   * What its conversation held when its last turn ended, in tokens: its last
+   * request's input and output, which its next one sends again. Absent until
+   * a response of it was seen.
+   */
+  context?: number
 }
 
 /** Who wrote a feed line: the person, the orchestrator, a worker, or the crew itself. */

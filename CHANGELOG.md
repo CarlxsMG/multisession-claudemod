@@ -73,6 +73,10 @@ All notable changes to crew are written here. The format follows
   is passed over and named in the result, and still takes a task when the orchestrator names it.
   The result of an unnamed reuse says what the worker holds (its last task, when it finished, the
   tokens it used), and the roster says when each free worker finished.
+- The crew knows how much each worker's conversation holds, and the roster and the result of an
+  unnamed reuse say it (`context ~38k`). A delegation that names no worker passes over a free one
+  that holds more than 100k tokens, as every request of such a worker sends all of it again; it
+  is named in the result and still takes a task when the orchestrator names it.
 - The `delegate` tool tells the orchestrator what a new worker's brief holds: the goal, what done
   looks like, the files it owns or only reads, the checks to run, what you allowed in git and what
   the report must answer. It also says the worker already knows how to report and the git and

@@ -57,6 +57,13 @@ export const REPORT_WORDS = 200
  */
 export const REUSE_WARM_MIN = 4
 /**
+ * The most a free worker's conversation may hold, in tokens, for a call that
+ * does not name it to reuse it, which the delegate tool's description states.
+ * Every request of a worker sends all it holds again, so a task that needs
+ * none of it pays for it at each: past this a new worker is cheaper.
+ */
+export const REUSE_CONTEXT_MAX = 100_000
+/**
  * How long a busy worker gives no sign of life (a tool call, a turn, a
  * message) before the orchestrator is told it went quiet: long enough that
  * an ordinary build, test run or model request does not trip it.

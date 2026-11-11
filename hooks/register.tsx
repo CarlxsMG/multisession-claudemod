@@ -2,6 +2,7 @@ import type { Register } from 'claude-code'
 
 import { onSessionEnd, onStop, onSubagentStop } from '../src/background/sweep'
 import { chooseCompactAt } from '../src/crew/compaction'
+import { noteStep } from '../src/crew/context'
 import { onSend } from '../src/crew/sends'
 import { nameShell } from '../src/crew/shell-title'
 import { onSpawn } from '../src/crew/spawn'
@@ -94,6 +95,12 @@ export const register: Register = (on, options) => {
   on('turn.start', ($, e, next) => onTurnStart($, e, next))
   on('classic.PostModelSwitch', ($, e, next) => onModelSwitch($, e, next))
 
+  // Every model response streams through this one, a worker's and the main
+  // conversation's: it passes each chunk on as it came and reads the usage
+  // the response ends with. If it fails, the stream goes on beneath it.
+  on('turn.step', async function* (_, e, next) {
+    return yield* noteStep(e, next)
+  })
   on('turn.complete', ($, e, next) => onTurnComplete($, e, next))
   on('classic.Stop', ($, e, next) => onStop($, e, next))
   on('classic.SubagentStop', ($, e, next) => onSubagentStop($, e, next))

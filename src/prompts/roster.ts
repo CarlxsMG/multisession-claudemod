@@ -19,6 +19,8 @@ export type RowFacts = {
   plan?: Plan
   /** How many tasks wait for its run to end, as a delegate call's `after` asked. */
   behind?: number
+  /** What its conversation holds, in tokens, when a response of it was seen. */
+  context?: number
   /** Its last report whole, line breaks kept, for a worker asked for alone. */
   report?: string
   now: number
@@ -39,6 +41,9 @@ export const FULL_ROW_CUT: RowCut = { task: 400, report: ROSTER_FULL_REPORT_CUT 
 
 const plural = (n: number, word: string): string => `${n} ${word}${n === 1 ? '' : 's'}`
 
+/** What a worker's conversation holds, as a row and a delegate result give it; '' when it is not known. */
+export const contextText = (n: number | undefined): string => (n === undefined ? '' : `, context ${n < 1000 ? n : `~${Math.round(n / 1000)}k`}`)
+
 /** The tokens a worker's turns used, as a row and a delegate result give them. */
 export const tokensText = (n: number): string => (n < 1000 ? `${n} tokens` : `~${Math.round(n / 1000)}k tokens`)
 
@@ -54,7 +59,7 @@ function lastReport(text: string): string {
 export function rosterRow(worker: Worker, facts: RowFacts, cut: RowCut): string {
   const { takeover, parent } = facts
   const kind = worker.type && worker.type !== DEFAULT_TYPE ? `${worker.type}, ` : ''
-  const history = `${kind}${worker.model ? `model ${worker.model}, ` : ''}${plural(worker.tasks, 'task')}, ${tokensText(worker.tokens)}`
+  const history = `${kind}${worker.model ? `model ${worker.model}, ` : ''}${plural(worker.tasks, 'task')}, ${tokensText(worker.tokens)}${contextText(facts.context)}`
   const held = takeover !== undefined && takeover.held.length > 0 ? `, ${plural(takeover.held.length, 'task')} waiting` : ''
   const head = `- ${worker.name}: address "${worker.address}", ${worker.status}`
   const answering =

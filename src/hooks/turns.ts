@@ -5,6 +5,7 @@ import type { RunEndKind } from '../../types'
 import { backgroundTurnEnded, backgroundTurnStarted } from '../background/sweep'
 import { REPORT_LINE_CUT } from '../config'
 import { noteMainTurnEnd } from '../crew/compaction'
+import { contextOf } from '../crew/context'
 import { lapseHandoffs } from '../crew/delegate'
 import { ORCH_ID, say, setOrch } from '../crew/feed'
 import { saveSoon } from '../crew/persist'
@@ -67,7 +68,15 @@ export async function onTurnComplete($: Engine, e: Parameters<OnTurnCompleteHook
   if (worker === undefined) return next(e)
   const status: RunEndKind = e.isAborted ? 'stopped' : e.reason === 'error' || e.reason === 'refusal' ? 'failed' : 'done'
   const used = e.usage ? e.usage.input_tokens + e.usage.output_tokens + e.usage.cache_creation_input_tokens : 0
-  await patchWorker($, worker.id, (x, now) => ({ status, activity: '', answer: oneLine(e.answer, REPORT_LINE_CUT), tokens: x.tokens + used, finishedAt: now }))
+  const context = contextOf(worker)
+  await patchWorker($, worker.id, (x, now) => ({
+    status,
+    activity: '',
+    answer: oneLine(e.answer, REPORT_LINE_CUT),
+    tokens: x.tokens + used,
+    finishedAt: now,
+    ...(context === undefined ? {} : { context }),
+  }))
   await quiet($, keepReport($, worker.id, e.answer), 'report')
   await endRun($, worker.id, status)
   const look = await readLook($)
