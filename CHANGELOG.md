@@ -87,6 +87,10 @@ All notable changes to crew are written here. The format follows
   workers. And a worker that edits a file another worker has edited in its task in flight is told
   who, once, so the two settle it between them. Only the editing tools are seen: a file changed
   through the shell is not.
+- A worker `delegate` starts without another type asked no longer carries the `delegate` and
+  compact tools, which it was refused anyway and whose descriptions rode in every one of its
+  requests. It runs as an agent type of the crew's own, `crew:worker`; to the orchestrator, the
+  roster and a later reuse it is the general-purpose worker it always was.
 
 ### Fixed
 

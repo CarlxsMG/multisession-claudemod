@@ -6,6 +6,7 @@ import type { MoodLines } from '../../types'
 import { TICK_MS } from '../config'
 import { enlist } from '../crew/feed'
 import { restoreCrew } from '../crew/persist'
+import { registerWorkerType } from '../crew/worker-type'
 import { quiet } from '../engine'
 import type { Engine } from '../engine'
 import { setPalette256 } from '../figure/color256'
@@ -72,6 +73,7 @@ export async function onSessionStart($: Engine, e: Parameters<OnSessionStartHook
   // A new process on a conversation that had a crew finds none in the state:
   // the store has what was kept of it.
   await quiet($, restoreCrew($), 'restore crew')
+  await registerWorkerType($)
   await enlist($, [...(await readDropped($)), ...(await readWorkers($))])
   $.clock.every(TICK_MS, () => tick($))
   await startProgress($)

@@ -1005,6 +1005,56 @@ test("a worker's type is kept as delegate was asked for it", async ($, on) => {
   expect(await delegate({ task: 'Find the session code', subagent_type: 'explore' })).toMatch(/^Given to Pip/)
 })
 
+test("a worker asked no type starts as the crew's own agent type, without the orchestrator's tools, and is a general-purpose worker to everyone else", async ($, on) => {
+  let spawned = 0
+  const seen: Seen = { prompts: [], sends: [], spawns: [], agentTypes: [] }
+  engine(on, { nextId: () => `agent-${++spawned}`, seen })
+  // The engine's own answer: every type is offered.
+  on('agent.offer', () => ({ isOffered: true }))
+  await $.session.start({ cwd: '/work/main', surface: 'terminal', isInteractive: true })
+  const delegate = async (input: Record<string, unknown>) => String((await $.tool.call({ tool: 'mcp__crew__delegate', repo: '/work/api', ...input })).result)
+  const roster = async (worker: string) => String((await $.tool.call({ tool: 'mcp__crew__roster', worker })).result)
+
+  // The type is registered once, with neither of the tools a worker is refused.
+  expect(seen.agentTypes!.map(t => [t.name, t.disallowedTools])).toEqual([['worker', ['mcp__crew__delegate', 'mcp__crew__compact']]])
+  expect(seen.agentTypes![0]!.prompt).toMatch(/^You are a worker agent for Claude Code/)
+
+  expect(await delegate({ task: 'Fix the login' })).toMatch(/^Started Pip/)
+  expect(await delegate({ task: 'Fix the styles', subagent_type: 'general-purpose', fresh: true })).toMatch(/^Started Bolt/)
+  expect(await delegate({ task: 'Find the callers', subagent_type: 'Explore' })).toMatch(/^Started Mika/)
+  expect(seen.spawns!.map(s => s.subagentType)).toEqual(['crew:worker', 'crew:worker', 'Explore'])
+  // It hears the preamble as any worker does, the fork line and git rules included.
+  expect(seen.prompts[0]).toMatch(/^\[crew\] You are Pip, a worker in Nova's crew\./)
+  expect(seen.prompts[0]).toMatch(/fork yourself once per part/)
+
+  // To the orchestrator it is the general-purpose worker it asked for: the
+  // roster names no type, a call that asks for none or for that one reuses it,
+  // and a named call that says general-purpose finds nothing to note.
+  await $.turn.complete({ answer: 'Done', durationMs: 1, isAborted: false, turnId: 't1', agentId: 'agent-1', reason: 'answer' })
+  expect(await roster('pip')).toMatch(/^- Pip: address "pip", done, repo \/work\/api, model test-model, 1 task, /)
+  expect(await delegate({ task: 'Now the logout', subagent_type: 'general-purpose' })).toMatch(/^Given to Pip/)
+  await $.turn.complete({ answer: 'Done', durationMs: 1, isAborted: false, turnId: 't2', agentId: 'agent-1', reason: 'answer' })
+  expect((await delegate({ task: 'And the signup', worker: 'pip', subagent_type: 'general-purpose' })).split('\n')[0]).toBe(
+    'Given to Pip (address "pip") in /work/api, as named; context kept.',
+  )
+  expect(spawned).toBe(3)
+
+  // The model is not offered the type; any other type is left as it is.
+  const offer = (agent: string) => $.agent.offer({ agent, description: 'x', source: 'plugin', provider: { plugin: 'crew', tier: 'user' } } as never)
+  expect(await offer('crew:worker')).toEqual({ isOffered: false })
+  expect(await offer('Explore')).toEqual({ isOffered: true })
+})
+
+test('where the engine registers no agent type, a worker starts general-purpose as before', async ($, on) => {
+  let spawned = 0
+  const seen: Seen = { prompts: [], sends: [], spawns: [], refuseTypes: true }
+  engine(on, { nextId: () => `agent-${++spawned}`, seen })
+  await $.session.start({ cwd: '/work/main', surface: 'terminal', isInteractive: true })
+  const delegate = async (input: Record<string, unknown>) => String((await $.tool.call({ tool: 'mcp__crew__delegate', repo: '/work/api', ...input })).result)
+  expect(await delegate({ task: 'Fix the login' })).toMatch(/^Started Pip/)
+  expect(seen.spawns!.map(s => s.subagentType)).toEqual(['general-purpose'])
+})
+
 test('an agent in a worktree of its own is not busy in the repository, and says where it is', async ($, on) => {
   let spawned = 0
   const seen = { prompts: [] as string[], sends: [] as string[] }
