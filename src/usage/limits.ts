@@ -52,6 +52,12 @@ const USAGE_PROBE = [
 ]
 const USAGE_REQUEST = `${JSON.stringify({ type: 'control_request', request_id: 'crew-usage', request: { subtype: 'get_usage' } })}\n`
 const PROBE_MS = 3 * 60_000
+// An account with no model window answers the same until its plan changes,
+// so each probe that finds none doubles the wait for the next, up to an hour.
+const PROBE_MAX_MS = 60 * 60_000
+// The pane draws itself again every 4.8 s while it is shown; this long with
+// no drawing of its main view, nothing shows the limits.
+const SEEN_MS = 30_000
 // Whether this session may ask for the usage, and when it last did: only
 // the person's own session asks.
 const probe = runtime.probe
@@ -103,13 +109,49 @@ export function parseModelLimits(stdout: string, odd: (what: string) => void = (
   return undefined
 }
 
+/** How long a probe waits after the last, by how many in a row found no model window. */
+export const probeWaitMs = (misses: number): number => Math.min(PROBE_MS * 2 ** misses, PROBE_MAX_MS)
+
+/**
+ * The engine measured its windows: a kind that comes or goes is a change of
+ * plan, which may bring a model window, so the probe waits its shortest again.
+ */
+export function noticeWindows(list: readonly { kind: string }[]) {
+  const kinds = list
+    .map(r => r.kind)
+    .sort()
+    .join(',')
+  if (kinds !== probe.kinds) probe.misses = 0
+  probe.kinds = kinds
+}
+
+/**
+ * The pane drew the limits at `now`. A session's start counts as one, as the
+ * pane opens with it, so the first probe is not held back.
+ */
+export function noticeLimitsShown(now: number) {
+  probe.seenAt = now
+}
+
+/** Probes now when one was skipped while the limits were out of sight and the pane has drawn them since. */
+export function probeIfMissed($: Engine) {
+  if (probe.missedAt === undefined || probe.seenAt < probe.missedAt) return
+  probe.missedAt = undefined
+  void probeUsage($)
+}
+
 /**
  * Reads the models' own weekly windows from a headless claude, when the
- * engine's figures lack them.
+ * engine's figures lack them. While nothing shows the limits it asks
+ * nothing, and the pane's next drawing of them asks.
  */
 export async function probeUsage($: Engine) {
   const now = await $.clock.now()
-  if (isProbeOff || !probe.isAllowed || now - probe.at < PROBE_MS) return
+  if (isProbeOff || !probe.isAllowed || now - probe.at < probeWaitMs(probe.misses)) return
+  if (now - probe.seenAt > SEEN_MS) {
+    probe.missedAt = now
+    return
+  }
   probe.at = now
   const run = (exe: string) => quiet($, $.process.run([exe, ...USAGE_PROBE], { stdin: USAGE_REQUEST, timeoutMs: PROBE_TIMEOUT_MS }), `usage probe ${exe}`)
   // `claude` on the PATH; where it is not there (a session the desktop app or
@@ -120,6 +162,8 @@ export async function probeUsage($: Engine) {
     if (/^claude(\.exe)?$/i.test(basename(own))) result = await run(own)
   }
   const found = result === undefined ? undefined : parseModelLimits(result.stdout, what => unrecognized($, 'usage probe answer', what))
+  // No answer is as likely to come again as an answer with no window.
+  probe.misses = found !== undefined && found.length > 0 ? 0 : probe.misses + 1
   if (found !== undefined) await updateModelLimits($, () => found)
 }
 

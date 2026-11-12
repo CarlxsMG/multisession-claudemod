@@ -94,8 +94,14 @@ function fresh() {
      * edited a file they edited: each with that other worker and the file.
      */
     edits: { warned: [] as { id: string; other: string; path: string }[] },
-    /** `src/usage/limits.ts`: whether this session may ask for the usage, and when it last did. */
-    probe: { isAllowed: false, at: -Infinity },
+    /**
+     * `src/usage/limits.ts`: whether this session may ask for the usage, when
+     * it last did and how many probes in a row found no model window, the
+     * engine's window kinds as last measured, when the pane last drew the
+     * limits, and when a probe was last skipped while they were out of sight
+     * (undefined for none since).
+     */
+    probe: { isAllowed: false, at: -Infinity, misses: 0, kinds: '', seenAt: -Infinity, missedAt: undefined as number | undefined },
     /**
      * `src/ui/pane/animation.ts`: the timer's frame, whether a surface that
      * draws the pane as a page has it open, the frame a drawing first showed

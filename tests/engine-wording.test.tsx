@@ -30,15 +30,18 @@ test('a usage probe answer without the model windows is logged once, and the ans
   expect(logged).toEqual([])
 
   // The next probe finds Fable's week under a name the crew does not read.
-  const measure = async () => {
-    await clock.advance(3 * 60_000)
+  // The pane, shown, draws itself again while the clock moves.
+  const measure = async (ms: number) => {
+    await clock.advance(ms)
+    await ui.redraw()
     await $.session.measure({ context: { window: 200_000 }, rateLimits: [{ kind: 'five_hour', percentUsed: 13 }], changed: ['rateLimits'] })
   }
   answer = renamedReply
-  await measure()
+  await measure(3 * 60_000)
   expect(await fable()).toBeUndefined()
+  // An answer with no window the crew reads doubles the wait for the next probe.
   answer = ''
-  await measure()
+  await measure(6 * 60_000)
   await fable()
   expect(logged).toEqual(['crew: unrecognized usage probe answer: get_usage answered rate_limits without model_scoped'])
   await ui.unmount()

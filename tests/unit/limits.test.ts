@@ -1,6 +1,6 @@
 import { expect, test } from 'claude-code/testing'
 
-import { limitLabel, parseModelLimits, toLimits } from '../../src/usage/limits'
+import { limitLabel, parseModelLimits, probeWaitMs, toLimits } from '../../src/usage/limits'
 
 const reply = (rateLimits: unknown) =>
   [
@@ -65,4 +65,8 @@ test('a get_usage reply in a shape the crew does not read says what is odd in it
     response: { subtype: 'error', request_id: 'crew-usage', error: 'Unsupported control request subtype: get_usage' },
   }
   expect(odd(JSON.stringify(refused))).toEqual(['get_usage answered no rate_limits: Unsupported control request subtype: get_usage'])
+})
+
+test("the usage probe's wait doubles with each probe in a row that found no model window, up to an hour", () => {
+  expect([0, 1, 2, 3, 4, 5, 6].map(misses => probeWaitMs(misses) / 60_000)).toEqual([3, 6, 12, 24, 48, 60, 60])
 })
