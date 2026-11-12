@@ -87,7 +87,7 @@ function fresh() {
     placed: { everyMin: undefined as number | undefined },
     /** `src/progress/tick.ts`: whether a progress tick is under way. */
     tick: { isTicking: false },
-    /** `src/progress/calls.ts`: the workers' tool calls held for the pane's next frame. */
+    /** `src/progress/calls.ts`: the workers' tool calls held for their next write, every other frame of the pane. */
     calls: { held: new Map<string, HeldCalls>() },
     /**
      * `src/crew/edits.ts`: the workers told that another's run in flight has

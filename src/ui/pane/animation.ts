@@ -30,6 +30,9 @@ const REDRAW_FRAMES = 12
 const SYNC_FRAMES = 8
 const LINES_FRAMES = 25
 const LINES_PHASE = 3
+// How often the workers' calls held since are written: each write of the
+// workers and the runs draws the pane whole, and a busy worker calls often.
+const CALLS_FRAMES = 2
 
 /**
  * What the pane's drawings read of the timer: its frame, which every figure
@@ -184,10 +187,10 @@ export function tick($: Engine) {
   // Ages and fading cheers are read off the clock: redraw now and then. A
   // page moves its figures only so; the terminal's editor needs none of it.
   if (state.frame % REDRAW_FRAMES === 0 && (state.asPage || (mounted.size > 0 && state.terminalView !== 'edit'))) void redrawPane($)
-  // The workers' calls since the last frame, in one write, what the
-  // orchestrator's last call said it does, and the first drawings of the
-  // end-of-task rows drawn since.
-  if (hasHeldCalls()) void writeCalls($)
+  // The workers' calls since the last write, in one, every other frame;
+  // what the orchestrator's last call said it does, and the first drawings
+  // of the end-of-task rows drawn since, at every frame.
+  if (state.frame % CALLS_FRAMES === 0 && hasHeldCalls()) void writeCalls($)
   if (hasHeldOrch()) void quiet($, writeHeldOrch($), 'orch')
   if (hasHeldFirsts()) void quiet($, keepFirstDrawn($), 'first drawn')
   relayIfDue($)
