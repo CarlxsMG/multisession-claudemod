@@ -1,9 +1,9 @@
-// A busy worker's tool calls, held between two of the pane's frames and
-// written at the next (`TICK_MS`) in one write of the workers and one of the
-// runs. The pane draws both, so a write per call would draw it whole for
-// each call; held, a card's activity and the team view's count and phase
-// trail by a frame at most, and a reload of the plugin forgets one frame's
-// calls.
+// A busy worker's tool calls, held and written every second frame of the
+// pane (`TICK_MS` each) in one write of the workers and one of the runs, and
+// at once when a run ends. The pane draws both, so a write per call would
+// draw it whole for each call; held, a card's activity and the team view's
+// count and phase trail by two frames at most, and a reload of the plugin
+// forgets two frames' calls.
 import type { Phase } from '../../types'
 import { ACTIVE } from '../crew/workers'
 import { quiet } from '../engine'

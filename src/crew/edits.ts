@@ -19,7 +19,7 @@ const TOLD_KEEP = 300
 /**
  * The files each worker's open run has edited so far, by the worker's id, in
  * the order it first edited them: what the runs keep, and the edits held
- * for the pane's next frame.
+ * for the next write of the workers' calls.
  */
 export async function editsInFlight($: Engine): Promise<Map<string, string[]>> {
   const edits = new Map<string, string[]>()

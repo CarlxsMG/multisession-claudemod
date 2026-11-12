@@ -56,8 +56,9 @@ export async function settleRun($: Engine, w: Pick<Worker, 'id' | 'status'>) {
 
 /**
  * A worker's tool call. One that sets it working shows at once; its count,
- * what it does and its run's phase wait for the pane's next frame
- * (`holdCall`), since a worker makes many calls between two.
+ * what it does and its run's phase wait for the next write of the held
+ * calls (`holdCall`), every other frame of the pane, since a worker makes
+ * many calls between two.
  */
 export async function noteCall($: Engine, id: string, call: ToolCall) {
   const worker = (await readWorkers($)).find(w => w.id === id)

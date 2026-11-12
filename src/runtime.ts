@@ -8,7 +8,7 @@
 // import it whatever it imports itself.
 import type { Timer } from 'claude-code'
 
-import type { NoteFirst, Phase } from '../types'
+import type { NoteFirst, OrchMood, Phase, View } from '../types'
 import type { Proc } from './background/orphans'
 import type { Cells } from './figure/raster'
 
@@ -87,7 +87,7 @@ function fresh() {
     placed: { everyMin: undefined as number | undefined },
     /** `src/progress/tick.ts`: whether a progress tick is under way. */
     tick: { isTicking: false },
-    /** `src/progress/calls.ts`: the workers' tool calls held for the pane's next frame. */
+    /** `src/progress/calls.ts`: the workers' tool calls held for their next write, every other frame of the pane. */
     calls: { held: new Map<string, HeldCalls>() },
     /**
      * `src/crew/edits.ts`: the workers told that another's run in flight has
@@ -103,7 +103,8 @@ function fresh() {
      * until when the last drawing had a bubble typing out, the timer that
      * types it, whether Terminal.app sets that timer's pace, when a
      * worker it showed napping leaves the row or an end stops standing out
-     * (0 for none), and the rasters it drew by key, each with how to draw any
+     * (0 for none) and the timer that waits for it, the view the terminal
+     * last drew, and the rasters it drew by key, each with how to draw any
      * frame and the cells it shows now.
      */
     pane: {
@@ -115,6 +116,8 @@ function fresh() {
       typer: undefined as Timer | undefined,
       isAppleTerminal: false,
       napDue: 0,
+      napTimer: undefined as Timer | undefined,
+      terminalView: undefined as View | undefined,
       mounted: new Map<string, (frame: number) => Cells>(),
       blitted: new Map<string, string>(),
     },
@@ -125,6 +128,12 @@ function fresh() {
      * frame were first drawn with, by request id, until that frame keeps it.
      */
     notes: { held: new Map<string, NoteFirst>() },
+    /**
+     * `src/crew/feed.ts`: what the orchestrator does, as its last tool call
+     * said it, with when, held for the pane's next frame (undefined for
+     * none), and how many moods were said at once since the load started.
+     */
+    orchHeld: { held: undefined as { mood: OrchMood; activity: string; at: number } | undefined, said: 0 },
     /** `src/settings/notes.ts`: the conversation the last `[crew]` check was for. */
     told: { checked: undefined as string | undefined },
     /** `src/settings/mood-lines.ts`: the personality Haiku is writing lines for now, and one it could not. */

@@ -1,10 +1,10 @@
 // The pane between drawings: the timers that repaint its figures in place,
 // type out its bubbles and keep the crew in step, and what its drawings
 // leave them.
-import type { Look } from '../../../types'
+import type { Look, View } from '../../../types'
 import { PANE } from '../../config'
 import { relayIfDue } from '../../crew/relay'
-import { hasHeldFirsts, keepFirstDrawn } from '../../crew/feed'
+import { hasHeldFirsts, hasHeldOrch, keepFirstDrawn, writeHeldOrch } from '../../crew/feed'
 import { syncCrew } from '../../crew/sync'
 import { releaseIfDue } from '../../crew/takeover'
 import { waitingIfDue } from '../../crew/waiting'
@@ -30,6 +30,9 @@ const REDRAW_FRAMES = 12
 const SYNC_FRAMES = 8
 const LINES_FRAMES = 25
 const LINES_PHASE = 3
+// How often the workers' calls held since are written: each write of the
+// workers and the runs draws the pane whole, and a busy worker calls often.
+const CALLS_FRAMES = 2
 
 /**
  * What the pane's drawings read of the timer: its frame, which every figure
@@ -51,10 +54,11 @@ export function noticeLook(look: Look) {
   state.lookShown = shown
 }
 
-/** The pane closed: none of its rasters is repainted, and no bubble types. */
+/** The pane closed: none of its rasters is repainted, no bubble types, and no nap is waited for. */
 export function forgetPane() {
   forgetRasters()
   stopTyping()
+  forgetNap()
   state.asPage = false
 }
 
@@ -70,6 +74,14 @@ export function keepRaster(key: string, draw: (frame: number) => Cells, cells: s
   state.blitted.set(key, cells)
 }
 
+/**
+ * The terminal draws the pane's `view`: its editor shows no ages, and its
+ * figures move by blits, so the timer leaves it undrawn.
+ */
+export function drawnOnTerminal(view: View) {
+  state.terminalView = view
+}
+
 /** A surface draws the pane as a page. */
 export function drawnAsPage() {
   state.asPage = true
@@ -81,16 +93,40 @@ export function pageGone() {
 }
 
 /**
- * What the pane's main view, just drawn, owes the clock: a redraw at
+ * What the pane's main view, drawn at `now`, owes the clock: a redraw at
  * `napDue`, when the first worker it showed napping leaves the row or an
  * end it showed stops standing out, and the typing tick's until
  * `typingUntil`, while a bubble types out (0 for none of either).
  */
-export function oweRedraws($: Engine, dues: { napDue: number; typingUntil: number }) {
-  state.napDue = dues.napDue
+export function oweRedraws($: Engine, dues: { napDue: number; typingUntil: number; now: number }) {
+  oweNap($, dues.napDue, dues.now)
   state.typingUntil = dues.typingUntil
   if (dues.typingUntil === 0) stopTyping()
   else startTyping($)
+}
+
+// One timer waits for the nap that is due, so the row changes on time and
+// no frame asks the clock in between. A drawing that owes the same moment
+// keeps it; another moment, earlier or later, replaces it.
+function oweNap($: Engine, due: number, now: number) {
+  if (due === state.napDue) return
+  forgetNap()
+  if (due === 0) return
+  state.napDue = due
+  state.napTimer = $.clock.after(Math.max(0, due - now), () => {
+    if (state.napDue !== due) return
+    state.napTimer = undefined
+    state.napDue = 0
+    // The drawing this asks for owes the next nap, if one is.
+    void redrawPane($)
+  })
+}
+
+/** No nap is waited for, and its timer stops: the pane closed, or a session starts. */
+export function forgetNap() {
+  state.napTimer?.cancel()
+  state.napTimer = undefined
+  state.napDue = 0
 }
 
 /** Whether the session runs in Terminal.app, whose bubbles type out at a pace of their own. */
@@ -148,21 +184,14 @@ export function tick($: Engine) {
         state.blitted.delete(key)
       })
   }
-  // Ages, naps and fading cheers are read off the clock: redraw now and then.
-  if (state.frame % REDRAW_FRAMES === 0 && (mounted.size > 0 || state.asPage)) void redrawPane($)
-  // A napping worker leaves the row, and an end stops standing out, when its
-  // time is up, not a redraw later.
-  else if (state.napDue !== 0) {
-    const due = state.napDue
-    void $.clock.now().then(now => {
-      if (now < due || state.napDue !== due) return
-      state.napDue = 0
-      return redrawPane($)
-    })
-  }
-  // The workers' calls since the last frame, in one write, and the first
-  // drawings of the end-of-task rows drawn since.
-  if (hasHeldCalls()) void writeCalls($)
+  // Ages and fading cheers are read off the clock: redraw now and then. A
+  // page moves its figures only so; the terminal's editor needs none of it.
+  if (state.frame % REDRAW_FRAMES === 0 && (state.asPage || (mounted.size > 0 && state.terminalView !== 'edit'))) void redrawPane($)
+  // The workers' calls since the last write, in one, every other frame;
+  // what the orchestrator's last call said it does, and the first drawings
+  // of the end-of-task rows drawn since, at every frame.
+  if (state.frame % CALLS_FRAMES === 0 && hasHeldCalls()) void writeCalls($)
+  if (hasHeldOrch()) void quiet($, writeHeldOrch($), 'orch')
   if (hasHeldFirsts()) void quiet($, keepFirstDrawn($), 'first drawn')
   relayIfDue($)
   // The engine's statuses now and then, and the marks of woken workers whose

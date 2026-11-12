@@ -191,26 +191,44 @@ const countWrites = (on: On) => {
 
 const read = (agentId: string, i: number) => ({ tool: 'Read', file_path: `/work/api/src/f${i}.ts`, agentId }) as const
 
-test("a busy worker's calls between two of the pane's frames are written once, at the next, and each one counts", async ($, on) => {
+test("a busy worker's calls between two writes are written once, within two of the pane's frames, and each one counts", async ($, on) => {
   const writes = countWrites(on)
   const { clock, delegate } = await progressCrew($, on)
   await delegate('Read the session bus', '/work/api', 'Session bus')
   await $.tool.call(read('agent-1', 0))
-  await clock.advance(400)
+  await clock.advance(800)
   writes.workers = 0
   writes.runs = 0
 
   for (let i = 1; i <= 20; i++) await $.tool.call(read('agent-1', i))
   expect(writes).toEqual({ workers: 0, runs: 0 })
 
-  await clock.advance(400)
+  await clock.advance(800)
   expect(writes).toEqual({ workers: 1, runs: 1 })
   const roster = String((await $.tool.call({ tool: 'mcp__crew__roster' })).result)
   expect(roster).toMatch(/^- Pip: address "[^"]+", working \(Read f20\.ts\), .*, 21 tool calls, /m)
   expect(await teamTexts($)).toContainEqual(expect.stringMatching(/^\d+s · 21 calls$/))
 })
 
-test('a run that ends before the next frame counts every call, and its worker ends doing nothing', async ($, on) => {
+test('a worker that calls at every frame has its calls written every other frame', async ($, on) => {
+  const writes = countWrites(on)
+  const { clock, delegate } = await progressCrew($, on)
+  await delegate('Read the session bus', '/work/api', 'Session bus')
+  await $.tool.call(read('agent-1', 0))
+  await clock.advance(800)
+  writes.workers = 0
+  for (let i = 1; i <= 6; i++) {
+    await $.tool.call(read('agent-1', i))
+    await clock.advance(400)
+  }
+  expect(writes.workers).toBeLessThanOrEqual(3)
+  // The last call is written by the next frame at the latest.
+  await clock.advance(400)
+  const roster = String((await $.tool.call({ tool: 'mcp__crew__roster' })).result)
+  expect(roster).toMatch(/^- Pip: address "[^"]+", working \(Read f6\.ts\), .*, 7 tool calls, /m)
+})
+
+test('a run that ends before the next write counts every call, and its worker ends doing nothing', async ($, on) => {
   const { clock, delegate, end } = await progressCrew($, on)
   await delegate('Read the session bus', '/work/api', 'Session bus')
   for (let i = 0; i < 5; i++) await $.tool.call(read('agent-1', i))
