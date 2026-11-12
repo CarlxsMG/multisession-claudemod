@@ -10,6 +10,8 @@ import type { BackgroundTask } from '../../types'
 import { quiet, unrecognized } from '../engine'
 import type { Engine } from '../engine'
 import { t } from '../i18n'
+import { runtime } from '../runtime'
+import type { ProcTable } from '../runtime'
 import { readBackground, updateBackground } from '../state/atoms'
 import { oneLine } from '../util/text'
 import { isTaskRunning, orphansToKill, parsePs, parseSnapshot, rootOf } from './orphans'
@@ -36,6 +38,12 @@ const PS = ['ps', '-A', '-o', 'pid=,ppid=,lstart=,args=']
 // How long after a task is recorded its process is looked for: the shell
 // has started it by then.
 const PID_AFTER_MS = 1500
+// How long ago a look at the table may have started and still stand for the
+// table before a stop: any table read before the stop shows what ran then,
+// so stops made close together, the model's or a sweep's, share one look.
+const BEFORE_FRESH_MS = 1500
+
+const looks = runtime.background
 
 /** A recorded task a TaskStop is about to stop, with the process table read just before (none when it could not be). */
 export type Stopping = { task: BackgroundTask; before: readonly Proc[] | undefined }
@@ -50,8 +58,7 @@ export async function beforeTaskStop($: Engine, input: unknown): Promise<Stoppin
   const id = stoppedId(input)
   const task = (await readBackground($)).find(x => x.id === id)
   if (task === undefined || !(await isWindows($))) return undefined
-  const table = await readTable($)
-  return { task, before: 'procs' in table ? table.procs : undefined }
+  return { task, before: procsOf(await tableBefore($)) }
 }
 
 /**
@@ -76,7 +83,7 @@ export async function noteBackground($: Engine, tool: string, input: unknown, ag
 
 // The process table on any system, or undefined when it cannot be read.
 async function anySnapshot($: Engine): Promise<Proc[] | undefined> {
-  if (await isWindows($)) return snapshot($)
+  if (await isWindows($)) return procsOf(await freshTable($))
   const ran = await quiet($, $.process.run(PS, { timeoutMs: SNAPSHOT_TIMEOUT_MS, env: { LC_ALL: 'C' } }), 'process snapshot')
   if (ran === undefined || ran.exitCode !== 0) return undefined
   const procs = parsePs(ran.stdout)
@@ -87,14 +94,23 @@ async function anySnapshot($: Engine): Promise<Proc[] | undefined> {
 // after it was recorded, while it is still listed and has none.
 async function findPid($: Engine, task: BackgroundTask) {
   await $.clock.sleep(PID_AFTER_MS)
-  if (!(await readBackground($)).some(x => x.id === task.id && x.pid === undefined)) return
+  const list = await readBackground($)
+  if (!list.some(x => x.id === task.id && x.pid === undefined)) return
   const procs = await anySnapshot($)
   if (procs === undefined) return
-  const list = await readBackground($)
-  const taken = list.flatMap(x => (x.pid !== undefined ? [x.pid] : []))
-  const pid = rootOf(procs, task.command, task.startedAt, taken)
-  if (pid !== undefined) await updateBackground($, all => all.map(x => (x.id === task.id && x.pid === undefined ? { ...x, pid } : x)))
+  const pidAmong = (all: readonly BackgroundTask[]) => rootOf(procs, task.command, task.startedAt, takenPids(all))
+  // A process another task took is only ruled out: none found against the
+  // ids taken before the look is none found against more of them.
+  if (pidAmong(list) === undefined) return
+  // The ids taken as the write lands: another task's look may have ended meanwhile.
+  await updateBackground($, all => {
+    const pid = pidAmong(all)
+    return pid === undefined ? all : all.map(x => (x.id === task.id && x.pid === undefined ? { ...x, pid } : x))
+  })
 }
+
+// The process ids the tasks of `list` have been matched to.
+const takenPids = (list: readonly BackgroundTask[]): number[] => list.flatMap(x => (x.pid !== undefined ? [x.pid] : []))
 
 /** Marks the tasks of `agentId` as left by its turn, which just ended. */
 export async function backgroundTurnEnded($: Engine, agentId: string) {
@@ -138,13 +154,15 @@ export async function onSubagentStop($: Engine, e: Parameters<OnSubagentStopHook
   return next(e)
 }
 
-// Windows alone: elsewhere ending a shell ends what it started.
+// Windows alone: elsewhere ending a shell ends what it started. Read once a
+// load, as the system does not change under it.
 async function isWindows($: Engine): Promise<boolean> {
-  return (await $.env.get('OS')) === 'Windows_NT'
+  looks.isWindows ??= (await $.env.get('OS')) === 'Windows_NT'
+  return looks.isWindows
 }
 
 // The Windows process table now, or why it could not be read.
-async function readTable($: Engine): Promise<{ procs: Proc[] } | { error: string }> {
+async function readTable($: Engine): Promise<ProcTable> {
   try {
     const ran = await $.process.run(SNAPSHOT, { timeoutMs: SNAPSHOT_TIMEOUT_MS })
     if (ran.exitCode !== 0) return { error: `exit ${ran.exitCode}: ${oneLine(ran.stderr, 80)}` }
@@ -155,10 +173,34 @@ async function readTable($: Engine): Promise<{ procs: Proc[] } | { error: string
   }
 }
 
-// The process table now, or undefined when it cannot be read.
-async function snapshot($: Engine): Promise<Proc[] | undefined> {
-  const table = await readTable($)
-  return 'procs' in table ? table.procs : undefined
+// The processes of a look, or undefined for one that could not be read.
+const procsOf = (table: ProcTable): Proc[] | undefined => ('procs' in table ? table.procs : undefined)
+
+// The Windows process table from a look that started no earlier than
+// `since`: the latest one, under way or done, when it did, else a new one,
+// which starts `now`. Each look spawns PowerShell and takes about a second.
+// One that could not be read is not shared once it ends.
+function tableSince($: Engine, since: number, now: number): Promise<ProcTable> {
+  const last = looks.table
+  if (last !== undefined && last.startedAt >= since) return last.read
+  const look = { startedAt: now, read: readTable($) }
+  looks.table = look
+  void look.read.then(table => {
+    if ('error' in table && looks.table === look) looks.table = undefined
+  })
+  return look.read
+}
+
+// A table that stands for the one before a stop about to be made.
+async function tableBefore($: Engine): Promise<ProcTable> {
+  const now = await $.clock.now()
+  return tableSince($, now - BEFORE_FRESH_MS, now)
+}
+
+// A table read from now on: what runs after a stop, or a new task's process.
+async function freshTable($: Engine): Promise<ProcTable> {
+  const now = await $.clock.now()
+  return tableSince($, now, now)
 }
 
 // Ends, with their trees, the processes `task`'s stopped shell left running
@@ -173,7 +215,7 @@ async function reapOrphans($: Engine, task: BackgroundTask, before: readonly Pro
   let unread: string | undefined
   for (const wait of REAP_WAITS_MS) {
     await $.clock.sleep(wait)
-    const table = await readTable($)
+    const table = await freshTable($)
     if ('error' in table) {
       unread = table.error
       continue
@@ -206,9 +248,10 @@ export type StopHow = 'auto' | 'press' | 'end'
  * A stop that fails or is refused keeps it, says so in a toast, and, when
  * the crew tried on its own, is not tried again on its own. On Windows,
  * but at the session's end, what the stopped shell left running is ended
- * after it, without holding up the caller.
+ * after it, without holding up the caller, against the process table
+ * `before` the stop: one the caller read, else one read here.
  */
-export async function stopTask($: Engine, task: BackgroundTask, how: StopHow) {
+export async function stopTask($: Engine, task: BackgroundTask, how: StopHow, before?: ProcTable) {
   const failed = async (reason: string) => {
     if (how === 'end') return
     if (how === 'auto') {
@@ -225,7 +268,7 @@ export async function stopTask($: Engine, task: BackgroundTask, how: StopHow) {
       if (verdict.decision !== 'allow') return await failed(verdict.reason ?? t().background.refused)
     }
     const isReaped = how !== 'end' && (await isWindows($))
-    const before = isReaped ? await snapshot($) : undefined
+    const procs = isReaped ? procsOf(before ?? (await tableBefore($))) : undefined
     const done = await $.tool.call({ tool: 'TaskStop', task_id: task.id })
     if (done.deny !== undefined) return await failed(done.deny)
     if (done.isError === true && !isGone(done.text ?? '')) {
@@ -233,15 +276,23 @@ export async function stopTask($: Engine, task: BackgroundTask, how: StopHow) {
       return await failed(oneLine(done.text ?? '', 80))
     }
     await updateBackground($, list => dropTask(list, task.id))
-    if (isReaped) void quiet($, reapOrphans($, task, before), 'orphan reap')
+    if (isReaped) void quiet($, reapOrphans($, task, procs), 'orphan reap')
   } catch (err) {
     await failed(err instanceof Error ? err.message : String(err))
   }
 }
 
-/** Stops each task whose worker is done (`isDueForStop`): for the progress tick. */
+/**
+ * Stops each task whose worker is done (`isDueForStop`): for the progress
+ * tick. On Windows one process table, read before the first stop, stands
+ * for the table before each: the stops go one after another, which the
+ * tick waits for, and a table of each's own would add a second apiece.
+ */
 export async function sweepBackground($: Engine, now: number) {
-  for (const task of (await readBackground($)).filter(x => isDueForStop(x, now))) await stopTask($, task, 'auto')
+  const due = (await readBackground($)).filter(x => isDueForStop(x, now))
+  if (due.length === 0) return
+  const before = (await isWindows($)) ? await tableBefore($) : undefined
+  for (const task of due) await stopTask($, task, 'auto', before)
 }
 
 type OnSessionEndHook = HookFor<'session.end'>

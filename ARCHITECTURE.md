@@ -442,6 +442,13 @@ one, in order, paths to their names, `npm` for `npm-cli.js`) or sat under a proc
 table before the stop, when that one was read. A command line naming `claude` is never ended. What
 ends is logged to the debug log; what does not, and a table no look could read, said in a toast.
 
+Each look spawns PowerShell and takes about a second, so looks are shared (`tableSince`). The
+table before a stop is the look under way, or one that started under 1.5 s ago, when there is one:
+any table read before the stop shows what ran then. A sweep of the progress tick reads one before
+its first stop and takes it for the table before each of its stops, which go one after another. A
+look after a stop, and the look for a task's process, take only a look that started then or
+later. A look that could not be read is not shared once it ends.
+
 ### The brief and `[crew]` notes
 
 At the process's first session start the brief is built and frozen (`freezeBrief`): it goes into
