@@ -127,8 +127,9 @@ test("on Windows a worker's shell shows its process, and what it left running is
   const { clock, delegate, end, stops, toasts } = await backgroundCrew($, on, 'allow', { host: { env: { OS: 'Windows_NT' } }, probe })
   await delegate('Wait a while', '/work/web', 'Wait')
   await bash($, 'timeout 900 sleep 900', 'agent-1')
-  // A moment later the table names the task's process: its shell.
-  await clock.advance(2000)
+  // A moment later the table names the task's process: its shell. The stop
+  // comes long after, so that look does not stand for the table before it.
+  await clock.advance(4000)
   expect((await teamTexts($)).some(x => /^Pip · \d+s · pid 200 · timeout 900 sleep 900$/.test(x))).toBe(true)
   await end('agent-1')
   await clock.advance(5000)
@@ -185,7 +186,7 @@ test("on Windows the model's own TaskStop of a recorded task, the main session's
   const { clock, mainTurn } = await backgroundCrew($, on, 'allow', { host: { env: { OS: 'Windows_NT' } }, probe: win.probe })
   const done = await mainTurn()
   await bash($, 'timeout 900 sleep 900')
-  await clock.advance(2000)
+  await clock.advance(5000)
   win.runs.length = 0
   await $.tool.call({ tool: 'TaskStop', task_id: 'b1' })
   await clock.advance(10_000)
@@ -202,13 +203,78 @@ test('on Windows a shell still on its way out a second after the stop is looked 
   const { clock, mainTurn } = await backgroundCrew($, on, 'allow', { host: { env: { OS: 'Windows_NT' } }, probe: win.probe })
   const done = await mainTurn()
   await bash($, 'timeout 900 sleep 900')
-  await clock.advance(2000)
+  await clock.advance(5000)
   win.runs.length = 0
   await $.tool.call({ tool: 'TaskStop', task_id: 'b1' })
   await clock.advance(10_000)
   await done()
   // Before the stop, then at 1 s and 3 s with the shell still there, and at 8 s without it.
   expect(win.runs).toEqual([['snapshot'], ['snapshot'], ['snapshot'], ['snapshot'], ['taskkill', '/PID', '300', '/T', '/F']])
+})
+
+test("on Windows a stop just after the task's process was looked for takes that look for the table before it", async ($, on) => {
+  const win = windowsTable(0)
+  on('tool.call', { tool: 'TaskStop' }, (_, e, next) => {
+    win.stopped()
+    return next(e)
+  })
+  const { clock, mainTurn } = await backgroundCrew($, on, 'allow', { host: { env: { OS: 'Windows_NT' } }, probe: win.probe })
+  const done = await mainTurn()
+  await bash($, 'timeout 900 sleep 900')
+  // The look for its process, a second and a half in, and the stop half a second later.
+  await clock.advance(2000)
+  expect(win.runs).toEqual([['snapshot']])
+  await $.tool.call({ tool: 'TaskStop', task_id: 'b1' })
+  await clock.advance(10_000)
+  await done()
+  // Only the look after the stop is new, and what the shell left still ends.
+  expect(win.runs).toEqual([['snapshot'], ['snapshot'], ['taskkill', '/PID', '300', '/T', '/F']])
+})
+
+// A Windows engine whose table always holds Claude Code alone; `looks` counts
+// each read of it, and `atStop` how many there had been as each TaskStop ran.
+function countedTable(on: On) {
+  const seen = { looks: 0, atStop: [] as number[] }
+  const probe = (argv: readonly string[]): string => {
+    if (argv[0] !== 'powershell') return ''
+    seen.looks++
+    return table([[100, 1, 0, 'claude.exe']])
+  }
+  on('tool.call', { tool: 'TaskStop' }, (_, e, next) => {
+    seen.atStop.push(seen.looks)
+    return next(e)
+  })
+  return { seen, probe }
+}
+
+test("on Windows a sweep of a worker's three tasks reads the process table once before its stops", async ($, on) => {
+  const { seen, probe } = countedTable(on)
+  const { clock, delegate, end, stops } = await backgroundCrew($, on, 'allow', { host: { env: { OS: 'Windows_NT' } }, probe })
+  await delegate('Serve it all', '/work/web', 'Serve')
+  await bash($, 'npm run dev', 'agent-1')
+  await bash($, 'npm run api', 'agent-1')
+  await bash($, 'npm run docs', 'agent-1')
+  // Each task's process is looked for, long before the stops.
+  await clock.advance(5000)
+  seen.looks = 0
+  await end('agent-1')
+  await clock.advance(1000)
+  expect(stops).toEqual(['b1', 'b2', 'b3'])
+  expect(seen.atStop).toEqual([1, 1, 1])
+})
+
+test("on Windows the model's TaskStops made at once share one look at the table before them", async ($, on) => {
+  const { seen, probe } = countedTable(on)
+  const { clock, mainTurn } = await backgroundCrew($, on, 'allow', { host: { env: { OS: 'Windows_NT' } }, probe })
+  const done = await mainTurn()
+  await bash($, 'npm run dev')
+  await bash($, 'npm run api')
+  await clock.advance(5000)
+  seen.looks = 0
+  await Promise.all([$.tool.call({ tool: 'TaskStop', task_id: 'b1' }), $.tool.call({ tool: 'TaskStop', task_id: 'b2' })])
+  expect(seen.atStop).toEqual([1, 1])
+  await clock.advance(10_000)
+  await done()
 })
 
 test('on Windows a process table that cannot be read still lets the later looks end what was left, and one never read says so', async ($, on) => {

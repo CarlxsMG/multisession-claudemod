@@ -9,7 +9,11 @@
 import type { Timer } from 'claude-code'
 
 import type { NoteFirst, Phase } from '../types'
+import type { Proc } from './background/orphans'
 import type { Cells } from './figure/raster'
+
+/** A look at the process table: what it holds, or why it could not be read. */
+export type ProcTable = { procs: Proc[] } | { error: string }
 
 /**
  * A worker's tool calls since the pane's last frame: what it does now, each
@@ -53,6 +57,14 @@ function fresh() {
     workerType: { name: undefined as string | undefined },
     /** `src/crew/silence.ts`: when the crew was last looked over for quiet workers. */
     silence: { at: -Infinity },
+    /** `src/crew/sync.ts`: the sync with the engine's agent list under way, if one is. */
+    sync: { running: undefined as Promise<void> | undefined },
+    /**
+     * `src/background/sweep.ts`: whether the system is Windows (undefined
+     * before it is read), and the latest look at its process table, the one
+     * under way or done, with when it started.
+     */
+    background: { isWindows: undefined as boolean | undefined, table: undefined as { startedAt: number; read: Promise<ProcTable> } | undefined },
     /**
      * `src/crew/context.ts`: what each agent's conversation held at its last
      * response of this load, in tokens, by its id.

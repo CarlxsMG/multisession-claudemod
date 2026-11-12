@@ -10,7 +10,7 @@ import type { Engine } from '../engine'
 import { t } from '../i18n'
 import { noteMessage } from '../progress/placed'
 import { beginRun, settleRun } from '../progress/run-store'
-import { readLook, readMembers, readSendGists, readWorkers, updateRelays, updateRoutes, updateSendGists } from '../state/atoms'
+import { readLook, readMembers, readSendGists, readWorkers, updateRelays, updateRoutes, updateSendGists, updateWorkers } from '../state/atoms'
 import { appendKept } from '../util/bounded'
 import { ORCH_ID, ROUTES_KEEP, gistOf, headOf, nameOf, say } from './feed'
 import { RELAYS_KEEP, isAgentOf, relaySoon } from './relay'
@@ -104,18 +104,24 @@ async function recordSend(
   const sender = from !== undefined ? { name: from.name, id: from.id } : { name: look.name, id: e.agentId ?? ORCH_ID }
   const recipient = to !== undefined ? { name: to.name, id: to.id } : { name: e.to, id: e.to === MAIN_ADDRESS ? ORCH_ID : '' }
   await say($, sender, recipient, text, from ? 'worker' : 'orch')
-  if (from) await patchWorker($, from.id, (_, now) => ({ lastMsgAt: now, lastMsgIn: false }))
+  // Both workers' changes, and a woken one's, land in one write: each write
+  // of the workers draws the pane again.
+  const now = await $.clock.now()
+  const patches = new Map<string, Partial<Worker>>()
+  const patch = (id: string, change: Partial<Worker>) => patches.set(id, { ...patches.get(id), ...change })
+  if (from) patch(from.id, { lastMsgAt: now, lastMsgIn: false })
   if (from && sent.isDelivered) {
     const route: Route = { from: from.id, head: headOf(e.text), to: e.to === MAIN_ADDRESS ? '' : (to?.name ?? e.to) }
     await updateRoutes($, list => appendKept(list, [route], ROUTES_KEEP, r => JSON.stringify([r.from, r.head])))
   }
-  if (to) await patchWorker($, to.id, (_, now) => ({ lastMsgAt: now, lastMsgIn: true }))
+  if (to) patch(to.id, { lastMsgAt: now, lastMsgIn: true })
   if (started !== undefined && wakes && sent.isDelivered) {
     const by = nameOf(e.agentId!, from, await readMembers($))
     await takeOver($, started.id, by)
     // The engine resumes it with the message.
-    await patchWorker($, started.id, () => ({ status: 'working', activity: '' }))
+    patch(started.id, { status: 'working', activity: '' })
   }
+  if (patches.size > 0) await updateWorkers($, all => all.map(w => (patches.has(w.id) ? { ...w, ...patches.get(w.id), updatedAt: now } : w)))
   if (started !== undefined && sent.isDelivered) await beginRun($, started.id)
   // An agent's message to anyone but the main conversation, where it
   // already stands as a bubble.

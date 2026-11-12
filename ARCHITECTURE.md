@@ -442,6 +442,13 @@ one, in order, paths to their names, `npm` for `npm-cli.js`) or sat under a proc
 table before the stop, when that one was read. A command line naming `claude` is never ended. What
 ends is logged to the debug log; what does not, and a table no look could read, said in a toast.
 
+Each look spawns PowerShell and takes about a second, so looks are shared (`tableSince`). The
+table before a stop is the look under way, or one that started under 1.5 s ago, when there is one:
+any table read before the stop shows what ran then. A sweep of the progress tick reads one before
+its first stop and takes it for the table before each of its stops, which go one after another. A
+look after a stop, and the look for a task's process, take only a look that started then or
+later. A look that could not be read is not shared once it ends.
+
 ### The brief and `[crew]` notes
 
 At the process's first session start the brief is built and frozen (`freezeBrief`): it goes into
@@ -492,7 +499,8 @@ stands or is skipped clears its ask, with a toast.
 
 Every 3.2 s `syncCrew` reads `$.agent.list()`: statuses follow the engine's, unknown agents
 started before the plugin loaded are adopted, and a shelved worker that works again comes back
-with its history. The same pass lifts takeovers whose run ended. `STATUS_OF`
+with its history. The same pass lifts takeovers whose run ended. One runs at a time: a call
+while one is under way, the timer's or the roster's, waits for that one. `STATUS_OF`
 (`src/crew/workers.ts`) maps every status the engine's types name, so one they add fails `tsc`;
 a status an engine newer than those types reports changes nothing the crew knows: a worker keeps
 its status, a shelved one stays on the shelf, and an unknown agent waits for one the crew reads.

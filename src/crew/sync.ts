@@ -4,6 +4,7 @@ import type { AgentInfo } from 'claude-code'
 import type { Worker, WorkerStatus } from '../../types'
 import { quiet } from '../engine'
 import type { Engine } from '../engine'
+import { runtime } from '../runtime'
 import { readDropped, readListed, readRuns, readWorkers, updateDropped, updateListed, updateWorkers } from '../state/atoms'
 import { appendKept } from '../util/bounded'
 import { enlist } from './feed'
@@ -20,6 +21,8 @@ export async function clearFinished($: Engine) {
   const ids = new Set(gone.map(w => w.id))
   await updateWorkers($, list => list.filter(w => !ids.has(w.id)))
 }
+
+const syncing = runtime.sync
 
 // How long a busy worker the engine lists no more has been quiet when its
 // end, which never reached the crew, is taken for granted.
@@ -171,8 +174,22 @@ function nameOf(taken: ReadonlySet<string>, info: { id: string; name?: string })
   return { name: claim.name, address: info.name && claim.isWantedFree ? info.name : info.id }
 }
 
-/** The engine's statuses, then the marks they lift and the tasks that waited for a run they end. */
-export async function syncCrew($: Engine) {
+/**
+ * The engine's statuses, then the marks they lift and the tasks that waited
+ * for a run they end. A call while one runs waits for that one: the pane's
+ * timer starts one every few seconds whether the last has ended or not, and
+ * a second at once would only read the engine's list and the same atoms again.
+ */
+export function syncCrew($: Engine): Promise<void> {
+  if (syncing.running !== undefined) return syncing.running
+  const run = syncOnce($).finally(() => {
+    if (syncing.running === run) syncing.running = undefined
+  })
+  syncing.running = run
+  return run
+}
+
+async function syncOnce($: Engine) {
   await quiet($, syncAgents($), 'sync')
   await quiet($, watchQuiet($, await $.clock.now()), 'quiet workers')
   await release($)
