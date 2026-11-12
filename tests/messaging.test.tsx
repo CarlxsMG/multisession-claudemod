@@ -109,7 +109,7 @@ test('a worker that wakes a finished agent of its own takes its next report, and
   expect(await roster('bolt')).toMatch(/^- Bolt: address "agent-2", working, answering Pip, started by Pip, repo \/work\/api, /)
   await $.tool.call({ tool: 'Read', file_path: '/work/api/src/bus.ts', agentId: 'agent-2' })
   await done('agent-1')
-  expect(await delegate({ task: 'Next step', repo: '/work/api' })).toMatch(/^Given to Pip /)
+  expect(await delegate({ task: 'Next step', worker: 'pip' })).toMatch(/^Given to Pip /)
   expect(await roster()).toMatch(/^- Bolt: address "agent-2", working \(Read bus\.ts\), answering Pip, started by Pip, repo /m)
 
   // Its run ends: the next tick lifts the mark.

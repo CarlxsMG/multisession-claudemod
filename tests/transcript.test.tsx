@@ -1,6 +1,6 @@
 import { expect } from 'claude-code/testing'
 import type { AgentSpawnInput } from 'claude-code'
-import { NEW_NONE_FREE, PICKED_FREE, given, headsUp, heldFor, started } from '../src/prompts/results'
+import { NEW_UNNAMED, PICKED_NAMED, given, headsUp, heldFor, started } from '../src/prompts/results'
 import { CLICKS, DELEGATE, PANE, engine, frameRows, isBlank, mountResult, mountRow, mountSaid, spawnAgent, test, toolRow } from './support/crew'
 import type { Said } from './support/crew'
 
@@ -121,7 +121,7 @@ test('a delegate bubble says in its bottom border whether the worker is new or r
   // Reused while Bolt works there: the long form where it fits; in a
   // narrower row it does not, and the short one does.
   await done('agent-1')
-  const third = await call('toolu_h3', { task: 'Y el registro', title: 'Registro', repo: '/work/api' })
+  const third = await call('toolu_h3', { task: 'Y el registro', title: 'Registro', worker: 'pip' })
   expect(third.output).toMatch(/^Given to Pip /)
   expect(await third.row.find({ type: 'Text', text: /^╰─ reused · keeps its context · ! Bolt works here ─+╯$/ })).toBeDefined()
   await third.row.unmount()
@@ -361,7 +361,7 @@ test("a worker's end is a small bubble: how it ended above, the task it just did
   // Reused with a new title: the next end names it, the one drawn before keeps
   // its own. A failure is framed in the warning color.
   await $.turn.complete({ answer: 'ok', durationMs: 1, isAborted: false, turnId: 't1', agentId: 'agent-1', reason: 'answer' })
-  await $.tool.call({ tool: DELEGATE, task: 'Ahora el borde', title: 'Prueba borde: reutilizado', repo: '/work/api' })
+  await $.tool.call({ tool: DELEGATE, task: 'Ahora el borde', title: 'Prueba borde: reutilizado', worker: 'pip' })
   const second = await ended('end-2', 'agent-1', 'failed', 2_000)
   expect((await bubble(second)).slice(0, 2)).toEqual([
     expect.stringMatching(/^╭─ Pip → Nova · × failed · 2s ─+╮$/),
@@ -513,7 +513,7 @@ test("a resumed conversation's crew calls, which no state of this session knows,
   // A new worker: delegate's result gives its name, address and id, and the
   // id its color.
   const task = { task: 'Run the tests and fix what fails.', title: 'Arreglar tests', repo: '/work/api' }
-  const output = started('Pip', 'pip', 'agent-7', '/work/api', NEW_NONE_FREE, headsUp(['Bolt']))
+  const output = started('Pip', 'pip', 'agent-7', '/work/api', NEW_UNNAMED, headsUp(['Bolt']))
   const fresh = await mountRow($, toolRow(DELEGATE, 'toolu_r1', task, { output }))
   expect(await frameRows(fresh)).toEqual([
     expect.stringMatching(/^╭─ Nova → Pip · Arreglar tests ─+╮$/),
@@ -535,7 +535,7 @@ test("a resumed conversation's crew calls, which no state of this session knows,
       DELEGATE,
       'toolu_r2',
       { task: 'Y el registro', title: 'Registro' },
-      { output: given({ name: 'Bolt', address: 'bolt' }, '/work/web', PICKED_FREE, '') },
+      { output: given({ name: 'Bolt', address: 'bolt' }, '/work/web', PICKED_NAMED, '') },
     ),
   )
   expect(await frameRows(reused)).toEqual([

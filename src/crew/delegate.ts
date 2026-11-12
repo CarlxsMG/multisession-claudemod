@@ -1,8 +1,7 @@
-// The delegate tool: the worker a task goes to (a named one, the most recent
-// free one of its kind in that repository, or a new one), the send or the
-// spawn, and a task held for a worker another one woke or until a run ends.
+// The delegate tool: the worker a task goes to (the one named, else a new
+// one), the send or the spawn, and a task held for a worker another one woke or until a run ends.
 import type { Handed, Intent, Takeover, Waiting, Worker } from '../../types'
-import { DEFAULT_TYPE, REUSE_CONTEXT_MAX, REUSE_WARM_MIN } from '../config'
+import { DEFAULT_TYPE } from '../config'
 import { quiet, unrecognized } from '../engine'
 import type { Engine } from '../engine'
 import {
@@ -11,10 +10,8 @@ import {
   OWN_MODEL,
   SESSION_MODEL,
   UNAPPLIED_FRESH,
-  NEW_FRESH,
-  NEW_NONE_FREE,
+  NEW_UNNAMED,
   PICKED_NAMED,
-  SEND_UNSURE,
   TASK_REQUIRED,
   afterNeedsWorker,
   afterOver,
@@ -33,29 +30,20 @@ import {
   heldLetGo,
   heldMissed,
   heldWentFirst,
-  holds,
-  newAfterIdle,
-  newAfterIdleOrLarge,
-  newAfterLarge,
-  newAfterLost,
+  heldTokens,
   noModel,
   noRepo,
   noWorker,
   notForWorkers,
   notStarted,
-  pickedFree,
-  pickedNext,
   started,
   unapplied,
   unappliedModel,
   unappliedRepo,
   unappliedType,
   unreachable,
-  unsureSend,
 } from '../prompts/results'
-import type { Lost } from '../prompts/results'
 import { modelAlias } from '../model-label'
-import { contextText, tokensText } from '../prompts/roster'
 import { heldTasks, newMates, taskClose } from '../prompts/worker'
 import { runtime } from '../runtime'
 import {
@@ -74,7 +62,6 @@ import { appendKept } from '../util/bounded'
 import { fieldOf, rawStringArg, stringArg } from '../util/input'
 import { joinPath, samePath, under } from '../util/path'
 import { oneLine } from '../util/text'
-import { shortTime } from '../util/time'
 import { contextOf } from './context'
 import { deliver } from './deliver'
 import { editsInFlight } from './edits'
@@ -82,7 +69,7 @@ import { ORCH_ID, markCall, setOrch } from './feed'
 import { release } from './takeover'
 import { bareTitle, nameAhead } from './title'
 import { spawnTypeOf } from './worker-type'
-import { ACTIVE, REUSABLE, apartIds, claimName, findWorker, recallWorker, takenNow, toldMates, unclaimNames, untoldMatesOf } from './workers'
+import { ACTIVE, apartIds, claimName, findWorker, recallWorker, takenNow, toldMates, unclaimNames, untoldMatesOf } from './workers'
 
 // The heads-up of the tool's result, from the workers busy in the
 // repository, each with the files its run has edited so far, as seen from
@@ -120,65 +107,10 @@ async function repoDir($: Engine, sessionCwd: string, repo: string): Promise<str
   return joinPath(sessionCwd, home ? home + repo.slice(1) : repo)
 }
 
-// The free workers of that type the crew started there, the one that ended
-// a turn last first, on the model a new worker would get, the one asked for
-// or else the session's, however their own call named it: one asked for none
-// is on the session's, and one asked for a model, or that a spawn answered a
-// model for, is on that. However long its history: it compacts; how long ago
-// it last worked is the caller's to weigh (`isWarm`). A failed one is never
-// free. `model` and `session` are aliases, and what a spawn
-// answers may be a full id: all go by their family. A session whose model
-// names no family has only the workers asked for none.
-function freeWorkers(
-  list: readonly Worker[],
-  woken: ReadonlyMap<string, Takeover>,
-  cwd: string,
-  type: string,
-  model: string,
-  session: string | undefined,
-): Worker[] {
-  const isOn = (w: Worker, family: string | undefined) => family !== undefined && (modelAlias(w.asked ?? '') === family || modelAlias(w.model) === family)
-  return list
-    .filter(
-      w =>
-        samePath(w.cwd, cwd) &&
-        (w.type || DEFAULT_TYPE) === type &&
-        REUSABLE.has(w.status) &&
-        !woken.has(w.id) &&
-        w.asked !== null &&
-        (model === '' ? w.asked === '' || isOn(w, session) : isOn(w, model)),
-    )
-    .sort((a, b) => lastFree(b) - lastFree(a))
-}
-
-// Why a new worker starts though free ones would do: each was passed over
-// for its age, for its size, or some for one and some for the other.
-function whyPassed(passed: readonly Worker[], now: number): string {
-  const names = passed.map(w => w.name)
-  const maxK = REUSE_CONTEXT_MAX / 1000
-  if (passed.every(w => !isWarm(w, now))) return newAfterIdle(names, REUSE_WARM_MIN)
-  if (passed.every(w => !isLight(w))) return newAfterLarge(names, maxK)
-  return newAfterIdleOrLarge(names, REUSE_WARM_MIN, maxK)
-}
-
-// When a free worker last ended a turn: the order of a reuse, which a
-// message to it or a sync must not change as they do `updatedAt`. One that
-// has ended none goes by when it started.
-const lastFree = (w: Worker): number => w.finishedAt ?? w.startedAt
-
-// Whether a free worker ended its last turn so lately that its conversation
-// is still in the prompt cache: only such a one is reused without being
-// named (see `REUSE_WARM_MIN`).
-const isWarm = (w: Worker, now: number): boolean => now - lastFree(w) < REUSE_WARM_MIN * 60_000
-
-// What the context of a free worker holds, for the result of a call that
-// did not name it.
-const holding = (w: Worker, now: number): string =>
-  holds(oneLine(w.task, 48), w.finishedAt === undefined ? undefined : shortTime(now - w.finishedAt), tokensText(w.tokens), contextText(contextOf(w)))
-
-// Whether a free worker's conversation is small enough to reuse without
-// being named (see `REUSE_CONTEXT_MAX`); one whose size is not known is.
-const isLight = (w: Worker): boolean => (contextOf(w) ?? 0) <= REUSE_CONTEXT_MAX
+// What a named worker's conversation holds, for its result: what every
+// request of it sends again, which the orchestrator weighs when it picks a
+// worker for its context; '' when no response of it was seen.
+const holding = (w: Worker): string => heldTokens(contextOf(w))
 
 // Where a worker in a worktree of its own works, as a result says it.
 const worktreeOf = (cwd: string): string => `a worktree of ${cwd}`
@@ -212,7 +144,7 @@ type Asked = { task: string; title: string; cwd: string; sessionCwd: string; typ
 // Gives the task to a worker that exists, which any mark on it allows; its
 // answer, or why it was lost when the worker could not be reached, which
 // leaves the task to the caller. `why` is the result's clause for how it was
-// picked, and `held` what its context holds, for a worker no call named.
+// picked, and `held` what its conversation holds.
 async function giveTask(
   $: Engine,
   chosen: Worker,
@@ -299,10 +231,6 @@ async function isListed($: Engine, id: string): Promise<boolean> {
   return infos === undefined || infos.some(info => info.id === id)
 }
 
-// How many free workers an unnamed task is sent to before a new one starts:
-// each send that fails is a round trip the call waits for.
-const REUSE_TRIES = 3
-
 // Whether auto mode refused a spawn of delegate's for want of a verdict in
 // this session: until the session starts again or leaves that mode, every
 // new worker is handed to the orchestrator without the spawn being tried.
@@ -350,7 +278,7 @@ async function startWorker(
       description: title,
       name: address,
       // The type it is to the orchestrator and the crew stays the one asked,
-      // which the intent holds and a reuse compares.
+      // which the intent holds.
       subagentType: spawnTypeOf(type),
       ...(!samePath(cwd, sessionCwd) ? { cwd } : {}),
       ...(model !== '' ? { model } : {}),
@@ -414,15 +342,14 @@ async function delegate($: Engine, input: object, callId?: string): Promise<stri
   const worker = called !== undefined && called.trim() !== '' ? called : isAfter && !isFresh ? after : undefined
   const isNamed = worker !== undefined
   // A named worker takes the task whatever else the call asks: what would
-  // only shape a new worker or a reuse is not checked, and the result notes
+  // only shape a new worker is not checked, and the result notes
   // what the worker is not.
   const type = askedType || DEFAULT_TYPE
   const sessionCwd = await $.session.cwd()
   const cwd = repo === '' ? sessionCwd : await repoDir($, sessionCwd, repo)
   if (!isNamed && repo !== '' && !(await $.fs.exists(cwd))) return noRepo(cwd)
   // The Agent tool's `model` takes an alias only, so a full id goes as its
-  // family, for the spawn and for the reuse that compares it with what a
-  // worker was asked. A haiku request takes the session's model: a worker
+  // family. A haiku request takes the session's model: a worker
   // runs on the model the user put the session on unless it is asked for
   // another, so on haiku only in a session on haiku.
   const alias = asked === '' ? '' : modelAlias(asked)
@@ -467,45 +394,16 @@ async function delegate($: Engine, input: object, callId?: string): Promise<stri
       return hold($, chosen, mark, task, title, notes(where), callId)
     }
     if (behind !== undefined) return waitBehind($, behind, chosen, call, notes(where))
-    const answer = await giveTask($, chosen, mark, call, PICKED_NAMED, notes, list, inWorktree)
+    const answer = await giveTask($, chosen, mark, call, PICKED_NAMED, notes, list, inWorktree, holding(chosen))
     return typeof answer === 'string' ? noWait(answer) : unreachable(chosen.name, answer.lost)
   }
   // Only `fresh` brings a call with `after` here: a new worker, once that run ends.
   if (behind !== undefined) return handoffs.isUnreviewed ? afterNeedsWorker(behind.name) : waitBehind($, behind, undefined, call, '')
 
-  // The free workers that would do, best first: the task goes to the first
-  // it reaches, and the result names the ones it did not reach and the rest.
-  // None has a mark, so each is a plain send. One that last worked too long
-  // ago to be in the prompt cache, or that holds too much, is not tried: the
-  // result names it among the rest, for a call that wants its context to
-  // name it.
-  // The session's model, which a call for none is matched with.
-  const session = isFresh || model !== '' ? undefined : modelAlias(await $.session.model().catch(() => ''))
-  const now = await $.clock.now()
-  const able = isFresh ? [] : freeWorkers(list, woken, cwd, type, model, session)
-  const free = able.filter(w => isWarm(w, now) && isLight(w))
-  const passed = able.filter(w => !isWarm(w, now) || !isLight(w))
-  const names = (workers: readonly Worker[]) => workers.map(w => w.name)
-  const lost: Lost[] = []
-  for (const candidate of free.slice(0, REUSE_TRIES)) {
-    const rest = names([...free.slice(lost.length + 1), ...passed])
-    const why = lost.length === 0 ? pickedFree(rest) : pickedNext(lost, rest)
-    const answer = await giveTask($, candidate, undefined, call, why, () => '', list, inWorktree, holding(candidate, now))
-    if (typeof answer === 'string') return answer
-    // A send that failed on its way may have arrived: given to another
-    // worker too, the task would be done twice.
-    if (answer.lost === SEND_UNSURE) return unsureSend(candidate, lost)
-    lost.push({ name: candidate.name, reason: answer.lost })
-  }
-  const why =
-    lost.length > 0
-      ? newAfterLost(lost, names([...free.slice(lost.length), ...passed]))
-      : isFresh
-        ? NEW_FRESH
-        : passed.length > 0
-          ? whyPassed(passed, now)
-          : NEW_NONE_FREE
-  return noWait(await startWorker($, call, why, list, inWorktree))
+  // A call that names no worker starts a new one: a free worker's context
+  // helps only a task in its area, which only the orchestrator knows, and
+  // it says so by naming that worker.
+  return noWait(await startWorker($, call, NEW_UNNAMED, list, inWorktree))
 }
 
 // The tasks kept until a run ends, the newest: far more than a session holds at once.

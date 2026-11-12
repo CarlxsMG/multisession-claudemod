@@ -145,7 +145,7 @@ test("delegate's results: started, given, busy repositories, and what it turns d
   expectText('result.started', await delegate($, { task: 'Fix the login', title: 'Login', repo: '/work/api' }))
   expectText('result.startedBesideBusy', await delegate($, { task: 'Fix the styles', title: 'Styles', repo: '/work/api', fresh: true }))
   await finish($, 'agent-1')
-  expectText('result.givenBesideBusy', await delegate($, { task: 'Add the tests', title: 'Tests', repo: '/work/api' }))
+  expectText('result.givenBesideBusy', await delegate($, { task: 'Add the tests', title: 'Tests', worker: 'pip' }))
   expectText('task.reused', seen.sends[seen.sends.length - 1])
   expectText('result.noTask', await delegate($, { task: '  ' }))
   expectText('result.noWorker', await delegate($, { task: 'Review it', worker: 'nobody' }))
@@ -156,7 +156,6 @@ test("delegate's results: started, given, busy repositories, and what it turns d
   await finish($, 'agent-2')
   seen.undelivered = 'the agent is gone'
   expectText('result.unreachable', await delegate($, { task: 'Polish it', worker: 'bolt' }))
-  expectText('result.startedAfterLost', await delegate($, { task: 'Polish it', title: 'Polish', repo: '/work/api' }))
 })
 
 test('the heads-up of a busy worker that has edited files, and what a worker reads on a file another has edited', async ($, on) => {
@@ -172,34 +171,9 @@ test('the heads-up of a busy worker that has edited files, and what a worker rea
   expectText('result.startedBesideEdits', await delegate($, { task: 'Write the docs', title: 'Docs', repo: '/work/api', fresh: true }))
 })
 
-test("delegate's result for a free worker picked over others that were free", async ($, on) => {
+test("delegate's result and the roster's row for a worker whose context is known", async ($, on) => {
   let spawned = 0
-  const clock = engine(on, { nextId: () => `agent-${++spawned}`, seen: recording() })
-  await start($)
-  for (const title of ['Login', 'Styles', 'Docs', 'Deploy', 'Search']) await delegate($, { task: `Build the ${title}`, title, repo: '/work/api', fresh: true })
-  for (let i = 1; i <= 5; i++) {
-    await clock.advance(1000)
-    await finish($, `agent-${i}`)
-  }
-  expectText('result.givenOverOthers', await delegate($, { task: 'Add the tests', title: 'Tests', repo: '/work/api' }))
-})
-
-test("delegate's result when every free worker last worked too long ago to reuse unnamed", async ($, on) => {
-  let spawned = 0
-  const clock = engine(on, { nextId: () => `agent-${++spawned}`, seen: recording() })
-  await start($)
-  for (const title of ['Login', 'Styles']) await delegate($, { task: `Build the ${title}`, title, repo: '/work/api', fresh: true })
-  for (let i = 1; i <= 2; i++) {
-    await clock.advance(1000)
-    await finish($, `agent-${i}`)
-  }
-  await clock.advance(5 * 60_000)
-  expectText('result.startedAfterIdle', await delegate($, { task: 'Add the tests', title: 'Tests', repo: '/work/api' }))
-})
-
-test("delegate's results and the roster's row for workers whose context is known: reused, too large, and too large or too long idle", async ($, on) => {
-  let spawned = 0
-  const clock = engine(on, { nextId: () => `agent-${++spawned}`, seen: recording() })
+  engine(on, { nextId: () => `agent-${++spawned}`, seen: recording() })
   let read = 0
   on('turn.step', async function* (_, e) {
     return {
@@ -224,35 +198,7 @@ test("delegate's results and the roster's row for workers whose context is known
   await delegate($, { task: 'Build the Login', title: 'Login', repo: '/work/api' })
   await turn('agent-1', 37_000)
   expectText('roster.oneContext', await roster($, { worker: 'pip' }))
-  expectText('result.givenHolding', await delegate($, { task: 'Add the tests', title: 'Tests', repo: '/work/api' }))
-  await turn('agent-1', 140_000)
-  expectText('result.startedAfterLarge', await delegate($, { task: 'Write the docs', title: 'Docs', repo: '/work/api' }))
-  await turn('agent-2', 12_000)
-  await clock.advance(5 * 60_000)
-  await turn('agent-1', 141_000)
-  expectText('result.startedAfterIdleOrLarge', await delegate($, { task: 'Ship it', title: 'Ship', repo: '/work/api' }))
-})
-
-test("delegate's results when free workers could not be reached: the next one, and a new one when none is", async ($, on) => {
-  let spawned = 0
-  const seen = recording()
-  const clock = engine(on, { nextId: () => `agent-${++spawned}`, seen })
-  await start($)
-  for (const title of ['Login', 'Styles', 'Docs', 'Deploy', 'Search']) await delegate($, { task: `Build the ${title}`, title, repo: '/work/api', fresh: true })
-  for (let i = 1; i <= 5; i++) {
-    await clock.advance(1000)
-    await finish($, `agent-${i}`)
-  }
-  seen.gone = { 'agent-5': 'the agent is gone' }
-  expectText('result.givenAfterLost', await delegate($, { task: 'Add the tests', title: 'Tests', repo: '/work/api' }))
-  seen.gone = { 'agent-5': 'the agent is gone', 'agent-3': 'the agent is gone', 'agent-2': 'the agent is gone' }
-  expectText('result.startedAfterLostMany', await delegate($, { task: 'Tag the release', title: 'Release', repo: '/work/api' }))
-  // A send that may have gone out, first of the free ones and after one that could not be reached.
-  const unsure = 'crew: the message may not have gone out; check before sending it again.'
-  seen.gone = { 'agent-5': unsure }
-  expectText('result.unsureSend', await delegate($, { task: 'Write the notes', title: 'Notes', repo: '/work/api' }))
-  seen.gone = { 'agent-5': 'the agent is gone', 'agent-3': unsure }
-  expectText('result.unsureSendAfterLost', await delegate($, { task: 'Write the notes', title: 'Notes', repo: '/work/api' }))
+  expectText('result.givenHolding', await delegate($, { task: 'Add the tests', title: 'Tests', worker: 'pip' }))
 })
 
 test("delegate's results for a worker named while busy, after a run that failed, and for one whose last run was stopped", async ($, on) => {
@@ -264,7 +210,7 @@ test("delegate's results for a worker named while busy, after a run that failed,
   await $.turn.complete({ answer: 'API error', durationMs: 1, isAborted: false, turnId: 't-failed', agentId: 'agent-1', reason: 'error' })
   expectText('result.givenAfterFailure', await delegate($, { task: 'Try the login again', title: 'Login again', worker: 'pip' }))
   await $.turn.complete({ answer: '', durationMs: 1, isAborted: true, turnId: 't-stopped', agentId: 'agent-1', reason: 'aborted' })
-  expectText('result.givenAfterStop', await delegate($, { task: 'Finish the login', title: 'Login', repo: '/work/api' }))
+  expectText('result.givenAfterStop', await delegate($, { task: 'Finish the login', title: 'Login', worker: 'pip' }))
 })
 
 test("delegate's result for a named worker the call's other arguments do not fit, given and held", async ($, on) => {

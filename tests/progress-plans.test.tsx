@@ -178,7 +178,7 @@ test("a new task for a free worker whose run's end was missed starts afresh: no 
   // and the tick has not yet closed its run when the next task comes.
   states.set('agent-1', 'idle')
   await $.tool.call({ tool: 'mcp__crew__roster' })
-  expect(await delegate('Now the login', '/work/api', 'Login')).toMatch(/^Given to Pip /)
+  expect(await delegate('Now the login', '/work/api', 'Login', 'pip')).toMatch(/^Given to Pip /)
   await clock.advance(1000)
   expect(status()).toBe('crew · Pip thinking 1s Login')
   // Its old run ended unseen a while ago: no toast for it now.

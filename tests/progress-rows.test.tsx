@@ -139,7 +139,7 @@ test("a round of two workers, or one longer than the interval, ends in one summa
   expect(placed).toHaveLength(0)
 
   // Two: one summary once the last ends, each with how it ended and its time.
-  expect(await delegate('Fix the tests', '/work/api', 'Arreglar tests')).toMatch(/^Given to Pip /)
+  expect(await delegate('Fix the tests', '/work/api', 'Arreglar tests', 'pip')).toMatch(/^Given to Pip /)
   await delegate('Review the README', '/work/web', 'Revisar README')
   await clock.advance(40_000)
   await end('agent-2', 'error')

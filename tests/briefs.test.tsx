@@ -39,11 +39,13 @@ test('the brief is part of the system prompt, and the delegation rules of the de
     /- Delegate everything but answers from what you already know and a single lookup: one file read, or one command whose output is short\. A question about work a worker did goes to that worker with SendMessage, not to a new one\. Reading several files, edits, reviews and tests go to the crew: sessions run long/,
   )
   expect(description).not.toMatch(/more than a couple of tool calls|run the tests, a diffstat/)
-  expect(description).toMatch(/several mcp__crew__delegate calls in one message, each `fresh` or naming its own free worker/)
+  expect(description).toMatch(/several mcp__crew__delegate calls in one message, each to a new worker or naming its own free one/)
   expect(description).toMatch(
-    /Never two workers on the same files at once: split the parts by file\.\n- Reuse context: a worker keeps all it read, also after it reports\. /,
+    /Never two workers on the same files at once: split the parts by file\.\n- Reuse context: a worker keeps all it read, also after it reports, and each of its requests sends all of it again\. /,
   )
-  expect(description).toMatch(/goes to the worker that knows it, named with `worker`, once its report is back; unrelated work goes to a `fresh` one\.\n/)
+  expect(description).toMatch(
+    /goes to the worker that knows it, named with `worker`, once its report is back; unrelated work goes to a new one: leave `worker` out\.\n/,
+  )
   // What the worker does by default, and what a brief must say to change it:
   // the worker's own git rule says the same from its side.
   expect(description).toMatch(
@@ -74,7 +76,7 @@ test('the brief is part of the system prompt, and the delegation rules of the de
     /To a new worker, which has not seen this conversation: the goal; what done looks like; the files it owns, or that it only reads; the checks to run; what the user allowed in git \(a branch name, pushing, the main branch\); what the report must answer\./,
   )
   expect(args.task.description).toMatch(/To a worker that keeps its context, only what is new\.$/)
-  expect(args.fresh.description).toBe('Start a new worker instead of reusing a free one.')
+  expect(args.fresh.description).toBe('With `after` and no `worker`: a new worker takes the task, not the one waited for.')
 })
 
 test('the roster tool states its limits as the config has them', async () => {
@@ -118,7 +120,7 @@ test('workers are told to report in a few lines, and who to talk to', async ($, 
   expect(seen.prompts[0]!.includes(`${REPORT_WORDS} words at most unless the task sets a length.`)).toBe(true)
 
   await $.turn.complete({ answer: 'Hecho', durationMs: 1000, isAborted: false, turnId: 't1', agentId: 'agent-1', reason: 'answer' })
-  await $.tool.call({ tool: 'mcp__crew__delegate', task: 'Now the login', repo: '/work/api' })
+  await $.tool.call({ tool: 'mcp__crew__delegate', task: 'Now the login', worker: 'pip' })
   expect(seen.sends[0]).toMatch(/^Now the login\n\nReport as before\. /)
 
   // Seven busy elsewhere: the newcomer hears of six.
@@ -260,7 +262,7 @@ test("with delegation off, delegate's workers still hear the preamble and the Ag
 
   await done('agent-1')
   await done('agent-2')
-  expect(await delegate({ task: 'Now the login' })).toMatch(/^Given to Pip/)
+  expect(await delegate({ task: 'Now the login', worker: 'pip' })).toMatch(/^Given to Pip/)
   expect(seen.sends[0]).toBe('Now the login\n\nReport as before. 3+ steps: mcp__crew__progress again from step 1.')
   // The Agent tool's agent never heard how to report, nor who is there: it is told in full.
   expect(await delegate({ task: 'Look further', worker: 'agent-2' })).toMatch(/^Given to Bolt/)
