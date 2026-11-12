@@ -1,7 +1,7 @@
 // The pane between drawings: the timers that repaint its figures in place,
 // type out its bubbles and keep the crew in step, and what its drawings
 // leave them.
-import type { Look } from '../../../types'
+import type { Look, View } from '../../../types'
 import { PANE } from '../../config'
 import { relayIfDue } from '../../crew/relay'
 import { hasHeldFirsts, hasHeldOrch, keepFirstDrawn, writeHeldOrch } from '../../crew/feed'
@@ -69,6 +69,14 @@ export function forgetRasters() {
 export function keepRaster(key: string, draw: (frame: number) => Cells, cells: string) {
   state.mounted.set(key, draw)
   state.blitted.set(key, cells)
+}
+
+/**
+ * The terminal draws the pane's `view`: its editor shows no ages, and its
+ * figures move by blits, so the timer leaves it undrawn.
+ */
+export function drawnOnTerminal(view: View) {
+  state.terminalView = view
 }
 
 /** A surface draws the pane as a page. */
@@ -173,8 +181,9 @@ export function tick($: Engine) {
         state.blitted.delete(key)
       })
   }
-  // Ages, naps and fading cheers are read off the clock: redraw now and then.
-  if (state.frame % REDRAW_FRAMES === 0 && (mounted.size > 0 || state.asPage)) void redrawPane($)
+  // Ages and fading cheers are read off the clock: redraw now and then. A
+  // page moves its figures only so; the terminal's editor needs none of it.
+  if (state.frame % REDRAW_FRAMES === 0 && (state.asPage || (mounted.size > 0 && state.terminalView !== 'edit'))) void redrawPane($)
   // The workers' calls since the last frame, in one write, what the
   // orchestrator's last call said it does, and the first drawings of the
   // end-of-task rows drawn since.

@@ -7,7 +7,7 @@ import { t } from '../../i18n'
 import { runtime } from '../../runtime'
 import { readLook, readPaneTick, readRuns, readView, readWorkers } from '../../state/atoms'
 import { hasApp } from '../../usage/limits'
-import { forgetPane, noticeLook, oweRedraws, pageGone, pane } from './animation'
+import { drawnOnTerminal, forgetPane, noticeLook, oweRedraws, pageGone, pane } from './animation'
 import { drawEditor } from './editor'
 import { drawMain } from './main'
 import { drawTeam } from './team'
@@ -52,6 +52,7 @@ export async function drawPane($: Engine, e: PaneEvent) {
   const ctx: PaneContext = { ui, sprite, look, now, width: e.props.bodyColumns, height: e.props.scroll.bodyRows, surface: e.surface }
 
   const page = await readView($)
+  if (e.surface === 'terminal') drawnOnTerminal(page)
   if (page === 'edit') return drawEditor($, ctx)
   const crew = { ...ctx, kit: workerKit($, ctx, await readWorkers($), await readRuns($)) }
   if (page === 'crew') return drawTeam($, crew)

@@ -603,6 +603,33 @@ test('a session with no surface opens the pane once one attaches, and only then'
   expect(seen.opens).toEqual([PANE.requestId])
 })
 
+test("the terminal's editor is not drawn again for the ages, and its main view is", async ($, on) => {
+  const clock = engine(on)
+  // The terminal takes each frame of the figures in place.
+  on('ui.blit', () => ({ value: {} }))
+  let redraws = 0
+  on('state.set', { plugin: 'crew', key: 'beat' }, (_, e, next) => {
+    redraws += 1
+    return next(e)
+  })
+  await $.session.start({ cwd: '/work/main', surface: 'terminal', isInteractive: true })
+  const ui = await $.ui.mount({ ...PANE, surface: 'terminal' })
+  await clock.advance(5000)
+  expect(redraws).toBeGreaterThan(0)
+
+  await ui.press({ key: 'edit' })
+  redraws = 0
+  await clock.advance(5000)
+  expect(redraws).toBe(0)
+
+  await ui.press({ key: 'look-done' })
+  await ui.redraw()
+  redraws = 0
+  await clock.advance(5000)
+  expect(redraws).toBeGreaterThan(0)
+  await ui.unmount()
+})
+
 test('once the last app leaves, the pane is no longer drawn again for its page', async ($, on) => {
   const clock = engine(on)
   let surfaces: ('terminal' | 'desktop')[] = ['desktop']

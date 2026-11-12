@@ -8,7 +8,7 @@
 // import it whatever it imports itself.
 import type { Timer } from 'claude-code'
 
-import type { NoteFirst, OrchMood, Phase } from '../types'
+import type { NoteFirst, OrchMood, Phase, View } from '../types'
 import type { Proc } from './background/orphans'
 import type { Cells } from './figure/raster'
 
@@ -103,8 +103,9 @@ function fresh() {
      * until when the last drawing had a bubble typing out, the timer that
      * types it, whether Terminal.app sets that timer's pace, when a
      * worker it showed napping leaves the row or an end stops standing out
-     * (0 for none) and the timer that waits for it, and the rasters it drew
-     * by key, each with how to draw any frame and the cells it shows now.
+     * (0 for none) and the timer that waits for it, the view the terminal
+     * last drew, and the rasters it drew by key, each with how to draw any
+     * frame and the cells it shows now.
      */
     pane: {
       frame: 0,
@@ -116,6 +117,7 @@ function fresh() {
       isAppleTerminal: false,
       napDue: 0,
       napTimer: undefined as Timer | undefined,
+      terminalView: undefined as View | undefined,
       mounted: new Map<string, (frame: number) => Cells>(),
       blitted: new Map<string, string>(),
     },
