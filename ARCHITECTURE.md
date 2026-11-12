@@ -477,7 +477,8 @@ goes stale; an empty crew adds none.
 The orchestrator asks for a compaction with `mcp__crew__compact` (`focus`, `after`), and the
 `compactAt` option asks for one when the context reaches that share of the auto-compaction
 threshold (read with `$.session.usage({ breakdown: 'summary' })` once a minute; the fill itself is
-free to read). A turn cannot compact itself, so the ask waits in `compactAsk`, and the progress tick
+free to read). Both are read only within the window and gap below, as no ask runs outside them and
+the fill changes only with a main response. A turn cannot compact itself, so the ask waits in `compactAsk`, and the progress tick
 runs it (`compactWhenSafe`) while the main turn is not under way, no worker is busy, no row is due
 and no takeover's run is under way (one whose tasks missed their worker holds nothing back) nor a task waiting for a run to end; `after: "reports"` also waits for the round to close and for a main turn
 since the last run ended. It also runs only within 4 minutes of the main turn's end

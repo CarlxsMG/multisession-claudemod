@@ -75,13 +75,16 @@ async function sendWaiting($: Engine, worker: Worker, tasks: readonly Waiting[])
  * The tasks due leave the list first, so two passes never give one twice.
  */
 export async function releaseWaiting($: Engine, canStart: boolean) {
-  if (!(await readWaiting($)).some(w => w.missed === undefined)) return
+  const pending = await readWaiting($)
+  if (!pending.some(w => w.missed === undefined)) return
   const crew = [...(await readWorkers($)), ...(await readDropped($))]
   const find = (id: string) => crew.find(w => w.id === id)
   const isOver = (w: Waiting) => {
     if (w.missed !== undefined || ACTIVE.has(find(w.after)?.status ?? 'stopped')) return false
     return canStart || w.to !== null || brokenEnd(find(w.after)) !== undefined
   }
+  // Every sync comes here: with no task due the list is not written again.
+  if (!pending.some(isOver)) return
   let over: Waiting[] = []
   await updateWaiting($, list => {
     over = list.filter(isOver)

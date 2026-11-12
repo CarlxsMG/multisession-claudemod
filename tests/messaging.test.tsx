@@ -372,3 +372,22 @@ test("a worker's message to a teammate on the shelf goes on from the main conver
   expect(await listed()).toBe("Nova's crew (26):")
   expect(await roster()).toMatch(/\n- Mika: address "mika", working, repo \/work\/r3, /)
 })
+
+test('while the runs a mark and a held task wait for go on, the syncs write neither the marks nor the tasks that wait', async ($, on) => {
+  const writes = { takeovers: 0, waiting: 0 }
+  on('state.set', { plugin: 'crew', key: 'takeovers' }, (_, e, next) => {
+    writes.takeovers += 1
+    return next(e)
+  })
+  on('state.set', { plugin: 'crew', key: 'waiting' }, (_, e, next) => {
+    writes.waiting += 1
+    return next(e)
+  })
+  const { clock, delegate, roster } = await wokenCrew($, on)
+  expect(await delegate({ task: 'Seed the data', title: 'Seeds', repo: '/work/api', after: 'pip' })).toMatch(/^Held for Pip /)
+  expect(await roster('bolt')).toMatch(/, answering Pip, /)
+  writes.takeovers = 0
+  writes.waiting = 0
+  await clock.advance(10_000)
+  expect(writes).toEqual({ takeovers: 0, waiting: 0 })
+})

@@ -233,3 +233,33 @@ for (const [option, tokens, runs] of [
     },
   )
 }
+
+test(
+  "with compactAt set, the context's fill is read only within a main turn's warm window, not at every idle tick",
+  { options: { compactAt: '70%' } },
+  async ($, on) => {
+    const breakdown = { autoCompactThreshold: 200_000, isAutoCompactEnabled: true } as SessionContextBreakdown
+    let reads = 0
+    const { clock, mainTurn } = await progressCrew(
+      $,
+      on,
+      {},
+      {
+        context: () => {
+          reads += 1
+          return { tokens: 100_000, window: 1_000_000, breakdown }
+        },
+      },
+    )
+    await (
+      await mainTurn()
+    )()
+    await clock.advance(3000)
+    expect(reads).toBeGreaterThan(0)
+
+    await clock.advance(5 * 60_000)
+    reads = 0
+    await clock.advance(30_000)
+    expect(reads).toBe(0)
+  },
+)

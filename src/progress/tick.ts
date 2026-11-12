@@ -2,7 +2,7 @@
 // keeps the status line and the newest check-in up to date, stops the
 // background tasks of workers that are done, places the rows that are due,
 // and runs a compaction asked for once it is safe.
-import type { Orch, Run, Worker } from '../../types'
+import type { Orch, Round, Run, Worker } from '../../types'
 import { sweepBackground } from '../background/sweep'
 import { compactWhenSafe } from '../crew/compaction'
 import { saveCrew } from '../crew/persist'
@@ -31,18 +31,22 @@ const ticking = runtime.tick
 // row placed meanwhile would land amid the text it streams.
 const isMainBusy = (o: Orch): boolean => o.mood === 'thinking' || o.mood === 'working' || o.mood === 'delegating'
 
-async function endMissedRuns($: Engine, list: readonly Worker[], now: number) {
-  for (const run of await readRuns($)) {
+// Ends the runs whose end was missed, and answers whether it ended any: an
+// end writes the runs and may close the round, which are then read again.
+async function endMissedRuns($: Engine, list: readonly Worker[], all: readonly Run[], now: number): Promise<boolean> {
+  let isEnded = false
+  for (const run of all) {
     if (!isOpen(run) || now - run.touchedAt < MISSED_MS) continue
     const worker = list.find(x => x.id === run.id)
     if (worker !== undefined && ACTIVE.has(worker.status)) continue
     await endRun($, run.id, endOf(worker?.status))
+    isEnded = true
   }
+  return isEnded
 }
 
 // The round's summary once it closed, or a check-in when one is due.
-async function placeRoundRow($: Engine, list: readonly Worker[], all: readonly Run[], now: number) {
-  const round = await readRound($)
+async function placeRoundRow($: Engine, list: readonly Worker[], all: readonly Run[], round: Round, now: number) {
   if (round.startedAt === 0) return
   const every = everyMin() * 60_000
   if (round.closedAt !== 0) {
@@ -65,19 +69,21 @@ async function progressTick($: Engine) {
   ticking.isTicking = true
   try {
     const now = await $.clock.now()
-    const list = await readWorkers($)
-    await endMissedRuns($, list, now)
-    const all = await readRuns($)
+    // Each read is a call through the host, once a second: what the tick
+    // reads it reads once, together, and hands on.
+    const [list, runs, wasRound] = await Promise.all([readWorkers($), readRuns($), readRound($)])
+    const isEnded = await endMissedRuns($, list, runs, now)
+    const [all, round] = isEnded ? await Promise.all([readRuns($), readRound($)]) : [runs, wasRound]
     await pinStatus($, list, all, now)
     // A row that stands is drawn again, so it follows even while the main turn runs.
-    await followCheckIn($, await readRound($), now)
+    await followCheckIn($, round, list, all, now)
     await quiet($, sweepBackground($, now), 'background sweep')
     await quiet($, saveCrew($, now), 'save crew')
 
     if (isMainBusy(await readOrch($))) return
     // The lines that wait, before any summary of their round.
     await placeWaiting($, now)
-    await placeRoundRow($, list, all, now)
+    await placeRoundRow($, list, all, round, now)
     await quiet($, compactWhenSafe($, list, now), 'compaction')
   } finally {
     ticking.isTicking = false
