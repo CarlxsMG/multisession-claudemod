@@ -1,7 +1,7 @@
 // The rows placed in the conversation: check-ins, summaries, end lines and
 // message lines, the queue of those that wait for the main turn, and the
 // check-in interval they are placed by. Drawn only: no model reads them.
-import type { CheckIn, CheckLine, Note, PendingRow, Round } from '../../types'
+import type { CheckIn, CheckLine, Note, PendingRow, Round, Run, Worker } from '../../types'
 import { nameOf } from '../crew/feed'
 import { ACTIVE } from '../crew/workers'
 import { quiet } from '../engine'
@@ -59,11 +59,10 @@ export async function noteMessage($: Engine, note: Note) {
   await queueLine($, { kind: 'message', lines: [], note })
 }
 
-// Who a line of a placed row names, as the crew has it now.
-async function crewLookup($: Engine) {
-  const list = await readWorkers($)
-  const members = await readMembers($)
-  const given = await readJobs($)
+// Who a line of a placed row names, as the crew (`workers`, read here when
+// not given) has it now.
+async function crewLookup($: Engine, workers?: readonly Worker[]) {
+  const [list, members, given] = await Promise.all([workers ?? readWorkers($), readMembers($), readJobs($)])
   return (id: string) => {
     const worker = list.find(x => x.id === id)
     return {
@@ -110,15 +109,16 @@ const linesSaid = (lines: readonly CheckLine[]): string => JSON.stringify(lines.
 
 /**
  * The round's newest check-in follows the round in place: its lines are read
- * again from the runs, so it never gives an older step or phase than the
- * pane and the status line. Written when what it says changes, and its
- * times once a minute; the rows before it keep what they showed.
+ * again from the runs (`all`) and the workers (`list`) as the tick read them,
+ * so it never gives an older step or phase than the pane and the status line.
+ * Written when what it says changes, and its times once a minute; the rows
+ * before it keep what they showed.
  */
-export async function followCheckIn($: Engine, round: Round, now: number) {
+export async function followCheckIn($: Engine, round: Round, list: readonly Worker[], all: readonly Run[], now: number) {
   if (round.startedAt === 0) return
   const newest = (await readCheckins($)).findLast(c => c.kind === 'checkin' || c.kind === 'summary')
   if (newest === undefined || newest.kind !== 'checkin' || newest.at < round.startedAt) return
-  const lines = checkLines(round, await readRuns($), await crewLookup($), now)
+  const lines = checkLines(round, all, await crewLookup($, list), now)
   const was = newest.shown ?? newest
   if (linesSaid(lines) === linesSaid(was.lines) && now - was.at < CHECKIN_TIMES_MS) return
   const roundMs = (round.closedAt || now) - round.startedAt

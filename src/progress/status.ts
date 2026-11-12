@@ -36,10 +36,11 @@ function showStatus($: Engine, text: string) {
 
 /** Pins the status line as the workers (`list`) and their runs (`all`) are now. */
 export async function pinStatus($: Engine, list: readonly Worker[], all: readonly Run[], now: number) {
-  const given = await readJobs($)
+  const open = all.filter(isOpen)
+  // The jobs name the runs under way: with none, the tick reads nothing more.
+  const given = open.length > 0 ? await readJobs($) : []
   const statusOf = (id: string): string => list.find(w => w.id === id)?.status ?? 'done'
-  const entries = all
-    .filter(isOpen)
+  const entries = open
     .sort((a, b) => a.startedAt - b.startedAt)
     .map(run => ({
       name: list.find(w => w.id === run.id)?.name ?? run.id,

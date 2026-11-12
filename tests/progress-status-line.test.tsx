@@ -131,3 +131,27 @@ test('an idle progress tick writes nothing when no line waits', async ($, on) =>
   await clock.advance(10_000)
   expect(writes).toBe(0)
 })
+
+test('a progress tick reads the runs once, and the jobs only while a run is under way', async ($, on) => {
+  const reads = { runs: 0, jobs: 0 }
+  on('state.get', { plugin: 'crew', key: 'runs' }, (_, e, next) => {
+    reads.runs += 1
+    return next(e)
+  })
+  on('state.get', { plugin: 'crew', key: 'jobs' }, (_, e, next) => {
+    reads.jobs += 1
+    return next(e)
+  })
+  const { clock, delegate } = await progressCrew($, on)
+  await clock.advance(10_000)
+  expect(reads).toEqual({ runs: 10, jobs: 0 })
+
+  await delegate('Fix the login', '/work/api', 'Login')
+  await $.tool.call({ tool: 'Read', file_path: '/work/api/src/login.ts', agentId: 'agent-1' })
+  await clock.advance(1000)
+  reads.runs = 0
+  reads.jobs = 0
+  await clock.advance(10_000)
+  expect(reads.jobs).toBe(10)
+  expect(reads.runs).toBe(10)
+})
