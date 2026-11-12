@@ -416,6 +416,7 @@ declare module 'claude-code' {
       modelLimits: Shaped<Limit[]>
       cast: Shaped<Member[]>
       calls: Shaped<CrewCall[]>
+      call: StateFamily<Shaped<CrewCall | null>>
       routes: Shaped<Route[]>
       takeovers: Shaped<Takeover[]>
       relays: Shaped<Relay[]>

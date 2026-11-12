@@ -2,7 +2,7 @@
 // keeps for the user. Both outlive a reload and an update of the plugin, and
 // `types/index.d.ts` declares each state key, so no key changes; a value
 // whose fields change takes a new shape tag instead.
-import { atom, read, update } from 'claude-code'
+import { atom, memberOf, read, update } from 'claude-code'
 import type { Atom, StateDollar } from 'claude-code'
 
 import { DEFAULT_LOOK } from '../figure/look'
@@ -43,9 +43,14 @@ const limits = atom({ plugin: 'crew', key: 'limits' } as const, [], { shape: 'li
 const modelLimits = atom({ plugin: 'crew', key: 'modelLimits' } as const, [], { shape: 'limits-1' })
 // What the conversation's crew rows are drawn from. Each changes seldom, as
 // every row that reads one is drawn again when it does: everyone the crew
-// has had, the calls of the crew's tools, where workers' messages went.
+// has had, where workers' messages went.
 const members = atom({ plugin: 'crew', key: 'cast' } as const, [], { shape: 'cast-1' })
+// The marks of the crew's tools' calls, one value per tool_use_id, so a mark
+// draws again only the row it is for. `calls`, the list they made up for a
+// version of the plugin before this one, is still read for the marks a
+// reload kept there, and written no more.
 const calls = atom({ plugin: 'crew', key: 'calls' } as const, [], { shape: 'calls-1' })
+const call = atom({ plugin: 'crew', key: 'call' } as const, null, { shape: 'call-1' })
 const routes = atom({ plugin: 'crew', key: 'routes' } as const, [], { shape: 'routes-1' })
 // Agents the worker that started them woke with a message, whose run
 // reports there, and the tasks that wait for them meanwhile.
@@ -240,12 +245,19 @@ export function updateMembers($: StateDollar, change: Change<typeof members>) {
   return update($, members, change)
 }
 
-export function readCalls($: StateDollar) {
-  return read($, calls)
+/**
+ * The mark of the crew call `id` (its tool_use_id), or undefined for a call
+ * the session never marked; a drawing that reads it is drawn again only
+ * when that call's mark changes.
+ */
+export async function readCall($: StateDollar, id: string) {
+  const mark = await read($, memberOf(call, { requestId: id }))
+  return mark ?? (await read($, calls)).find(c => c.id === id)
 }
 
-export function updateCalls($: StateDollar, change: Change<typeof calls>) {
-  return update($, calls, change)
+/** Changes the mark of the crew call `id` (its tool_use_id). */
+export function updateCall($: StateDollar, id: string, change: Change<typeof call>) {
+  return update($, memberOf(call, { requestId: id }), change)
 }
 
 export function readRoutes($: StateDollar) {

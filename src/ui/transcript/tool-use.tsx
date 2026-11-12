@@ -10,7 +10,7 @@ import type { Look, Member } from '../../../types'
 import { DELEGATE } from '../../config'
 import type { Engine } from '../../engine'
 import { nameColorOf } from '../../figure/accent'
-import { readCalls, readLook, readMembers } from '../../state/atoms'
+import { readCall, readLook, readMembers } from '../../state/atoms'
 import { oneLine } from '../../util/text'
 import { PLAIN, TASK_ROWS, anyWorker, bubbleCap, bubbleRows, colorOfMember, rowWidth } from './bubble'
 import type { Seg } from './bubble'
@@ -28,7 +28,7 @@ async function rowWorker(
   $: Engine,
   props: { tool_use_id: string; tool: string; input: unknown; output?: unknown; isRunning: boolean },
 ): Promise<{ who: Member | undefined; members: readonly Member[] } | undefined> {
-  const call = (await readCalls($)).find(c => c.id === props.tool_use_id)
+  const call = await readCall($, props.tool_use_id)
   if (call === undefined) {
     const who = props.isRunning || props.output === undefined ? undefined : calledWorker(props.tool, props.input, props.output)
     return who !== undefined ? { who, members: [who] } : undefined
@@ -133,7 +133,7 @@ export async function drawToolResult($: Engine, e: Parameters<DrawToolResultHook
   const props = e.props
   if ((e.surface === 'terminal' && props.isExpanded === true) || props.isErrored) return next(e)
   const look = await readLook($)
-  const call = (await readCalls($)).find(c => c.id === props.tool_use_id)
+  const call = await readCall($, props.tool_use_id)
   if (call === undefined) {
     // A call from before a restart, whose row says what its result did:
     // whatever worker it names, the border's words read the same.

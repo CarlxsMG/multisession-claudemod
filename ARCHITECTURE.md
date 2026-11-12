@@ -88,7 +88,8 @@ under, so it never changes even where the code name differs.
 | `limits` | `limits` | `limits-1` | The engine's usage windows |
 | `modelLimits` | `modelLimits` | `limits-1` | The probed model windows (Fable's) |
 | `cast` | `members` | `cast-1` | Everyone the crew has had this session, so rows keep names and colours |
-| `calls` | `calls` | `calls-1` | The crew tools' calls seen, and the worker each of the main conversation's reached |
+| `calls` | `calls` | `calls-1` | The marks an earlier version of the plugin kept of the crew tools' calls: read for those, never written |
+| `call` | `call` | `call-1` | A family, one value per tool_use_id: a crew tool's call seen, and the worker the main conversation's reached. Each row reads its own, so a mark draws again that row alone |
 | `routes` | `routes` | `routes-1` | Where workers' messages went, by the head of their text |
 | `takeovers` | `takeovers` | `takeovers-1` | Woken agents, who they answer, and their held tasks |
 | `relays` | `relays` | `relays-1` | Workers' messages to free teammates, waiting for the next tick |
@@ -543,7 +544,7 @@ told anew. A worker's own calls are told nothing.
   drawn from what the row carries (`recover.ts`): the worker's name and address from the call's
   input or result, or the name a message's sender has; its colour where the row gives the
   agent's id, the plain one (`PLAIN`) where not; no title or time the row does not hold. So
-  that no row of this session is read that way, `calls` marks every delegate of the main
+  that no row of this session is read that way, `call` marks every delegate of the main
   conversation and every SendMessage and TaskStop the session sees, a worker's own and one that
   reached no one of the crew with no worker.
 - **Placed rows** (`$.ui.place`, component `Placed`): check-ins, summaries, end lines and message
@@ -683,7 +684,7 @@ is noticed in the debug log: `unrecognized($, kind, detail)` (`src/engine.ts`) w
   next tick.
 - **Route.** Where a worker's message went, by the head of its text, so a reply is matched.
 - **Call.** A crew call of the main conversation (`delegate`, `SendMessage`, `TaskStop`) by its
-  tool use id, and the worker it reached; the bubbles are drawn from it.
+  tool use id, and the worker it reached (`call`, one value per call); the bubbles are drawn from it.
 - **Job.** What a worker was last given: a task's title or a message's gist. End toasts and lines
   name it.
 - **Cast (members).** Everyone the crew has had this session, kept so old rows keep their names
