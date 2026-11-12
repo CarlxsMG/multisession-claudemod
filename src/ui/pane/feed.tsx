@@ -10,13 +10,16 @@ const BUBBLE_CHARS = 220
 const BUBBLE_LINES = 4
 const TYPE_MS_PER_CHAR = 28
 const TYPE_MAX_MS = 2400
-/** How often typing bubbles grow, outside Terminal.app. */
-export const TYPE_TICK_MS = 90
+/**
+ * How often typing bubbles grow, outside Terminal.app: each period draws the
+ * whole pane again, so a few characters at a time, not one.
+ */
+export const TYPE_TICK_MS = 150
 /**
  * Terminal.app draws each redraw as it comes, with no synchronized output:
  * fewer of them while a bubble types out.
  */
-export const APPLE_TYPE_TICK_MS = 180
+export const APPLE_TYPE_TICK_MS = 250
 
 // A bubble takes at most this share of the pane's width, and at least this
 // many columns.

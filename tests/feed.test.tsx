@@ -284,11 +284,11 @@ test("a bubble grows on the clock alone from one typing period on, before the pa
   expect(await ui.find({ type: 'Text', text: /^▌\s*$/ })).toBeDefined()
   // No redraw from the test, and the pane's own timer draws it again far later.
   await clock.advance(TYPE_TICK_MS)
-  expect(await ui.find({ type: 'Text', text: /^Arr▌\s*$/ })).toBeDefined()
+  expect(await ui.find({ type: 'Text', text: /^Arreg▌\s*$/ })).toBeDefined()
   await clock.advance(TYPE_TICK_MS)
-  expect(await ui.find({ type: 'Text', text: /^Arregl▌\s*$/ })).toBeDefined()
+  expect(await ui.find({ type: 'Text', text: /^Arreglar t▌\s*$/ })).toBeDefined()
   // The last period draws the bubble whole, with no cursor.
-  await clock.advance(4 * TYPE_TICK_MS)
+  await clock.advance(2 * TYPE_TICK_MS)
   expect(await ui.find({ type: 'Text', text: /^Arreglar tests\s*$/ })).toBeDefined()
   expect(await ui.find({ type: 'Text', text: /▌/ })).toBeUndefined()
   await ui.unmount()
@@ -318,7 +318,31 @@ test('the typing timer runs while a bubble types and at no other time', async ($
   await clock.settle()
   await clock.advance(TYPE_TICK_MS)
   expect(periods.length).toBeGreaterThan(typedOut)
-  expect(await ui.find({ type: 'Text', text: /^Tes▌\s*$/ })).toBeDefined()
+  expect(await ui.find({ type: 'Text', text: /^Tests▌\s*$/ })).toBeDefined()
+  await ui.unmount()
+})
+
+test('a long bubble types out in a few redraws of the pane, each a few characters on', async ($, on) => {
+  const clock = engine(on)
+  // The pane's redraws: each moves its beat on.
+  let redraws = 0
+  on('state.set', (_, e, next) => {
+    if (e.plugin === 'crew' && e.key === 'beat') redraws++
+    return next(e)
+  })
+  await $.session.start({ cwd: '/work/main', surface: 'terminal', isInteractive: true })
+  const ui = await $.ui.mount({ ...PANE, surface: 'terminal' })
+  await delegateTests($)
+  await clock.advance(1000)
+  const answer = 'Tests verdes: 42 ok, y el login ya acepta contraseñas caducadas y cuentas bloqueadas, cada caso con su propio test.'
+  await $.turn.complete({ answer, durationMs: 1000, isAborted: false, turnId: 't1', agentId: 'agent-1', reason: 'answer' })
+  await clock.settle()
+  redraws = 0
+  // A little past the longest a bubble types, 2.4 s.
+  await clock.advance(2500)
+  expect(await ui.find({ type: 'Text', text: /▌/ })).toBeUndefined()
+  expect(redraws).toBeGreaterThan(0)
+  expect(redraws).toBeLessThanOrEqual(18)
   await ui.unmount()
 })
 
