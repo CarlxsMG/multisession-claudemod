@@ -15,7 +15,7 @@ import { accentOf, nameColorOf } from '../../figure/accent'
 import type { Piece } from '../../progress/text/pieces'
 import { checkInRows } from '../../progress/text/rows'
 import { seeColumns } from '../../progress/status'
-import { readCheckins, readLook } from '../../state/atoms'
+import { readCheckins, readLook, readShown } from '../../state/atoms'
 import { hash } from '../../util/random'
 import { END } from '../../words'
 import { rowWidth } from './bubble'
@@ -51,11 +51,14 @@ export async function drawPlaced($: Engine, e: Parameters<DrawPlacedHook>[1], ne
   // An end's line, and a message's, stands apart: it neither folds nor
   // folds a check-in.
   const isWhole = list.findLast(c => c.kind === 'checkin' || c.kind === 'summary')?.id === row.id
+  // Only the newest check-in follows the round, and only its drawing reads
+  // what it shows now: a follow-up draws that one row again.
+  const shown = isWhole && row.kind === 'checkin' ? await readShown($, row.id) : null
   const width = e.viewport?.columns !== undefined ? rowWidth(e.viewport.columns) : Infinity
   const { Box, Text } = $.ui.resolve(e)
   return (
     <Box flexDirection="column">
-      {checkInRows(isWhole && row.shown !== undefined ? { ...row, ...row.shown } : row, width, isWhole).map(pieces => (
+      {checkInRows(shown !== null ? { ...row, ...shown } : row, width, isWhole).map(pieces => (
         <Text wrap="truncate-end" mono>
           {pieces.map(p => (
             <Text {...pieceStyle(p, look)}>{p.text}</Text>

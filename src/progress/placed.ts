@@ -15,10 +15,12 @@ import {
   readPendingRows,
   readRound,
   readRuns,
+  readShown,
   readWorkers,
   updateCheckins,
   updatePendingRows,
   updateRound,
+  updateShown,
 } from '../state/atoms'
 import { appendKept } from '../util/bounded'
 import { DEFAULT_EVERY, parseEvery } from './check-in'
@@ -119,10 +121,10 @@ export async function followCheckIn($: Engine, round: Round, list: readonly Work
   const newest = (await readCheckins($)).findLast(c => c.kind === 'checkin' || c.kind === 'summary')
   if (newest === undefined || newest.kind !== 'checkin' || newest.at < round.startedAt) return
   const lines = checkLines(round, all, await crewLookup($, list), now)
-  const was = newest.shown ?? newest
+  const was = (await readShown($, newest.id)) ?? newest
   if (linesSaid(lines) === linesSaid(was.lines) && now - was.at < CHECKIN_TIMES_MS) return
   const roundMs = (round.closedAt || now) - round.startedAt
-  await updateCheckins($, list => list.map(c => (c.id === newest.id ? { ...c, shown: { at: now, roundMs, lines } } : c)))
+  await updateShown($, newest.id, () => ({ at: now, roundMs, lines }))
 }
 
 /** The row that closes a round. */

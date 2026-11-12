@@ -73,6 +73,10 @@ const mainModel = atom({ plugin: 'crew', key: 'model' } as const, '', { shape: '
 const runs = atom({ plugin: 'crew', key: 'runs' } as const, [], { shape: 'runs-1' })
 const round = atom({ plugin: 'crew', key: 'round' } as const, NO_ROUND, { shape: 'round-1' })
 const checkins = atom({ plugin: 'crew', key: 'checkins' } as const, [], { shape: 'checkins-1' })
+// What the newest check-in shows now, one value per row id, apart from the
+// rows: a follow-up writes only this one, and draws again only the row it is
+// for, where a write of `checkins` draws every placed row again.
+const shown = atom({ plugin: 'crew', key: 'shown' } as const, null, { shape: 'shown-1' })
 // The lines that wait for the main session's turn to end, to be placed, in
 // the order they came: ends of runs whose report goes to another worker,
 // and messages between agents.
@@ -326,6 +330,16 @@ export function readCheckins($: StateDollar) {
 
 export function updateCheckins($: StateDollar, change: Change<typeof checkins>) {
   return update($, checkins, change)
+}
+
+/** What check-in `id` shows now, null before a follow-up wrote it; a drawing that reads it is drawn again only when it changes. */
+export function readShown($: StateDollar, id: string) {
+  return read($, memberOf(shown, { requestId: id }))
+}
+
+/** Changes what check-in `id` shows now. */
+export function updateShown($: StateDollar, id: string, change: Change<typeof shown>) {
+  return update($, memberOf(shown, { requestId: id }), change)
 }
 
 export function readPendingRows($: StateDollar) {
