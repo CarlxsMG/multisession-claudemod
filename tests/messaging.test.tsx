@@ -54,6 +54,31 @@ test("a worker's message to a free teammate goes on from the main conversation: 
   expect(await delegate({ task: 'Next step', title: 'Next', worker: 'pip' })).toMatch(/^Given to Pip /)
 })
 
+test("a worker's message to a busy teammate writes the workers once, for both of them", async ($, on) => {
+  let spawned = 0
+  let writes = 0
+  let written: readonly { id: string; lastMsgIn?: boolean }[] = []
+  on('state.set', { plugin: 'crew', key: 'workers' }, (_, e, next) => {
+    writes += 1
+    written = e.value.value
+    return next(e)
+  })
+  const seen: Seen = { prompts: [], sends: [] }
+  engine(on, { nextId: () => `agent-${++spawned}`, seen })
+  await $.session.start({ cwd: '/work/main', surface: 'terminal', isInteractive: true })
+  const delegate = async (input: Record<string, unknown>) => String((await $.tool.call({ tool: DELEGATE, ...input })).result)
+  await delegate({ task: 'Build the session bus step', title: 'Session bus', repo: '/work/api' })
+  await delegate({ task: 'Build the remote channel', title: 'Remote channel', repo: '/work/api', fresh: true })
+  writes = 0
+  await workerSend($, 'pip', 'Bolt: are you on router.ts?', 'agent-2')
+  expect(seen.sends[seen.sends.length - 1]).toBe('Bolt: are you on router.ts?')
+  expect(writes).toBe(1)
+  expect(written.map(w => [w.id, w.lastMsgIn])).toEqual([
+    ['agent-1', true],
+    ['agent-2', false],
+  ])
+})
+
 test('a relay whose record fails is still sent, and the relays queued after it go too', async ($, on) => {
   let spawned = 0
   const seen: Seen = { prompts: [], sends: [] }
