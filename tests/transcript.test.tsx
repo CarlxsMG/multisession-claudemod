@@ -220,6 +220,43 @@ test("the orchestrator's SendMessage and TaskStop to a worker are drawn in its c
   await stopped.unmount()
 })
 
+test("a call's mark draws again its own row alone: a worker's SendMessage leaves the orchestrator's rows as drawn", async ($, on) => {
+  let spawned = 0
+  engine(on, { nextId: () => `agent-${++spawned}` })
+  // The rows' reads of a call's mark, by tool_use_id, and the writes of the
+  // list every row read.
+  const reads: string[] = []
+  let listWrites = 0
+  on('state.get', (_, e, next) => {
+    if (e.plugin === 'crew' && e.key === 'call' && e.id !== undefined) reads.push(e.id)
+    return next(e)
+  })
+  on('state.set', (_, e, next) => {
+    if (e.plugin === 'crew' && e.key === 'calls') listWrites++
+    return next(e)
+  })
+  await $.session.start({ cwd: '/work/main', surface: 'terminal', isInteractive: true })
+  await $.tool.call({ tool: DELEGATE, task: 'A', repo: '/work/api', fresh: true })
+  await $.tool.call({ tool: DELEGATE, task: 'B', repo: '/work/web', fresh: true })
+  const ask = { to: 'pip', summary: 'Amplía el login', message: 'Añade el caso de la contraseña caducada.' }
+  await $.tool.call({ tool: 'SendMessage', tool_use_id: 'toolu_m1', ...ask })
+  const sent = await mountRow($, toolRow('SendMessage', 'toolu_m1', ask))
+  expect(await sent.find({ type: 'Text', text: /^╭─ Nova → Pip · Amplía el login ─+╮$/ })).toBeDefined()
+
+  reads.length = 0
+  listWrites = 0
+  const aside = { to: 'bolt', message: 'Te paso el esquema' }
+  await $.tool.call({ tool: 'SendMessage', tool_use_id: 'toolu_m2', agentId: 'agent-1', ...aside })
+  expect(listWrites).toBe(0)
+  expect(reads).not.toContain('toolu_m1')
+  expect(await sent.find({ type: 'Text', text: /^╭─ Nova → Pip · Amplía el login ─+╮$/ })).toBeDefined()
+  await sent.unmount()
+  // The worker's own row is marked all the same: the engine's.
+  const own = await mountRow($, toolRow('SendMessage', 'toolu_m2', aside, { output: { success: true, message: 'Message sent' } }))
+  expect((await own.drawn()).type).toBe('engine')
+  await own.unmount()
+})
+
 test("a worker's report and hand-back come in its color, to whoever started it", async ($, on) => {
   let spawned = 0
   engine(on, { nextId: () => `agent-${++spawned}` })

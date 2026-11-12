@@ -6,17 +6,16 @@ import type { LastJob, Member, Msg, MsgTone, NoteFirst, OrchMood } from '../../t
 import { MAIN_ADDRESS } from '../config'
 import type { Engine } from '../engine'
 import { runtime } from '../runtime'
-import { readMembers, readNoteFirst, readOrch, updateCalls, updateJobs, updateMembers, updateMessages, updateNoteFirst, updateOrch } from '../state/atoms'
+import { readMembers, readNoteFirst, readOrch, updateCall, updateJobs, updateMembers, updateMessages, updateNoteFirst, updateOrch } from '../state/atoms'
 import { appendKept } from '../util/bounded'
 import { oneLine } from '../util/text'
 import { findWorker } from './workers'
 
 // The newest of each the crew keeps: the messages the pane's feed shows,
-// the members and jobs its rows name, the calls of the crew's tools (the
-// workers' own among them), and the routes of the workers' messages.
+// the members and jobs its rows name, and the routes of the workers'
+// messages.
 const MESSAGES_KEEP = 60
 const CAST_KEEP = 120
-const CALLS_KEEP = 400
 /** The routes of workers' messages kept, the newest. */
 export const ROUTES_KEEP = 60
 const NOTE_FIRST_KEEP = 300
@@ -95,7 +94,7 @@ export async function enlist($: Engine, list: readonly Member[]) {
  */
 export async function markCall($: Engine, id: string | undefined, to = '') {
   if (!id) return
-  await updateCalls($, list => appendKept(list, [{ id, to }], CALLS_KEEP, c => c.id))
+  await updateCall($, id, () => ({ id, to }))
 }
 
 /** What a worker was last given: a task's title, a message's summary. */
