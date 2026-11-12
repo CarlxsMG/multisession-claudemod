@@ -1,5 +1,5 @@
 import { expect } from 'claude-code/testing'
-import type { AgentInfo, TurnCompleteInput } from 'claude-code'
+import type { AgentInfo, On, TurnCompleteInput } from 'claude-code'
 import { NAME_COLORS, W } from '../src/figure/catalog'
 import { DIAMOND_ROWS, DIAMOND_W } from '../src/figure/diamond'
 import { DEFAULT_LOOK, defaultLook } from '../src/figure/look'
@@ -119,12 +119,13 @@ test('the top line fits its width: the model is cut first, then left out, and th
 })
 
 test('a long command takes two lines beside the orchestrator', async ($, on) => {
-  engine(on)
+  const clock = engine(on)
   await $.session.start({ cwd: '/work/main', surface: 'terminal', isInteractive: true })
   await $.tool.call({
     tool: 'Bash',
     command: 'cd /work/api && npm run test -- --coverage --reporter=verbose --bail --watch=false',
   })
+  await clock.advance(400)
 
   const ui = await $.ui.mount({ ...PANE, surface: 'terminal' })
   const first = await ui.find({ type: 'Text', text: /^Bash cd \/work\/api/ })
@@ -294,14 +295,58 @@ test("the orchestrator's line holds while its mood does, whatever tools it calls
     await ui.unmount()
     return line
   }
+  // What each call says the orchestrator does shows from the pane's next frame.
   await $.tool.call({ tool: 'Bash', command: 'ls' })
+  await clock.advance(400)
   const first = await said()
   expect(first).toBeDefined()
   for (const command of ['git status', 'npm test', 'git log', 'npm run build']) {
     await clock.advance(3000)
     await $.tool.call({ tool: 'Bash', command })
+    await clock.advance(400)
     expect(await said()).toBe(first)
   }
+})
+
+// The orchestrator's mood and activity as each write of them lands.
+const orchWrites = (on: On) => {
+  const written: { mood: string; activity: string }[] = []
+  on('state.set', { plugin: 'crew', key: 'orch' }, (_, e, next) => {
+    written.push({ mood: e.value.value.mood, activity: e.value.value.activity })
+    return next(e)
+  })
+  return written
+}
+
+test("the main conversation's calls within one frame write what the orchestrator does once, as the last one says it", async ($, on) => {
+  const written = orchWrites(on)
+  const clock = engine(on)
+  await $.session.start({ cwd: '/work/main', surface: 'terminal', isInteractive: true })
+  await clock.advance(400)
+  written.length = 0
+  for (const file of ['a.ts', 'b.ts', 'c.ts']) await $.tool.call({ tool: 'Read', file_path: `/work/api/${file}` })
+  expect(written).toEqual([])
+  await clock.advance(400)
+  expect(written).toEqual([{ mood: 'working', activity: 'Read c.ts' }])
+  const ui = await $.ui.mount({ ...PANE, surface: 'terminal' })
+  expect(await ui.find({ type: 'Text', text: /Read c\.ts/ })).toBeDefined()
+  await ui.unmount()
+})
+
+test("a turn's end before the pane's next frame stands: the call held for that frame is let go", async ($, on) => {
+  const written = orchWrites(on)
+  on('turn.start', (_, e) => ({ turnId: e.turnId }))
+  const clock = engine(on)
+  await $.session.start({ cwd: '/work/main', surface: 'terminal', isInteractive: true })
+  await $.turn.start({ text: '', turnId: 'm1' })
+  await $.tool.call({ tool: 'Read', file_path: '/work/api/a.ts' })
+  await $.turn.complete({ answer: '', durationMs: 1, isAborted: false, turnId: 'm1', reason: 'answer' })
+  written.length = 0
+  await clock.advance(800)
+  expect(written).toEqual([])
+  const ui = await $.ui.mount({ ...PANE, surface: 'terminal' })
+  expect(await ui.find({ type: 'Text', text: /Read a\.ts/ })).toBeUndefined()
+  await ui.unmount()
 })
 
 test('a free worker naps, and its card says nothing more', async ($, on) => {

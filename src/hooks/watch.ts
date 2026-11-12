@@ -6,7 +6,7 @@ import { BACKGROUND_TOOLS } from '../background/tasks'
 import { beforeTaskStop, noteBackground } from '../background/sweep'
 import { DELEGATE, PLUGIN, PROGRESS } from '../config'
 import { overlapNote } from '../crew/edits'
-import { gistOf, markCall, markCrewCall, setJob, setOrch } from '../crew/feed'
+import { gistOf, holdOrch, markCall, markCrewCall, setJob, setOrch } from '../crew/feed'
 import { SHELL_TOOLS, noteOwnWorktree } from '../crew/own-worktree'
 import { noteSendGist } from '../crew/sends'
 import { forgetIsolated, noteIsolated, takeNote } from '../crew/spawn'
@@ -49,7 +49,8 @@ export async function watchCall($: Engine, e: Parameters<WatchCallHook>[1], next
     await setOrch($, 'delegating', t().talkingTo(String(call.to ?? '?')))
     await markCrewCall($, e.tool_use_id, call.to)
   } else if (e.tool !== DELEGATE) {
-    await setOrch($, 'working', describe(call))
+    // Written at the pane's next frame: a response's calls redraw it once.
+    holdOrch('working', describe(call), await $.clock.now())
     if (e.tool === 'TaskStop') await markCrewCall($, e.tool_use_id, call.task_id ?? call.shell_id)
   }
   if (e.tool === 'Agent') {

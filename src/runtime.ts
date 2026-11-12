@@ -8,7 +8,7 @@
 // import it whatever it imports itself.
 import type { Timer } from 'claude-code'
 
-import type { NoteFirst, Phase } from '../types'
+import type { NoteFirst, OrchMood, Phase } from '../types'
 import type { Proc } from './background/orphans'
 import type { Cells } from './figure/raster'
 
@@ -125,6 +125,12 @@ function fresh() {
      * frame were first drawn with, by request id, until that frame keeps it.
      */
     notes: { held: new Map<string, NoteFirst>() },
+    /**
+     * `src/crew/feed.ts`: what the orchestrator does, as its last tool call
+     * said it, with when, held for the pane's next frame (undefined for
+     * none), and how many moods were said at once since the load started.
+     */
+    orchHeld: { held: undefined as { mood: OrchMood; activity: string; at: number } | undefined, said: 0 },
     /** `src/settings/notes.ts`: the conversation the last `[crew]` check was for. */
     told: { checked: undefined as string | undefined },
     /** `src/settings/mood-lines.ts`: the personality Haiku is writing lines for now, and one it could not. */

@@ -4,7 +4,7 @@
 import type { Look } from '../../../types'
 import { PANE } from '../../config'
 import { relayIfDue } from '../../crew/relay'
-import { hasHeldFirsts, keepFirstDrawn } from '../../crew/feed'
+import { hasHeldFirsts, hasHeldOrch, keepFirstDrawn, writeHeldOrch } from '../../crew/feed'
 import { syncCrew } from '../../crew/sync'
 import { releaseIfDue } from '../../crew/takeover'
 import { waitingIfDue } from '../../crew/waiting'
@@ -160,9 +160,11 @@ export function tick($: Engine) {
       return redrawPane($)
     })
   }
-  // The workers' calls since the last frame, in one write, and the first
-  // drawings of the end-of-task rows drawn since.
+  // The workers' calls since the last frame, in one write, what the
+  // orchestrator's last call said it does, and the first drawings of the
+  // end-of-task rows drawn since.
   if (hasHeldCalls()) void writeCalls($)
+  if (hasHeldOrch()) void quiet($, writeHeldOrch($), 'orch')
   if (hasHeldFirsts()) void quiet($, keepFirstDrawn($), 'first drawn')
   relayIfDue($)
   // The engine's statuses now and then, and the marks of woken workers whose

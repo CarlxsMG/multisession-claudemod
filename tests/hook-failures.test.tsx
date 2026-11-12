@@ -148,7 +148,8 @@ const GOES_ON: Failure[] = [
       engine(on)
       await $.session.start(START)
       fault.isOn = true
-      const done = await $.tool.call({ tool: 'Read', file_path: '/work/api/a.ts' })
+      // A worker's call: the watch reads the workers before its next.
+      const done = await $.tool.call({ tool: 'Read', file_path: '/work/api/a.ts', agentId: 'agent-1' })
       expect(done.deny).toBeUndefined()
       expect(done.result).toEqual({})
       expect(reached.calls).toBe(1)

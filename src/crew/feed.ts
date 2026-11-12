@@ -132,10 +132,59 @@ export const headOf = (text: string): string => oneLine(text, 160)
  * Sets the orchestrator's mood and what it is doing. A new mood starts now;
  * the same one keeps its start, so its line stays up its while. When
  * neither changes nothing is written, and the pane does not draw again.
+ * Said at once, it stands over what a tool call held (`holdOrch`).
  */
 export async function setOrch($: Engine, mood: OrchMood, activity: string) {
+  orchHolding.held = undefined
+  orchHolding.said += 1
+  await writeOrch(
+    $,
+    mood,
+    activity,
+    () => $.clock.now(),
+    () => true,
+  )
+}
+
+const orchHolding = runtime.orchHeld
+
+/**
+ * What the orchestrator does as a tool call says it, held for the pane's
+ * next frame (`writeHeldOrch`): calls come several to a response, and each
+ * write of the mood draws the pane again. A new mood starts at `at`, the
+ * call's time.
+ */
+export function holdOrch(mood: OrchMood, activity: string, at: number) {
+  orchHolding.held = { mood, activity, at }
+}
+
+/** Whether a tool call's word on what the orchestrator does waits to be written. */
+export const hasHeldOrch = (): boolean => orchHolding.held !== undefined
+
+/**
+ * Writes what `holdOrch` held, when anything is: for the pane's timer. A
+ * mood said at once meanwhile (`setOrch`) stands, and what was held is let go.
+ */
+export async function writeHeldOrch($: Engine) {
+  const held = orchHolding.held
+  if (held === undefined) return
+  orchHolding.held = undefined
+  const said = orchHolding.said
+  await writeOrch(
+    $,
+    held.mood,
+    held.activity,
+    async () => held.at,
+    () => orchHolding.said === said,
+  )
+}
+
+// The mood and activity written, a new mood starting at `start`'s time,
+// while `stands` holds; nothing written when neither changes.
+async function writeOrch($: Engine, mood: OrchMood, activity: string, start: () => Promise<number>, stands: () => boolean) {
   const orch = await readOrch($)
   if (orch.mood === mood && orch.activity === activity) return
-  const now = await $.clock.now()
-  await updateOrch($, o => (o.mood === mood ? { ...o, activity } : { mood, activity, since: now }))
+  const since = await start()
+  if (!stands()) return
+  await updateOrch($, o => (!stands() ? o : o.mood === mood ? { ...o, activity } : { mood, activity, since }))
 }
