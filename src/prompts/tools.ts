@@ -1,9 +1,9 @@
 // The crew's tools as the models see them: names, descriptions and input
 // schemas. tests/golden/model-text.ts holds each spec as it is.
-import { COMPACT_GAP_MIN, REUSE_CONTEXT_MAX, REUSE_WARM_MIN, ROSTER_FULL_REPORT_CUT, ROSTER_REPORT_CUT, ROSTER_REPORTS, ROSTER_ROWS } from '../config'
+import { COMPACT_GAP_MIN, ROSTER_FULL_REPORT_CUT, ROSTER_REPORT_CUT, ROSTER_REPORTS, ROSTER_ROWS } from '../config'
 import { DELEGATION_RULES } from './orchestrator'
 
-const DELEGATE_ABOUT = `Hand a task to a crew worker: a named background subagent, general-purpose unless \`subagent_type\` says otherwise, that reports back when done. Goes to the worker you name; else to the free worker this tool started in that repository, of that type and on that model (the session's when unset), that last finished a task, if it did within ${REUSE_WARM_MIN} min (its context is still cached) and holds under ${REUSE_CONTEXT_MAX / 1000}k tokens, or the next such it can reach; it keeps its context; else to a new one. Returns at once: the worker's address, and who else is busy where it works.`
+const DELEGATE_ABOUT = `Hand a task to a crew worker: a named background subagent, general-purpose unless \`subagent_type\` says otherwise, that reports back when done. Goes to the worker you name, which keeps its context; else to a new one. Returns at once: the worker's address, and who else is busy where it works.`
 
 // Policy plugins can keep out a system section but not a tool description, so
 // the rules ride here and nowhere else, for the orchestrator alone and only
@@ -39,26 +39,26 @@ export const DELEGATE_SPEC = {
       worker: {
         type: 'string',
         description:
-          "Name or address of a worker in the roster to give this to, forks and the Agent tool's agents included; it keeps its context and its agent type. A busy worker gets the task as a message in the middle of its current one unless `after` names it, so prefer a free worker; one answering another worker gets it once that ends.",
+          "Name or address of a worker in the roster to give this to, forks and the Agent tool's agents included; it keeps its context and type. Left out, a new worker starts. A busy one gets the task mid-task unless `after` names it, so prefer a free one; one answering another worker gets it once that ends.",
       },
       after: {
         type: 'string',
         description:
-          "Name or address of a busy worker whose run this task waits for. The task is held and given when that run ends, as a task of its own: to that worker, to the one `worker` names, or to a new one with `fresh`. If that run fails or is stopped it is not given, and you are told. For another worker, say in the task what it needs of that run's result; it can ask that worker with SendMessage.",
+          'A busy worker whose run this task waits for. The task is given when that run ends, as a task of its own: to that worker, to the one `worker` names, or to a new one with `fresh`; not if that run fails or is stopped, and you are told. For another worker, say in the task what it needs of that run; it can ask with SendMessage.',
       },
       fresh: {
         type: 'boolean',
-        description: 'Start a new worker instead of reusing a free one.',
+        description: 'With `after` and no `worker`: a new worker takes the task, not the one waited for.',
       },
       subagent_type: {
         type: 'string',
         description:
-          "Agent type for a new worker, as the Agent tool lists them: `Explore` for a read-only search across many files, `Plan` for a design, the project's own agents. General-purpose when unset. Only a worker of the same type is reused; a fork starts from the Agent tool instead.",
+          "Agent type for a new worker, as the Agent tool lists them: `Explore` for a read-only search across many files, `Plan` for a design, the project's own agents. General-purpose when unset; a fork starts from the Agent tool instead.",
       },
       model: {
         type: 'string',
         description:
-          'Model alias for a new worker. Leave it unset: the worker then runs on the session\'s model, whatever its type. Name one ("sonnet", "opus" or "fable") only when the user asks; asking for haiku gives the session\'s model. A free worker is reused only if it runs on that model, or on the session\'s when unset, however it was asked for it.',
+          'Model alias for a new worker; unset, it runs on the session\'s model. Name one ("sonnet", "opus" or "fable") only when the user asks; haiku gives the session\'s model.',
       },
     },
     required: ['task'],

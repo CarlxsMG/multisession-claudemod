@@ -3,7 +3,7 @@
 // of its text sit together, so a change in wording reaches both;
 // tests/golden/model-text.ts holds each text as it is.
 import type { Plan, Worker } from '../../types'
-import { ROSTER } from '../config'
+import { tokensText } from './roster'
 
 // ---- delegate ----
 
@@ -22,14 +22,6 @@ export const noWorker = (key: string, addresses: readonly string[]): string =>
   `crew: no worker "${key}". Workers: ${addresses.length > 0 ? addresses.join(', ') : 'none'}.`
 
 export const unreachable = (name: string, reason: string): string => `crew: could not reach ${name}: ${reason}`
-
-/**
- * A free worker's send failed on its way and may have arrived: no other
- * worker is given the task, as two would then do it. `lost` are the free
- * ones tried before it that could not be reached.
- */
-export const unsureSend = (w: Pick<Worker, 'name' | 'address'>, lost: readonly Lost[]): string =>
-  `crew: the task may have reached ${w.name} (address "${w.address}"): its send failed on its way, so no other worker was tried and none started.${lost.length > 0 ? ` Before it, ${notReached(lost)}.` : ''} See whether ${w.name} is working (${ROSTER} with \`worker\` "${w.address}"): if it is, it has the task and reports to you; if not, give the task again.`
 
 // What became of the tasks held for a woken worker that did not reach it:
 // they wait for the next task given to it.
@@ -124,93 +116,19 @@ const STARTED = 'Started '
 
 /** Why a task went to a worker that existed: the call named it. */
 export const PICKED_NAMED = 'as named'
-/** Why a task went to a worker that existed: no call named it, and of the free ones it came first. */
-export const PICKED_FREE = 'the free worker of that type and model there that last finished a task'
-
-// The free workers passed over that a result names; the rest are counted.
-const ALSO_FREE = 3
+/** Why a new worker was started: the call named none, and only a named worker is given a task. */
+export const NEW_UNNAMED = 'as no worker was named'
 
 /**
- * `PICKED_FREE` with the free workers it was picked over, best first, so the
- * orchestrator can send the task to one of them by name instead.
+ * What a named worker's conversation holds, for `given`: what every request
+ * of it sends again; '' when it is not known.
  */
-export const pickedFree = (others: readonly string[]): string => PICKED_FREE + alsoFree(others)
-
-// The free workers a task did not go to, best first, and how to pick one; ''
-// when there is none.
-function alsoFree(others: readonly string[]): string {
-  if (others.length === 0) return ''
-  const more = others.length - ALSO_FREE
-  const names = others.slice(0, ALSO_FREE).join(', ') + (more > 0 ? ` and ${more} more` : '')
-  return ` (also free: ${names}; name one with \`worker\` to pick it)`
-}
-
-/** A free worker a task was sent to and did not reach, with the reason its send gave. */
-export type Lost = { name: string; reason: string }
-
-// The free workers that could not be reached, each with its reason, up to
-// "could not be reached"; `aside` goes between the names and the verb.
-function notReached(lost: readonly Lost[], aside = ''): string {
-  const why = lost.map(l => l.reason.replace(/^crew: /, '').replace(/\.$/, ''))
-  if (lost.length === 1) return `${lost[0]!.name}${aside} could not be reached (${why[0]})`
-  const each = lost.map((l, i) => `${l.name} (${why[i]})`)
-  return `${each.slice(0, -1).join(', ')} and ${each[each.length - 1]}${aside} could not be reached`
-}
-
-/**
- * Why a task went to a worker that existed: the free ones ahead of it, `lost`
- * in the order tried, did not get it. `others` are the free ones after it.
- */
-export const pickedNext = (lost: readonly Lost[], others: readonly string[]): string =>
-  `the next free worker of that type and model there${alsoFree(others)}, as ${notReached(lost)}`
-/** Why a new worker was started: none that was free would do. */
-export const NEW_NONE_FREE = 'as no free worker of that type and model was there'
-/**
- * Why a new worker was started: the free ones that would do, `idle`, best
- * first, ended their last turn over `warmMin` minutes ago, and one such is
- * reused only when named.
- */
-export const newAfterIdle = (idle: readonly string[], warmMin: number): string =>
-  `as no free worker of that type and model there finished a task in the last ${warmMin} min, so none has its context cached${alsoFree(idle)}`
-/**
- * Why a new worker was started: the free ones that would do, `large`, best
- * first, each hold over `maxK` thousand tokens, and one such is reused only
- * when named.
- */
-export const newAfterLarge = (large: readonly string[], maxK: number): string =>
-  `as every free worker of that type and model there holds over ${maxK}k tokens of context, which each of its requests sends again${alsoFree(large)}`
-/**
- * Why a new worker was started: of the free ones that would do, `passed`,
- * best first, some ended their last turn too long ago and the others hold
- * too much.
- */
-export const newAfterIdleOrLarge = (passed: readonly string[], warmMin: number, maxK: number): string =>
-  `as every free worker of that type and model there either finished its last task over ${warmMin} min ago or holds over ${maxK}k tokens of context${alsoFree(passed)}`
-/** Why a new worker was started: the call asked for one. */
-export const NEW_FRESH = 'as `fresh` asked'
-/**
- * Why a new worker was started: the free ones the task was sent to, `lost` in
- * the order tried, did not get it. `untried` are the free ones it was not sent
- * to, as only so many are tried.
- */
-export const newAfterLost = (lost: readonly Lost[], untried: readonly string[]): string =>
-  `as ${notReached(lost, ', free there,')}${untried.length > 0 ? `, and no more were tried${alsoFree(untried)}` : ''}`
-
-/**
- * What the context of a worker no call named holds, for `given`: the task it
- * last had, how long ago its last turn ended (`ago`, undefined for one that
- * ended none), the tokens its turns used and what its conversation holds
- * (`context`, '' when not known), as the roster words them. The orchestrator
- * did not choose this worker: it reads here what it got.
- */
-export const holds = (lastTask: string, ago: string | undefined, tokens: string, context = ''): string =>
-  `: last task "${lastTask}"${ago === undefined ? '' : `, finished ${ago} ago`}, ${tokens} used${context}`
+export const heldTokens = (n: number | undefined): string => (n === undefined ? '' : `: ${tokensText(n)}`)
 
 /**
  * `where` is the worker's repository, or "a worktree of" it; `why` the
  * clause that says how it was picked; `notes` the sentences that follow, each
- * with its leading space, then any heads-up; `held` what `holds` says of a
- * worker no call named, '' for one named.
+ * with its leading space, then any heads-up; `held` what `heldTokens` says.
  */
 export const given = (w: Pick<Worker, 'name' | 'address'>, where: string, why: string, notes: string, held = ''): string =>
   `${GIVEN}${w.name} (address "${w.address}") in ${where}, ${why}; context kept${held}.${notes}`
@@ -225,7 +143,7 @@ export const givenWhileBusy = (name: string, inFlight: string): string =>
 /** What a task given to a worker named after a failed run adds. */
 export const givenAfterFailure = (name: string): string => ` ${name}'s last run failed: if this task builds on that one, have it check what was left undone.`
 
-/** What a task given to a worker whose last run was stopped adds, named or not. */
+/** What a task given to a worker whose last run was stopped adds. */
 export const givenAfterStop = (name: string): string => ` ${name}'s last run was stopped: if this task builds on that one, have it check what was left undone.`
 
 /** A `repo` a call gave with a worker that works elsewhere; `where` as `given` takes it. */

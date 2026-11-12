@@ -2,7 +2,6 @@ import { expect } from 'claude-code/testing'
 import type { TestBody } from 'claude-code/testing'
 import type { AgentSpawnInput } from 'claude-code'
 import { WORKER_NAMES } from '../src/persona/names'
-import { SEND_UNSURE } from '../src/prompts/results'
 import { COMPOSER, DELEGATE, NO_VERDICT, PANE, SURFACES, USAGE, crewCommand, engine, mountRow, spawnAgent, test, toolRow } from './support/crew'
 import type { Ask, Seen } from './support/crew'
 
@@ -80,8 +79,8 @@ test("where auto mode reviews only the model's own calls, the orchestrator start
   // Delegate's own: each takes the next task in its repository.
   await done('agent-1')
   await done('agent-2')
-  expect(await delegate({ task: 'Now the e2e', repo: '/work/api' })).toMatch(/^Given to Pip/)
-  expect(await delegate({ task: 'And the signup', repo: '/work/web', model: 'sonnet' })).toMatch(/^Given to Bolt/)
+  expect(await delegate({ task: 'Now the e2e', worker: 'pip' })).toMatch(/^Given to Pip/)
+  expect(await delegate({ task: 'And the signup', worker: 'bolt' })).toMatch(/^Given to Bolt/)
 })
 
 test('a worker the orchestrator starts for delegate is as delegate asked: its model, its reuse, the row of its delegate call, and why it is new', async ($, on) => {
@@ -104,7 +103,7 @@ test('a worker the orchestrator starts for delegate is as delegate asked: its mo
   const first = await agent('toolu_a1', { prompt: 'Run the tests', description: 'Tests', name: 'pip' })
   expect(seen.spawns[0]?.model).toBe('sonnet')
   expect(first.context).toEqual([
-    '[crew] This agent is Pip (address "pip", id agent-1), the worker delegate had you start, in /work/api: a new one, as no free worker of that type and model was there.',
+    '[crew] This agent is Pip (address "pip", id agent-1), the worker delegate had you start, in /work/api: a new one, as no worker was named.',
   ])
   // The delegate call's row names the worker its Agent call started.
   const row = await mountRow($, toolRow(DELEGATE, 'toolu_d1', tests, { output: handoff }))
@@ -117,14 +116,18 @@ test('a worker the orchestrator starts for delegate is as delegate asked: its mo
   const second = await agent('toolu_a2', { prompt: 'Fix the login', description: 'Login', name: 'bolt', model: 'sonnet' })
   expect(seen.spawns[1]?.model).toBe('opus')
   expect(second.context).toEqual([
-    '[crew] This agent is Bolt (address "bolt", id agent-2), the worker delegate had you start, in /work/api: a new one, as `fresh` asked. It runs on the session\'s model, as delegate was asked, not on "sonnet".\nHeads-up: Pip is working in this repository; keep files apart or wait for its report.\nFiles edited so far: Pip: none yet.',
+    '[crew] This agent is Bolt (address "bolt", id agent-2), the worker delegate had you start, in /work/api: a new one, as no worker was named. It runs on the session\'s model, as delegate was asked, not on "sonnet".\nHeads-up: Pip is working in this repository; keep files apart or wait for its report.\nFiles edited so far: Pip: none yet.',
   ])
 
-  // Each is reused for the model delegate was asked, not the one its Agent call named.
+  // Each runs on the model delegate was asked, not the one its Agent call
+  // named: a named call for that model notes nothing it is not.
   await done('agent-1')
   await done('agent-2')
-  expect(await delegate({ task: 'Now the e2e', repo: '/work/api', model: 'sonnet' })).toMatch(/^Given to Pip/)
-  expect(await delegate({ task: 'And the signup', repo: '/work/api' })).toMatch(/^Given to Bolt/)
+  const head = (result: string) => result.split('\n')[0]
+  expect(head(await delegate({ task: 'Now the e2e', worker: 'pip', model: 'sonnet' }))).toBe(
+    'Given to Pip (address "pip") in /work/api, as named; context kept.',
+  )
+  expect(head(await delegate({ task: 'And the signup', worker: 'bolt' }))).toBe('Given to Bolt (address "bolt") in /work/api, as named; context kept.')
 })
 
 test('a worker handed to the orchestrator that its turn does not start is let go: its name is free, and a later agent is not the crew’s worker', async ($, on) => {
@@ -163,14 +166,10 @@ test('a worker handed to the orchestrator that its turn does not start is let go
   await done()
 
   // An Agent call a later turn writes for it starts an agent of its own
-  // repository and no worker of delegate's: an unnamed task does not reach it.
+  // repository and no worker of delegate's.
   await agent('mika', 'Write the docs')
   expect(seen.spawns?.[2]?.cwd).toBeUndefined()
-  await done('agent-3')
-  await done('agent-2')
-  const given = await delegate({ task: 'Polish it' })
-  expect(given).toMatch(/^Given to Pip .*\(also free: Bolt; /)
-  expect(given).not.toMatch(/Mika/)
+  expect(rowOf(await roster($), 'Mika')).not.toMatch(/repo \/work\/api/)
 })
 
 test('an Agent call for a handed-over worker that starts nothing leaves the handoff for the call written again, until the turn ends', async ($, on) => {
@@ -390,7 +389,7 @@ test('a spawn auto mode refused is said as it is, and nothing is handed on', asy
   expect(result).toBe('crew: could not start a worker: Auto mode blocked this action: it deletes the repository.')
 })
 
-test('a free worker of the repo is reused however long its history', async ($, on) => {
+test('a named worker is reused however long its history', async ($, on) => {
   let spawned = 0
   engine(on, { nextId: () => `agent-${++spawned}` })
   await $.session.start({ cwd: '/work/main', surface: 'terminal', isInteractive: true })
@@ -398,26 +397,21 @@ test('a free worker of the repo is reused however long its history', async ($, o
   const done = (agentId: string, usage?: typeof USAGE) =>
     $.turn.complete({ answer: 'Hecho', durationMs: 1000, isAborted: false, turnId: `t-${agentId}`, agentId, reason: 'answer', ...(usage ? { usage } : {}) })
 
-  expect(await delegate({ task: 'List the routes', repo: '/work/api', model: 'sonnet' })).toMatch(/^Started Pip/)
+  expect(await delegate({ task: 'Design the cache', repo: '/work/api' })).toMatch(/^Started Pip/)
   await done('agent-1')
-  // Without a model, only a worker on the session's model, opus, will do.
-  expect(await delegate({ task: 'Design the cache', repo: '/work/api' })).toMatch(/^Started Bolt/)
-  await done('agent-2')
-  // A model asked for is one the worker must run on; Pip and Mika stay busy from here.
-  expect(await delegate({ task: 'Check the queries', repo: '/work/api', model: 'sonnet' })).toMatch(/^Given to Pip/)
-  expect(await delegate({ task: 'Review it', repo: '/work/api', model: 'fable' })).toMatch(/^Started Mika/)
   // No count of tasks or tokens sends it to a new worker: a worker compacts.
   for (let i = 2; i <= 12; i++) {
-    expect(await delegate({ task: `Follow-up ${i}`, repo: '/work/api' })).toMatch(/^Given to Bolt/)
-    await done('agent-2', { ...USAGE, input_tokens: 600_000 })
+    expect(await delegate({ task: `Follow-up ${i}`, repo: '/work/api', worker: 'pip' })).toMatch(/^Given to Pip/)
+    await done('agent-1', { ...USAGE, input_tokens: 600_000 })
   }
-  const roster = String((await $.tool.call({ tool: 'mcp__crew__roster', worker: 'bolt' })).result)
+  const roster = String((await $.tool.call({ tool: 'mcp__crew__roster', worker: 'pip' })).result)
   // The roster still shows both, as information.
   expect(roster).toMatch(/, 12 tasks, ~6655k tokens, /)
-  expect(await delegate({ task: 'Yet another', repo: '/work/api' })).toMatch(/^Given to Bolt/)
+  expect(await delegate({ task: 'Yet another', repo: '/work/api', worker: 'pip' })).toMatch(/^Given to Pip/)
+  expect(spawned).toBe(1)
 })
 
-test('on Windows a repository is found however it is spelled, and its free worker reused', async ($, on) => {
+test('on Windows a repository is found however it is spelled, also as the one a named worker works in', async ($, on) => {
   let spawned = 0
   const seen = { prompts: [] as string[], sends: [] as string[] }
   const host = { cwd: 'C:\\work\\main', env: { USERPROFILE: 'C:\\Users\\ana' } }
@@ -428,8 +422,11 @@ test('on Windows a repository is found however it is spelled, and its free worke
 
   expect(await delegate({ task: 'Map the API', repo: 'C:\\work\\api' })).toMatch(/^Started Pip .* in C:\\work\\api, /)
   await done('agent-1')
-  // Another case, the other slash, a trailing one: the same repository.
-  expect(await delegate({ task: 'Fix the router', repo: 'c:/work/api/' })).toMatch(/^Given to Pip /)
+  // Another case, the other slash, a trailing one: the same repository, so
+  // the named worker's result notes no other.
+  expect(await delegate({ task: 'Fix the router', repo: 'c:/work/api/', worker: 'pip' })).toBe(
+    'Given to Pip (address "pip") in C:\\work\\api, as named; context kept.',
+  )
   // A teammate there is named by its folder, not the whole path.
   await delegate({ task: 'Write the docs', repo: '..\\api', fresh: true })
   expect(seen.prompts[seen.prompts.length - 1]).toMatch(/Teammates you can reach with SendMessage: Pip \("pip", api\)/)
@@ -516,7 +513,7 @@ test('a worker the list let go is found on the shelf by name, address or id, and
   expect(spawned).toBe(28)
 })
 
-test('the result says why its worker got the task: named, the free one, or a new one and why', async ($, on) => {
+test('the result says why its worker got the task: named, or a new one as none was', async ($, on) => {
   let spawned = 0
   const seen: Seen = { prompts: [], sends: [] }
   engine(on, { nextId: () => `agent-${++spawned}`, seen })
@@ -525,104 +522,15 @@ test('the result says why its worker got the task: named, the free one, or a new
   const done = (agentId: string) => $.turn.complete({ answer: 'Hecho', durationMs: 1, isAborted: false, turnId: `t-${agentId}`, agentId, reason: 'answer' })
   const first = (result: string) => result.split('\n')[0]
 
-  expect(await delegate({ task: 'Map the API' })).toBe('Started Pip (address "pip", id ?) in /work/api, as no free worker of that type and model was there.')
+  expect(await delegate({ task: 'Map the API' })).toBe('Started Pip (address "pip", id ?) in /work/api, as no worker was named.')
   await done('agent-1')
-  expect(first(await delegate({ task: 'Write the docs', fresh: true }))).toBe('Started Bolt (address "bolt", id ?) in /work/api, as `fresh` asked.')
-  expect(first(await delegate({ task: 'Add the endpoint' }))).toBe(
-    'Given to Pip (address "pip") in /work/api, the free worker of that type and model there that last finished a task; context kept: last task "Map the API", finished 0s ago, 0 tokens used.',
-  )
-  await done('agent-1')
-  expect(first(await delegate({ task: 'Test the endpoint', worker: 'pip' }))).toBe('Given to Pip (address "pip") in /work/api, as named; context kept.')
-  await done('agent-1')
-
-  // A free worker the task did not reach: a new one takes it, and the result
-  // names the one that was tried and why it failed.
-  seen.undelivered = 'the agent is gone.'
-  expect(first(await delegate({ task: 'Review the endpoint' }))).toBe(
-    'Started Mika (address "mika", id ?) in /work/api, as Pip, free there, could not be reached (the agent is gone).',
-  )
-})
-
-test('a free worker that cannot be reached gives way to the next free one, and a new one starts only when none is reached', async ($, on) => {
-  let spawned = 0
-  const seen: Seen = { prompts: [], sends: [] }
-  const clock = engine(on, { nextId: () => `agent-${++spawned}`, seen })
-  await $.session.start({ cwd: '/work/main', surface: 'terminal', isInteractive: true })
-  const delegate = async (input: Record<string, unknown>) => String((await $.tool.call({ tool: 'mcp__crew__delegate', repo: '/work/api', ...input })).result)
-  let turns = 0
-  const done = async (agentId: string) => {
-    await clock.advance(1000)
-    await $.turn.complete({ answer: 'Hecho', durationMs: 1, isAborted: false, turnId: `t-${++turns}`, agentId, reason: 'answer' })
-  }
-  const first = (result: string) => result.split('\n')[0]
-  const gone = (...ids: string[]) => Object.fromEntries(ids.map(id => [id, 'crew: the agent is gone.']))
-
-  // Four free workers, best first: Tito, Mika, Bolt, Pip.
-  for (const task of ['Map the API', 'Write the docs', 'Add the endpoint', 'Test the endpoint']) await delegate({ task, fresh: true })
-  for (const id of ['agent-1', 'agent-2', 'agent-3', 'agent-4']) await done(id)
-
-  // The first cannot be reached: the second takes the task, and no worker starts.
-  seen.gone = gone('agent-4')
-  expect(first(await delegate({ task: 'Review the endpoint' }))).toBe(
-    'Given to Mika (address "mika") in /work/api, the next free worker of that type and model there (also free: Bolt, Pip; name one with `worker` to pick it), as Tito could not be reached (the agent is gone); context kept: last task "Add the endpoint", finished 1s ago, 0 tokens used.',
-  )
-  expect(spawned).toBe(4)
-  expect(seen.sends.slice(-2).map(text => text.split('\n')[0])).toEqual(['Review the endpoint', 'Review the endpoint'])
-  await done('agent-3')
-
-  // Two cannot be reached, in the order tried: Mika, Tito, then Bolt.
-  seen.gone = gone('agent-3', 'agent-4')
-  expect(first(await delegate({ task: 'Polish the endpoint' }))).toBe(
-    'Given to Bolt (address "bolt") in /work/api, the next free worker of that type and model there (also free: Pip; name one with `worker` to pick it), as Mika (the agent is gone) and Tito (the agent is gone) could not be reached; context kept: last task "Write the docs", finished 3s ago, 0 tokens used.',
-  )
-  expect(spawned).toBe(4)
+  // `fresh` changes nothing for a call with no `after`: it starts a new one too.
+  expect(first(await delegate({ task: 'Write the docs', fresh: true }))).toBe('Started Bolt (address "bolt", id ?) in /work/api, as no worker was named.')
   await done('agent-2')
-
-  // Three are tried and none is reached: a new worker starts, and its reason
-  // names them and the one that was not tried.
-  seen.gone = gone('agent-1', 'agent-2', 'agent-3', 'agent-4')
-  const sent = seen.sends.length
-  expect(first(await delegate({ task: 'Ship the endpoint' }))).toBe(
-    'Started Luna (address "luna", id ?) in /work/api, as Bolt (the agent is gone), Mika (the agent is gone) and Tito (the agent is gone), free there, could not be reached, and no more were tried (also free: Pip; name one with `worker` to pick it).',
-  )
-  expect(seen.sends.length).toBe(sent + 3)
-  expect(spawned).toBe(5)
+  expect(first(await delegate({ task: 'Test the endpoint', worker: 'pip' }))).toBe('Given to Pip (address "pip") in /work/api, as named; context kept.')
 })
 
-test('a free worker whose send may have gone out ends the call: no other worker gets the task and none starts', async ($, on) => {
-  let spawned = 0
-  const seen: Seen = { prompts: [], sends: [] }
-  const clock = engine(on, { nextId: () => `agent-${++spawned}`, seen })
-  await $.session.start({ cwd: '/work/main', surface: 'terminal', isInteractive: true })
-  const delegate = async (input: Record<string, unknown>) => String((await $.tool.call({ tool: 'mcp__crew__delegate', repo: '/work/api', ...input })).result)
-
-  // Three free workers, best first: Mika, Bolt, Pip.
-  for (const task of ['Map the API', 'Write the docs', 'Add the endpoint']) await delegate({ task, fresh: true })
-  for (const agentId of ['agent-1', 'agent-2', 'agent-3']) {
-    await clock.advance(1000)
-    await $.turn.complete({ answer: 'Hecho', durationMs: 1, isAborted: false, turnId: `t-${agentId}`, agentId, reason: 'answer' })
-  }
-
-  // The first may have the task: it is sent once, and no one else is tried.
-  seen.gone = { 'agent-3': SEND_UNSURE }
-  let sent = seen.sends.length
-  expect(await delegate({ task: 'Review the endpoint' })).toBe(
-    'crew: the task may have reached Mika (address "mika"): its send failed on its way, so no other worker was tried and none started. See whether Mika is working (mcp__crew__roster with `worker` "mika"): if it is, it has the task and reports to you; if not, give the task again.',
-  )
-  expect(seen.sends.length).toBe(sent + 1)
-  expect(spawned).toBe(3)
-
-  // One that could not be reached before it is named, and the one after it gets nothing.
-  seen.gone = { 'agent-3': 'crew: the agent is gone.', 'agent-2': SEND_UNSURE }
-  sent = seen.sends.length
-  expect(await delegate({ task: 'Review the endpoint' })).toBe(
-    'crew: the task may have reached Bolt (address "bolt"): its send failed on its way, so no other worker was tried and none started. Before it, Mika could not be reached (the agent is gone). See whether Bolt is working (mcp__crew__roster with `worker` "bolt"): if it is, it has the task and reports to you; if not, give the task again.',
-  )
-  expect(seen.sends.length).toBe(sent + 2)
-  expect(spawned).toBe(3)
-})
-
-test('a worker whose last run was stopped is reused with a word on it, named or not, and with none once it finished a run', async ($, on) => {
+test('a worker whose last run was stopped is given a task with a word on it, and with none once it finished a run', async ($, on) => {
   let spawned = 0
   engine(on, { nextId: () => `agent-${++spawned}` })
   await $.session.start({ cwd: '/work/main', surface: 'terminal', isInteractive: true })
@@ -633,15 +541,9 @@ test('a worker whose last run was stopped is reused with a word on it, named or 
 
   expect(await delegate({ task: 'Migrate the schema' })).toMatch(/^Started Pip/)
   await ends('t1', true)
-  expect(await delegate({ task: 'Seed the data' })).toBe(
-    `Given to Pip (address "pip") in /work/api, the free worker of that type and model there that last finished a task; context kept: last task "Migrate the schema", finished 0s ago, 0 tokens used.${stopped}`,
-  )
-  await ends('t2', true)
-  expect(await delegate({ task: 'Seed the data again', worker: 'pip' })).toBe(`Given to Pip (address "pip") in /work/api, as named; context kept.${stopped}`)
-  await ends('t3', false)
-  expect(await delegate({ task: 'Add the indexes' })).toBe(
-    'Given to Pip (address "pip") in /work/api, the free worker of that type and model there that last finished a task; context kept: last task "Seed the data again", finished 0s ago, 0 tokens used.',
-  )
+  expect(await delegate({ task: 'Seed the data', worker: 'pip' })).toBe(`Given to Pip (address "pip") in /work/api, as named; context kept.${stopped}`)
+  await ends('t2', false)
+  expect(await delegate({ task: 'Add the indexes', worker: 'pip' })).toBe('Given to Pip (address "pip") in /work/api, as named; context kept.')
   expect(spawned).toBe(1)
 })
 
@@ -818,7 +720,7 @@ test('a worker sent where another is busy hears of it', async ($, on) => {
 
   expect(await delegate({ task: 'Refactor the router', repo: '/work/api' })).not.toMatch(/Heads-up/)
   const second = await delegate({ task: 'Update the docs', repo: '/work/api' })
-  expect(second).toMatch(/^Started Bolt \(address "bolt", id [^)]+\) in \/work\/api, as no free worker of that type and model was there\.\nHeads-up: /)
+  expect(second).toMatch(/^Started Bolt \(address "bolt", id [^)]+\) in \/work\/api, as no worker was named\.\nHeads-up: /)
   expect(second).toMatch(/\nHeads-up: Pip is working in this repository; keep files apart or wait for its report\.\nFiles edited so far: Pip: none yet\.$/)
   expect(await delegate({ task: 'Fix the styles', repo: '/work/web' })).not.toMatch(/Heads-up/)
 })
@@ -974,7 +876,7 @@ test('a named worker stays as it is, and the result notes what the call asked th
   expect(await delegate({ task: 'Find the docs', subagent_type: 'fork' })).toMatch(/a fork starts from the Agent tool/)
 })
 
-test('a worker can be of another agent type, and is reused only for that type', async ($, on) => {
+test('a worker can be of another agent type, and keeps it when named', async ($, on) => {
   let spawned = 0
   engine(on, { nextId: () => `agent-${++spawned}` })
   await $.session.start({ cwd: '/work/main', surface: 'terminal', isInteractive: true })
@@ -984,7 +886,9 @@ test('a worker can be of another agent type, and is reused only for that type', 
   await $.turn.complete({ answer: 'Found it', durationMs: 1000, isAborted: false, turnId: 't1', agentId: 'agent-1', reason: 'answer' })
 
   expect(await delegate({ task: 'Fix the login', repo: '/work/api' })).toMatch(/^Started Bolt/)
-  expect(await delegate({ task: 'Find the session code', repo: '/work/api', subagent_type: 'Explore' })).toMatch(/^Given to Pip/)
+  expect((await delegate({ task: 'Find the session code', worker: 'pip' })).split('\n')[0]).toBe(
+    'Given to Pip (address "pip") in /work/api, as named; context kept.',
+  )
   const roster = String((await $.tool.call({ tool: 'mcp__crew__roster' })).result)
   expect(roster).toMatch(/- Pip: address "pip", \w+.*, repo \/work\/api, Explore, model test-model/)
   expect(roster).toMatch(/- Bolt: address "bolt", \w+.*, repo \/work\/api, model test-model/)
@@ -1002,7 +906,10 @@ test("a worker's type is kept as delegate was asked for it", async ($, on) => {
   expect(await delegate({ task: 'Find the auth code', subagent_type: 'explore' })).toMatch(/^Started Pip/)
   await $.turn.complete({ answer: 'Found it', durationMs: 1, isAborted: false, turnId: 't1', agentId: 'agent-1', reason: 'answer' })
   expect(String((await $.tool.call({ tool: 'mcp__crew__roster', worker: 'pip' })).result)).toMatch(/, repo \/work\/api, explore, /)
-  expect(await delegate({ task: 'Find the session code', subagent_type: 'explore' })).toMatch(/^Given to Pip/)
+  // Named with the type as asked, it is that type: nothing to note.
+  expect(await delegate({ task: 'Find the session code', worker: 'pip', subagent_type: 'explore' })).toBe(
+    'Given to Pip (address "pip") in /work/api, as named; context kept.',
+  )
 })
 
 test("a worker asked no type starts as the crew's own agent type, without the orchestrator's tools, and is a general-purpose worker to everyone else", async ($, on) => {
@@ -1028,11 +935,11 @@ test("a worker asked no type starts as the crew's own agent type, without the or
   expect(seen.prompts[0]).toMatch(/fork yourself once per part/)
 
   // To the orchestrator it is the general-purpose worker it asked for: the
-  // roster names no type, a call that asks for none or for that one reuses it,
-  // and a named call that says general-purpose finds nothing to note.
+  // roster names no type, and a named call that says general-purpose finds
+  // nothing to note.
   await $.turn.complete({ answer: 'Done', durationMs: 1, isAborted: false, turnId: 't1', agentId: 'agent-1', reason: 'answer' })
   expect(await roster('pip')).toMatch(/^- Pip: address "pip", done, repo \/work\/api, model test-model, 1 task, /)
-  expect(await delegate({ task: 'Now the logout', subagent_type: 'general-purpose' })).toMatch(/^Given to Pip/)
+  expect(await delegate({ task: 'Now the logout', worker: 'pip' })).toMatch(/^Given to Pip/)
   await $.turn.complete({ answer: 'Done', durationMs: 1, isAborted: false, turnId: 't2', agentId: 'agent-1', reason: 'answer' })
   expect((await delegate({ task: 'And the signup', worker: 'pip', subagent_type: 'general-purpose' })).split('\n')[0]).toBe(
     'Given to Pip (address "pip") in /work/api, as named; context kept.',
@@ -1147,23 +1054,22 @@ test('delegate calls made at once never share a name or a worker', async ($, on)
   for (const id of ['agent-1', 'agent-2']) {
     await $.turn.complete({ answer: 'ok', durationMs: 1, isAborted: false, turnId: id, agentId: id, reason: 'answer' })
   }
-  const given = await Promise.all([delegate('C'), delegate('D')])
-  expect(given.map(r => /^Given to (\w+)/.exec(r)?.[1]).sort()).toEqual(['Bolt', 'Pip'])
+  // Free workers there or not, each call that names none starts its own.
+  const more = await Promise.all([delegate('C'), delegate('D')])
+  expect(more.map(r => /^Started (\w+)/.exec(r)?.[1]).sort()).toEqual(['Mika', 'Tito'])
 })
 
-test('a blank worker names no one: a free worker it cannot reach gives way to a new one', async ($, on) => {
-  const seen: Seen = { prompts: [], sends: [] }
+test('a blank worker names no one: a new worker starts', async ($, on) => {
   let spawned = 0
-  engine(on, { nextId: () => `agent-${++spawned}`, seen })
+  engine(on, { nextId: () => `agent-${++spawned}` })
   await $.session.start({ cwd: '/work/main', surface: 'terminal', isInteractive: true })
-  const delegate = async (ask: Ask & { worker?: string }) => String((await $.tool.call({ tool: 'mcp__crew__delegate', ...ask })).result)
+  const delegate = async (ask: Ask) => String((await $.tool.call({ tool: 'mcp__crew__delegate', ...ask })).result)
   expect(await delegate({ task: 'List the routes', repo: '/work/api' })).toMatch(/^Started Pip/)
   await $.turn.complete({ answer: 'Hecho', durationMs: 1000, isAborted: false, turnId: 't-agent-1', agentId: 'agent-1', reason: 'answer' })
-  seen.undelivered = 'the agent is gone'
   expect(await delegate({ task: 'Design the cache', repo: '/work/api', worker: '  ' })).toMatch(/^Started Bolt/)
 })
 
-test('a full model id goes as the alias the Agent tool takes, to start a worker and to reuse one', async ($, on) => {
+test('a full model id goes as the alias the Agent tool takes, to start a worker and to check a named one', async ($, on) => {
   const seen = { prompts: [] as string[], sends: [] as string[], models: [] as (string | undefined)[] }
   let spawned = 0
   engine(on, { nextId: () => `agent-${++spawned}`, seen })
@@ -1174,10 +1080,14 @@ test('a full model id goes as the alias the Agent tool takes, to start a worker 
 
   expect(await delegate({ task: 'List the routes', repo: '/work/api', model: 'claude-sonnet-4-5' })).toMatch(/^Started Pip/)
   await done('agent-1')
-  expect(await delegate({ task: 'Check the queries', repo: '/work/api', model: 'sonnet' })).toMatch(/^Given to Pip/)
+  expect(await delegate({ task: 'Check the queries', repo: '/work/api', worker: 'pip', model: 'sonnet' })).toBe(
+    'Given to Pip (address "pip") in /work/api, as named; context kept.',
+  )
   expect(await delegate({ task: 'Review the login', repo: '/work/web', model: 'sonnet' })).toMatch(/^Started Bolt/)
   await done('agent-2')
-  expect(await delegate({ task: 'Polish it', repo: '/work/web', model: 'us.anthropic.claude-sonnet-4-5-20250929-v1:0' })).toMatch(/^Given to Bolt/)
+  expect(await delegate({ task: 'Polish it', repo: '/work/web', worker: 'bolt', model: 'us.anthropic.claude-sonnet-4-5-20250929-v1:0' })).toBe(
+    'Given to Bolt (address "bolt") in /work/web, as named; context kept.',
+  )
   expect(await delegate({ task: 'Count the lines', repo: '/work/docs', model: 'claude-haiku-4-5' })).toMatch(/^Started Mika/)
   expect(seen.models).toEqual(['sonnet', 'sonnet', undefined])
 
@@ -1188,98 +1098,9 @@ test('a full model id goes as the alias the Agent tool takes, to start a worker 
   expect(seen.models).toHaveLength(3)
 })
 
-test('a free worker running on a full id of the family asked for is reused, whatever alias it was asked', async ($, on) => {
+test("an unnamed call starts a new worker beside a free one that just finished and holds little, and a named one's result says what it holds", async ($, on) => {
   let spawned = 0
-  // A spawn answers the full id its agent runs on: the session's when the
-  // call asks for none.
-  const runsOn = (asked: string | undefined) => (asked === 'sonnet' ? 'claude-sonnet-4-5-20250929' : 'us.anthropic.claude-opus-5-5-v1:0')
-  engine(on, { nextId: () => `agent-${++spawned}`, runsOn })
-  await $.session.start({ cwd: '/work/main', surface: 'terminal', isInteractive: true })
-  const delegate = async (ask: Ask) => String((await $.tool.call({ tool: 'mcp__crew__delegate', ...ask })).result)
-  const done = (agentId: string, turnId: string) => $.turn.complete({ answer: 'Hecho', durationMs: 1000, isAborted: false, turnId, agentId, reason: 'answer' })
-
-  expect(await delegate({ task: 'List the routes', repo: '/work/api' })).toMatch(/^Started Pip/)
-  await done('agent-1', 't1')
-  expect(await delegate({ task: 'Check the queries', repo: '/work/api', model: 'opus' })).toMatch(/^Given to Pip/)
-  await done('agent-1', 't2')
-  // Another family is not the model it runs on.
-  expect(await delegate({ task: 'Review the login', repo: '/work/api', model: 'sonnet' })).toMatch(/^Started Bolt/)
-  await done('agent-2', 't3')
-  // No model asked: only the one on the session's model, not the newer one.
-  expect(await delegate({ task: 'Polish it', repo: '/work/api' })).toMatch(/^Given to Pip/)
-})
-
-test("a free worker on the session's model is reused whether its call or the next names that model or none, and one on another model never", async ($, on) => {
-  let spawned = 0
-  let turns = 0
-  // The session is on opus, and a spawn answers the id its agent runs on.
-  const runsOn = (asked: string | undefined) => (asked === 'sonnet' ? 'claude-sonnet-4-5' : 'claude-opus-5-5')
-  engine(on, { nextId: () => `agent-${++spawned}`, runsOn })
-  await $.session.start({ cwd: '/work/main', surface: 'terminal', isInteractive: true })
-  const delegate = async (ask: Ask) => String((await $.tool.call({ tool: 'mcp__crew__delegate', ...ask })).result)
-  const done = (agentId: string) => $.turn.complete({ answer: 'Hecho', durationMs: 1000, isAborted: false, turnId: `t${++turns}`, agentId, reason: 'answer' })
-
-  // Asked for the session's model by name, then for none.
-  expect(await delegate({ task: 'List the routes', repo: '/work/api', model: 'opus' })).toMatch(/^Started Pip/)
-  await done('agent-1')
-  expect(await delegate({ task: 'Check the queries', repo: '/work/api' })).toMatch(/^Given to Pip/)
-  // Asked for none, then for the session's model by name.
-  expect(await delegate({ task: 'Review the login', repo: '/work/web' })).toMatch(/^Started Bolt/)
-  await done('agent-2')
-  expect(await delegate({ task: 'Polish it', repo: '/work/web', model: 'opus' })).toMatch(/^Given to Bolt/)
-  // Asked for another model by name, then for none: a new worker.
-  expect(await delegate({ task: 'Write the guide', repo: '/work/docs', model: 'sonnet' })).toMatch(/^Started Mika/)
-  await done('agent-3')
-  expect(await delegate({ task: 'Check the links', repo: '/work/docs' })).toMatch(/^Started (?!Mika)/)
-  await done('agent-4')
-  // Asked for none, then for another model by name: the one on it, not the
-  // one that ended a turn last.
-  expect(await delegate({ task: 'Fix the typos', repo: '/work/docs', model: 'sonnet' })).toMatch(/^Given to Mika/)
-})
-
-test('in a session whose model names no family, a call for no model reuses only a worker asked for none', async ($, on) => {
-  let spawned = 0
-  engine(on, { nextId: () => `agent-${++spawned}`, host: { model: () => 'local-model' } })
-  await $.session.start({ cwd: '/work/main', surface: 'terminal', isInteractive: true })
-  const delegate = async (ask: Ask) => String((await $.tool.call({ tool: 'mcp__crew__delegate', ...ask })).result)
-  const done = (agentId: string, turnId: string) => $.turn.complete({ answer: 'Hecho', durationMs: 1000, isAborted: false, turnId, agentId, reason: 'answer' })
-
-  expect(await delegate({ task: 'List the routes', repo: '/work/api', model: 'opus' })).toMatch(/^Started Pip/)
-  await done('agent-1', 't1')
-  expect(await delegate({ task: 'Check the queries', repo: '/work/api' })).toMatch(/^Started Bolt/)
-  await done('agent-2', 't2')
-  expect(await delegate({ task: 'Polish it', repo: '/work/api' })).toMatch(/^Given to Bolt/)
-})
-
-test('among several free workers the one that ended a turn last is reused, whichever was touched last', async ($, on) => {
-  let spawned = 0
-  const clock = engine(on, { nextId: () => `agent-${++spawned}` })
-  await $.session.start({ cwd: '/work/main', surface: 'terminal', isInteractive: true })
-  const delegate = async (ask: Ask) => String((await $.tool.call({ tool: 'mcp__crew__delegate', ...ask })).result)
-  const done = (agentId: string, turnId: string) => $.turn.complete({ answer: 'Hecho', durationMs: 1000, isAborted: false, turnId, agentId, reason: 'answer' })
-
-  expect(await delegate({ task: 'List the routes', repo: '/work/api', fresh: true })).toMatch(/^Started Pip/)
-  expect(await delegate({ task: 'Check the queries', repo: '/work/api', fresh: true })).toMatch(/^Started Bolt/)
-  await clock.advance(1000)
-  await done('agent-1', 't1')
-  await clock.advance(1000)
-  await done('agent-2', 't2')
-  // A message to the one that ended first touches it, and it stays free.
-  await clock.advance(1000)
-  await $.session.send({ to: 'pip', text: 'Thanks', origin: { kind: 'model' } } as Parameters<typeof $.session.send>[0])
-  expect(await delegate({ task: 'Polish it', repo: '/work/api' })).toMatch(/^Given to Bolt/)
-
-  // Pip ends a turn after Bolt's task is over: it is the pick again.
-  await clock.advance(1000)
-  await done('agent-2', 't3')
-  await clock.advance(1000)
-  await done('agent-1', 't4')
-  expect(await delegate({ task: 'Count the lines', repo: '/work/api' })).toMatch(/^Given to Pip/)
-})
-
-test('an unnamed call passes over a free worker whose conversation holds too much, names it, and the roster and the result say what each holds', async ($, on) => {
-  let spawned = 0
-  const clock = engine(on, { nextId: () => `agent-${++spawned}` })
+  engine(on, { nextId: () => `agent-${++spawned}` })
   // The engine's answer to a model request: no chunk, and the usage the response reported.
   let read = 0
   on('turn.step', async function* (_, e) {
@@ -1310,76 +1131,18 @@ test('an unnamed call passes over a free worker whose conversation holds too muc
   await delegate({ task: 'Map the API', title: 'API map' })
   // Before any response of it is seen, a row says nothing of its context.
   expect(await roster('pip')).not.toMatch(/context/)
-  await turn('agent-1', 120_000)
-  expect(await roster('pip')).toMatch(/, 1 task, 0 tokens, context ~121k, last task "API map", finished 0s ago$/)
-
-  // Pip finished this moment, but holds 121k tokens: a new worker starts, and the reason names Pip.
-  expect(await delegate({ task: 'Write the docs', title: 'Docs' })).toBe(
-    'Started Bolt (address "bolt", id ?) in /work/api, as every free worker of that type and model there holds over 100k tokens of context, which each of its requests sends again (also free: Pip; name one with `worker` to pick it).',
-  )
-  // Named, it still takes the task.
-  expect(await delegate({ task: 'Recheck the map', worker: 'pip' })).toBe('Given to Pip (address "pip") in /work/api, as named; context kept.')
-
-  // Bolt holds 31k: the next unnamed call reuses it, and says so.
-  await turn('agent-2', 30_000)
-  expect(await delegate({ task: 'Add the endpoint', title: 'Endpoint' })).toBe(
-    'Given to Bolt (address "bolt") in /work/api, the free worker of that type and model there that last finished a task; context kept: last task "Docs", finished 0s ago, 0 tokens used, context ~31k.',
-  )
-  expect(spawned).toBe(2)
-
-  // One too long idle and one too large: the reason says both, and names them best first.
-  await turn('agent-2', 31_000)
-  await clock.advance(5 * 60_000)
-  await turn('agent-1', 125_000)
-  expect(await delegate({ task: 'Test the endpoint', title: 'Tests' })).toBe(
-    'Started Mika (address "mika", id ?) in /work/api, as every free worker of that type and model there either finished its last task over 4 min ago or holds over 100k tokens of context (also free: Pip, Bolt; name one with `worker` to pick it).',
-  )
-  // The size is the one of its last response: a worker that compacted is light again.
   await turn('agent-1', 20_000)
-  expect(await delegate({ task: 'One more' })).toMatch(/^Given to Pip \(address "pip"\) in \/work\/api, .*, context ~21k\.$/)
-})
+  expect(await roster('pip')).toMatch(/, 1 task, 0 tokens, context ~21k, last task "API map", finished 0s ago$/)
 
-test('an unnamed call passes over a free worker whose last turn ended too long ago to be cached, names it, and says what its pick holds', async ($, on) => {
-  let spawned = 0
-  const clock = engine(on, { nextId: () => `agent-${++spawned}` })
-  await $.session.start({ cwd: '/work/main', surface: 'terminal', isInteractive: true })
-  const delegate = async (input: Record<string, unknown>) =>
-    String((await $.tool.call({ tool: 'mcp__crew__delegate', repo: '/work/api', ...input })).result).split('\n')[0]
-  let turns = 0
-  const done = (agentId: string) =>
-    $.turn.complete({ answer: 'Hecho', durationMs: 1000, isAborted: false, turnId: `t${++turns}`, agentId, reason: 'answer', usage: USAGE })
-
-  await delegate({ task: 'Map the API', title: 'API map' })
-  await delegate({ task: 'Write the docs', title: 'Docs', fresh: true })
-  await done('agent-1')
-  await clock.advance(3 * 60_000)
-  await done('agent-2')
-  await clock.advance(2 * 60_000)
-  // Pip ended five minutes ago, Bolt two: Bolt takes the task, the result
-  // says what its context holds, and Pip is named for a call that wants it.
-  expect(await delegate({ task: 'Add the endpoint', title: 'Endpoint' })).toBe(
-    'Given to Bolt (address "bolt") in /work/api, the free worker of that type and model there that last finished a task (also free: Pip; name one with `worker` to pick it); context kept: last task "Docs", finished 2m ago, ~45k tokens used.',
-  )
+  // Pip finished this moment and holds 21k: a call that names no worker still starts a new one.
+  expect(await delegate({ task: 'Write the docs', title: 'Docs' })).toBe('Started Bolt (address "bolt", id ?) in /work/api, as no worker was named.')
   expect(spawned).toBe(2)
 
-  // Every free candidate past the window: a new worker starts, and its reason names them, best first.
-  await done('agent-2')
-  await clock.advance(4 * 60_000)
-  expect(await delegate({ task: 'Test the endpoint', title: 'Tests' })).toBe(
-    'Started Mika (address "mika", id ?) in /work/api, as no free worker of that type and model there finished a task in the last 4 min, so none has its context cached (also free: Bolt, Pip; name one with `worker` to pick it).',
-  )
-  expect(spawned).toBe(3)
-
-  // Named, a worker long idle still takes the task, and its result is a named one's.
-  expect(await delegate({ task: 'Recheck the map', worker: 'pip' })).toBe('Given to Pip (address "pip") in /work/api, as named; context kept.')
-
-  // A second short of the window it is still reused.
-  await done('agent-3')
-  await clock.advance(4 * 60_000 - 1000)
-  expect(await delegate({ task: 'One more' })).toBe(
-    'Given to Mika (address "mika") in /work/api, the free worker of that type and model there that last finished a task (also free: Bolt; name one with `worker` to pick it); context kept: last task "Tests", finished 3m ago, ~45k tokens used.',
-  )
-  expect(spawned).toBe(3)
+  // Named, it takes the task, and the result says what its conversation holds.
+  expect(await delegate({ task: 'Recheck the map', worker: 'pip' })).toBe('Given to Pip (address "pip") in /work/api, as named; context kept: ~21k tokens.')
+  // The figure is the one of its last response: a worker that compacted holds less.
+  await turn('agent-1', 500)
+  expect(await delegate({ task: 'One more', worker: 'pip' })).toBe('Given to Pip (address "pip") in /work/api, as named; context kept: ~2k tokens.')
 })
 
 const roster = async ($: Parameters<TestBody>[0]) => String((await $.tool.call({ tool: 'mcp__crew__roster' })).result)
@@ -1561,7 +1324,7 @@ test('a worker appears, works, reports and is reused', async ($, on) => {
   const again = await $.tool.call({
     tool: 'mcp__crew__delegate',
     task: 'Now add a test for the login',
-    repo: '/work/api',
+    worker: 'pip',
   })
   expect(String(again.result)).toMatch(/Given to Pip/)
 

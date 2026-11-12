@@ -98,7 +98,7 @@ test('the status line names each active worker, its phase, its run time and its 
   expect(status()).toBeUndefined()
 
   // A reused worker's time is its new run's, from nothing.
-  expect(await delegate('Now the login', '/work/api', 'Login')).toMatch(/^Given to Pip /)
+  expect(await delegate('Now the login', '/work/api', 'Login', 'pip')).toMatch(/^Given to Pip /)
   await clock.advance(1000)
   expect(status()).toBe('crew · Pip thinking 1s Login')
   await $.tool.call({ tool: 'Bash', command: 'npm test', agentId: 'agent-1' })

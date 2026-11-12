@@ -200,24 +200,16 @@ holds no look, and is turned down as a bad code.
    (`releaseWaiting`, from `delegateTool`), and the ones that could not be given are said last.
 2. `delegate` reads the input, resolves `repo` against the session's directory (Windows forms
    included) and refuses a `fork` type.
-3. It picks the worker: the one named, else (without `fresh`) the most recent free worker that
-   `delegate` started in that repository, of the same type and on the model asked for (the
-   session's when none) however its own call named that model, that is not woken by another
-   worker, whose last turn ended within `REUSE_WARM_MIN` (4 minutes) and whose conversation holds
-   no more than `REUSE_CONTEXT_MAX` (100k tokens); else none. Waking a
-   worker sends its whole conversation again, and past the prompt cache's 5 minutes that is
-   billed uncached, for a task that may have nothing to do with what it holds: a free worker
-   idle longer is reused only when named, and the result names it. So is one that holds more
-   than the ceiling: every request of a worker sends all it holds again, which a task that needs
-   none of it pays at each. The result of an unnamed reuse says what the worker's context holds:
-   its last task, when it finished, the tokens its turns used and how much it holds.
-4. A reused worker gets the task through `deliver`, a send from the main conversation, with a
+3. It picks the worker: the one named, else none. A free worker's context helps only a task in
+   its area, which only the orchestrator knows, and every request of a worker sends all it holds
+   again, so a call that names no worker starts a new one, whatever free workers are there
+   (`fresh` changes nothing but the worker a task with `after` goes to). The result of a named
+   one says how much its conversation holds (`context kept: ~38k tokens`), when a response of it
+   was seen.
+4. A named worker gets the task through `deliver`, a send from the main conversation, with a
    short reminder of how to report and, when teammates are there that it was not told of (its
    `mates` hold the addresses it was), a line naming them; held tasks that once missed it go
-   first, in the same message. An unnamed task that does not reach its free worker goes to the next one, up to
-   `REUSE_TRIES`; a new worker starts only when none is reached, and the result names the ones
-   that were not. A send that failed on its way (`SEND_UNSURE`) may have arrived, so it ends the
-   call there: no other worker is given the task and none starts. A worker woken by another worker gets nothing yet: the task is a **held task** on
+   first, in the same message. A worker woken by another worker gets nothing yet: the task is a **held task** on
    its takeover, and the result says so.
 5. Without a worker, it takes a free name (see Names below), records the **intent**, and calls `$.agent.spawn`. A model asked for is passed only when it is
    not haiku. With none, the spawn hook gives the worker the session's model, as the alias the
@@ -253,9 +245,9 @@ holds no look, and is turned down as a bad code.
 `onSpawn` (`agent.spawn`) puts every agent the session starts on the list: the crew's own, forks,
 the Agent tool's and agents workers start. It prepends the crew's text to its prompt (the worker
 preamble, a fork's shorter one, the git rules), records its parent (`fork of`, `started by`), runs
-it where its parent runs or in its worktree (`isolated`), and sets its model. Only workers
-`delegate` started (or handed to the orchestrator to start) are reused without being named; an
-adopted agent has `asked: null`. A resumed agent's run starts afresh.
+it where its parent runs or in its worktree (`isolated`), and sets its model. An adopted agent
+(one `delegate` neither started nor handed to the orchestrator to start) has `asked: null`, and
+a task given to it says how to report. A resumed agent's run starts afresh.
 
 ### The crew's agent type
 
@@ -272,7 +264,7 @@ carry a spawn's type through.
   says that in the crew's words. What the engine adds to every agent comes after it as before: its
   notes, the environment, the skills and the tool list.
 - To the orchestrator and to the crew the worker stays general-purpose: its `type` is the one
-  asked, which a reuse compares, the roster leaves unsaid and a named call notes. Only the spawn
+  asked, which the roster leaves unsaid and a named call notes. Only the spawn
   names the crew's type.
 - The model is offered the type like any other, with a description that says `delegate` starts
   it: the engine asks `agent.offer` before it resumes an agent that ended too, so a type kept
@@ -322,7 +314,7 @@ agent's. It passes the stream on untouched (`yield* next(e)`) and, when the resp
 ends, keeps the sum of its usage (input, cache read, cache write and output: what the next
 request sends again) in memory. Nothing is written per request; when the worker's turn ends,
 `onTurnComplete` keeps the figure on the worker (`context`). The roster shows it (`context ~38k`),
-an unnamed reuse reads it for the ceiling, and its result says it.
+and the result of a call that names the worker says it.
 
 A response of 1000 output tokens passes as about 130 chunks. Measured on Claude Code 2.1.322
 with a hook that only counted and passed on, three runs each way: the requests took 5.4 to 5.7 s
@@ -641,9 +633,9 @@ is noticed in the debug log: `unrecognized($, kind, detail)` (`src/engine.ts`) w
 
 - **Orchestrator.** The main conversation's assistant, shown as the mascot. The user talks only
   to it. In the feed its id is `ORCH_ID` (`main`).
-- **Worker.** An agent on the crew's list. Usually one `delegate` started, which the crew reuses;
-  also an **adopted** agent (a fork, the Agent tool's, one started before the plugin loaded),
-  which is shown but reused only when named.
+- **Worker.** An agent on the crew's list. Usually one `delegate` started; also an **adopted**
+  agent (a fork, the Agent tool's, one started before the plugin loaded). Either takes a new task
+  when a delegate call names it.
 - **Fork.** An agent started with the Agent tool's `subagent_type: "fork"`: it inherits its
   parent's conversation. A worker splits its task by forking; `delegate` never starts one.
 - **Crew.** The orchestrator's workers, and the plugin's name.

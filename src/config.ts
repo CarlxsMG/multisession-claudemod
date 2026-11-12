@@ -48,22 +48,6 @@ export const REPORT_LINE_CUT = 1200
  */
 export const REPORT_WORDS = 200
 /**
- * How long after its last turn ended a free worker is still reused by a call
- * that does not name it, which the delegate tool's description states. Waking
- * a worker sends its whole conversation again, and the prompt cache holds it
- * for 5 minutes after its last request: past that it is billed uncached, for
- * a task that may have nothing to do with what the worker holds. The minute
- * short of the cache's life leaves room for the send to reach it.
- */
-export const REUSE_WARM_MIN = 4
-/**
- * The most a free worker's conversation may hold, in tokens, for a call that
- * does not name it to reuse it, which the delegate tool's description states.
- * Every request of a worker sends all it holds again, so a task that needs
- * none of it pays for it at each: past this a new worker is cheaper.
- */
-export const REUSE_CONTEXT_MAX = 100_000
-/**
  * How long a busy worker gives no sign of life (a tool call, a turn, a
  * message) before the orchestrator is told it went quiet: long enough that
  * an ordinary build, test run or model request does not trip it.

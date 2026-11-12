@@ -20,7 +20,7 @@ test(
     expect(await card('agent-1')).toBeDefined()
     await ui.press({ key: 'crew-back' })
 
-    const given = await $.tool.call({ tool: DELEGATE, task: 'Fix the flaky test', repo: '/work/r1' })
+    const given = await $.tool.call({ tool: DELEGATE, task: 'Fix the flaky test', worker: 'pip' })
     expect(String(given.result)).toMatch(/^Given to Pip /)
     states.set('agent-1', 'running')
     expect(await card('agent-1')).toBeDefined()
@@ -399,7 +399,7 @@ test('a worker that finishes and naps leaves the row once its end stops standing
   await ui.press({ key: 'crew-back' })
 
   // A new task goes to it, and it is back in the row at once.
-  const given = await $.tool.call({ tool: DELEGATE, task: 'Fix the flaky test', repo: '/work/r1' })
+  const given = await $.tool.call({ tool: DELEGATE, task: 'Fix the flaky test', worker: 'pip' })
   expect(String(given.result)).toMatch(/^Given to Pip /)
   states.set('agent-1', 'running')
   expect(await card('agent-1')).toBeDefined()

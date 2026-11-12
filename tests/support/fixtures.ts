@@ -41,7 +41,7 @@ export const ANIMS: Anim[] = ['idle', 'sleep', 'thinking', 'working', 'delegatin
 export const spawnAgent = ($: Parameters<TestBody>[0], input: Partial<AgentSpawnInput> & Pick<AgentSpawnInput, 'prompt'>) =>
   $.agent.spawn(input as AgentSpawnInput)
 
-export type Ask = { task: string; repo: string; model?: string; fresh?: boolean }
+export type Ask = { task: string; repo: string; model?: string; fresh?: boolean; worker?: string }
 
 export const USAGE = { input_tokens: 40_000, output_tokens: 3_000, cache_read_input_tokens: 500_000, cache_creation_input_tokens: 2_000, model: 'test-model' }
 
@@ -324,9 +324,9 @@ export async function progressCrew(
     return () => $.turn.complete({ answer: '', durationMs: 1, isAborted: false, turnId, reason: 'answer' })
   }
   const ids = new Map<string, string>()
-  const delegate = async (task: string, repo: string, title: string) => {
+  const delegate = async (task: string, repo: string, title: string, worker?: string) => {
     const done = await mainTurn()
-    const said = String((await $.tool.call({ tool: DELEGATE, task, title, repo })).result)
+    const said = String((await $.tool.call({ tool: DELEGATE, task, title, repo, ...(worker !== undefined ? { worker } : {}) })).result)
     await done()
     const started = /^Started (\w+) /.exec(said)
     if (started !== null) ids.set(started[1]!, `agent-${spawned}`)

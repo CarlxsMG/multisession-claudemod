@@ -253,14 +253,14 @@ test('a session that starts in a new process on a conversation that had a crew f
   expect(contexts[1] ?? []).toEqual([])
   expect(seen.sends).toHaveLength(0)
 
-  // The workers are the crew's as before: listed, named, and the crew's own to reuse.
+  // The workers are the crew's as before: listed, named, and the crew's own to give a task.
   const all = await roster()
   expect(all).toMatch(/^Nova's crew \(3\):/)
   expect(all).toMatch(/^- Pip: address "pip", done, repo \/work\/api, .*last task "Schema"/m)
   expect(all).toMatch(/^- Bolt: address "bolt", stopped, repo \/work\/api, /m)
   expect(all).toMatch(/^- Mika: address "mika", stopped, 1 task waiting, not delivered: Claude Code restarted before that run ended, started by Pip, /m)
-  expect(await delegate({ task: 'Add the indexes', title: 'Indexes' })).toMatch(
-    /^Given to Pip \(address "pip"\) in \/work\/api, the free worker of that type and model there that last finished a task/,
+  expect(await delegate({ task: 'Add the indexes', title: 'Indexes', worker: 'pip' })).toMatch(
+    /^Given to Pip \(address "pip"\) in \/work\/api, as named; context kept/,
   )
   expect(seen.sends[0]).toMatch(/^Add the indexes\n/)
   expect(await delegate({ task: 'Finish the docs', title: 'Docs', worker: 'bolt' })).toMatch(

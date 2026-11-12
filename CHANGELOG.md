@@ -67,16 +67,13 @@ All notable changes to crew are written here. The format follows
 - A worker with a plan of three steps or more calls the progress tool as each step starts, from
   step 1; the call that only declared the plan, step 0, is no longer asked of it, which saves a
   request per task. A plan declared at step 0 still works.
-- A delegation that names no worker reuses a free one only if it finished a task in the last 4
-  minutes, while its conversation is still in the prompt cache: waking one idle longer sends its
-  whole conversation again uncached, for a task that may have nothing to do with it. Such a worker
-  is passed over and named in the result, and still takes a task when the orchestrator names it.
-  The result of an unnamed reuse says what the worker holds (its last task, when it finished, the
-  tokens it used), and the roster says when each free worker finished.
-- The crew knows how much each worker's conversation holds, and the roster and the result of an
-  unnamed reuse say it (`context ~38k`). A delegation that names no worker passes over a free one
-  that holds more than 100k tokens, as every request of such a worker sends all of it again; it
-  is named in the result and still takes a task when the orchestrator names it.
+- A delegation that names no worker always starts a new one. A free worker's context helps
+  only a task in its area, which the orchestrator says by naming that worker; reused for anything
+  else, every request of it sends all it holds again. The `delegate` tool's argument
+  descriptions are shorter too.
+- The crew knows how much each worker's conversation holds: the roster says it (`context ~38k`),
+  and so does the result of a delegation that names the worker (`context kept: ~38k tokens`).
+  The roster also says when each free worker finished.
 - The `delegate` tool tells the orchestrator what a new worker's brief holds: the goal, what done
   looks like, the files it owns or only reads, the checks to run, what you allowed in git and what
   the report must answer. It also says the worker already knows how to report and the git and

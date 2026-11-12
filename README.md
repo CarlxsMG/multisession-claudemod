@@ -30,8 +30,7 @@ happens.
   steer workers with `SendMessage`. The brief is frozen for the load, so the prompt cache stays
   whole; later changes reach the model as one short `[crew]` note with your next message.
 - **Tools for the orchestrator.** `mcp__crew__delegate` gives a task to a worker: the one
-  you name, the most recent free one that worked in that repository (it keeps its context), or a
-  new one. `mcp__crew__roster` lists the crew for the model. `mcp__crew__compact` queues a
+  you name, which keeps its context, or a new one. `mcp__crew__roster` lists the crew for the model. `mcp__crew__compact` queues a
   compaction of the orchestrator's conversation for a safe moment: between turns, no worker busy,
   one every 10 minutes at most. Workers call `mcp__crew__progress` to declare a plan and the step
   they are on.

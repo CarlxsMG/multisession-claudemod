@@ -12,7 +12,7 @@ import { declarePlan, stepShare, stepsLeft } from '../src/progress/plan'
 import { JUST_ENDED_MS } from '../src/progress/runs'
 import { endNotice } from '../src/progress/text/ended'
 import { notePieces } from '../src/progress/text/note'
-import { NEW_NONE_FREE, PICKED_FREE, given, headsUp, heldFor, started } from '../src/prompts/results'
+import { NEW_UNNAMED, PICKED_NAMED, given, headsUp, heldFor, started } from '../src/prompts/results'
 import { resultFoots } from '../src/ui/transcript/foots'
 import type { Member } from '../types'
 import {
@@ -237,7 +237,7 @@ test('the status line in Spanish: each worker, its phase, its time and its task,
   expect(status()).toBe('crew · ✓ Pip listo · × Bolt falló')
   await clock.advance(JUST_ENDED_MS - 1000)
   expect(status()).toBeUndefined()
-  expect(await delegate('Now the login', '/work/api', 'Login')).toMatch(/^Given to Pip /)
+  expect(await delegate('Now the login', '/work/api', 'Login', 'pip')).toMatch(/^Given to Pip /)
   await $.tool.call({ tool: 'Bash', command: 'npm test', agentId: 'agent-1' })
   await clock.advance(120_000)
   expect(status()).toBe('crew · Pip probando 2m Login')
@@ -374,7 +374,7 @@ test('a delegate bubble in Spanish: new or reused, who else works there, and its
   expect(await second.row.find({ type: 'Text', text: /^╰─ nuevo · ! Pip trabaja aquí ─+╯$/ })).toBeDefined()
   // Reused while Bolt works there: the long form does not fit, the short one does.
   await done('agent-1')
-  const third = await call('toolu_h3', { task: 'Y el registro', title: 'Registro', repo: '/work/api' })
+  const third = await call('toolu_h3', { task: 'Y el registro', title: 'Registro', worker: 'pip' })
   expect(await third.row.find({ type: 'Text', text: /^╰─ reutilizado · ! Bolt trabaja aquí ─+╯$/ })).toBeDefined()
   await done('agent-1')
   await done('agent-2')
@@ -431,17 +431,17 @@ test('the words the crew builds in Spanish: phases, plans, ends, messages and re
   const foots = (tool: string, output: unknown) => resultFoots(tool, output, pip, [pip, bolt], DEFAULT_LOOK)?.map(f => f.map(x => x.text).join(''))
   expect(foots('SendMessage', { success: true, message: 'ok' })).toEqual(['entregado'])
   expect(foots('SendMessage', { success: true, resumedAgentId: 'agent-1', message: 'Resuming' })).toEqual(['despierta a Pip', 'despierta'])
-  expect(foots('mcp__crew__delegate', [{ type: 'text', text: given(pip, '/w', PICKED_FREE, '') }])).toEqual([
+  expect(foots('mcp__crew__delegate', [{ type: 'text', text: given(pip, '/w', PICKED_NAMED, '') }])).toEqual([
     'reutilizado · conserva su contexto',
     'reutilizado',
   ])
-  expect(foots('mcp__crew__delegate', started('Pip', 'pip', 'agent-1', '/w', NEW_NONE_FREE, headsUp(['Bolt'])))).toEqual([
+  expect(foots('mcp__crew__delegate', started('Pip', 'pip', 'agent-1', '/w', NEW_UNNAMED, headsUp(['Bolt'])))).toEqual([
     'nuevo · ! Bolt trabaja aquí',
     'nuevo · ! Bolt trabaja aquí',
     'nuevo · ! 1 más aquí',
     'nuevo',
   ])
-  expect(foots('mcp__crew__delegate', given(pip, '/w', PICKED_FREE, headsUp(['Bolt', 'Mika'])))).toEqual([
+  expect(foots('mcp__crew__delegate', given(pip, '/w', PICKED_NAMED, headsUp(['Bolt', 'Mika'])))).toEqual([
     'reutilizado · conserva su contexto · ! Bolt y Mika trabajan aquí',
     'reutilizado · ! Bolt y Mika trabajan aquí',
     'reutilizado · ! 2 más aquí',

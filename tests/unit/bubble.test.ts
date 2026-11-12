@@ -2,7 +2,7 @@ import { expect } from 'claude-code/testing'
 
 import type { Look, Member } from '../../types'
 import { DEFAULT_LOOK } from '../../src/figure/look'
-import { NEW_NONE_FREE, PICKED_FREE, given, headsUp, heldFor, started } from '../../src/prompts/results'
+import { NEW_UNNAMED, PICKED_NAMED, given, headsUp, heldFor, started } from '../../src/prompts/results'
 import { bubbleRows, cardLine, endSeg } from '../../src/ui/transcript/bubble'
 import type { Seg } from '../../src/ui/transcript/bubble'
 import { resultFoots } from '../../src/ui/transcript/foots'
@@ -52,14 +52,14 @@ test("a crew call's result reads in the foot: delivered, woken, reused, new, hel
   expect(resultFoots('TaskStop', 'stopped', pip, [pip], l)).toEqual([])
   expect(foots('SendMessage', { success: true, message: 'ok' })).toEqual(['delivered'])
   expect(foots('SendMessage', { success: true, resumedAgentId: 'agent-1', message: 'Resuming' })).toEqual(['wakes Pip', 'wakes'])
-  expect(foots('mcp__crew__delegate', [{ type: 'text', text: given(pip, '/w', PICKED_FREE, '') }])).toEqual(['reused · keeps its context', 'reused'])
-  expect(foots('mcp__crew__delegate', started('Pip', 'pip', 'agent-1', '/w', NEW_NONE_FREE, headsUp(['Bolt'])))).toEqual([
+  expect(foots('mcp__crew__delegate', [{ type: 'text', text: given(pip, '/w', PICKED_NAMED, '') }])).toEqual(['reused · keeps its context', 'reused'])
+  expect(foots('mcp__crew__delegate', started('Pip', 'pip', 'agent-1', '/w', NEW_UNNAMED, headsUp(['Bolt'])))).toEqual([
     'new · ! Bolt works here',
     'new · ! Bolt works here',
     'new · ! 1 more here',
     'new',
   ])
-  expect(foots('mcp__crew__delegate', given(pip, '/w', PICKED_FREE, headsUp(['Bolt', 'Mika'])))).toEqual([
+  expect(foots('mcp__crew__delegate', given(pip, '/w', PICKED_NAMED, headsUp(['Bolt', 'Mika'])))).toEqual([
     'reused · keeps its context · ! Bolt and Mika work here',
     'reused · ! Bolt and Mika work here',
     'reused · ! 2 more here',

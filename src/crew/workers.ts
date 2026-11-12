@@ -13,12 +13,8 @@ import { samePath } from '../util/path'
 import { hash } from '../util/random'
 import { cap } from '../util/text'
 
-/**
- * The statuses of a worker that is busy, one a task can be given to as is
- * (`REUSABLE`), and one whose run is over (`FINISHED`).
- */
+/** The statuses of a worker that is busy, and one whose run is over (`FINISHED`). */
 export const ACTIVE: ReadonlySet<WorkerStatus> = new Set(['starting', 'working', 'waiting'])
-export const REUSABLE: ReadonlySet<WorkerStatus> = new Set(['idle', 'done', 'stopped'])
 export const FINISHED: ReadonlySet<WorkerStatus> = new Set(['done', 'failed', 'stopped'])
 
 // A worker's status for each of the engine's names for an agent's state:
