@@ -57,6 +57,8 @@ function fresh() {
     workerType: { name: undefined as string | undefined },
     /** `src/crew/silence.ts`: when the crew was last looked over for quiet workers. */
     silence: { at: -Infinity },
+    /** `src/crew/sync.ts`: the sync with the engine's agent list under way, if one is. */
+    sync: { running: undefined as Promise<void> | undefined },
     /**
      * `src/background/sweep.ts`: whether the system is Windows (undefined
      * before it is read), and the latest look at its process table, the one

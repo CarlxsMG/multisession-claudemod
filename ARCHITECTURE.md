@@ -498,7 +498,8 @@ stands or is skipped clears its ask, with a toast.
 
 Every 3.2 s `syncCrew` reads `$.agent.list()`: statuses follow the engine's, unknown agents
 started before the plugin loaded are adopted, and a shelved worker that works again comes back
-with its history. The same pass lifts takeovers whose run ended. `STATUS_OF`
+with its history. The same pass lifts takeovers whose run ended. One runs at a time: a call
+while one is under way, the timer's or the roster's, waits for that one. `STATUS_OF`
 (`src/crew/workers.ts`) maps every status the engine's types name, so one they add fails `tsc`;
 a status an engine newer than those types reports changes nothing the crew knows: a worker keeps
 its status, a shelved one stays on the shelf, and an unknown agent waits for one the crew reads.

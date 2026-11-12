@@ -124,6 +124,32 @@ test('only the latest reports are kept whole; an older worker shows the line it 
   expect(await roster('agent-26')).not.toMatch(/last report/)
 })
 
+test('a sync with the engine that starts while one is under way starts none of its own', async ($, on) => {
+  // Each sync that finds an agent the engine never listed before keeps its
+  // id; the state holds the first such write until `answer` is called.
+  let writes = 0
+  let answer = () => {}
+  const held = new Promise<void>(resolve => {
+    answer = resolve
+  })
+  on('state.set', { plugin: 'crew', key: 'listed' }, async (_, e, next) => {
+    writes += 1
+    await held
+    return next(e)
+  })
+  const ids = ['agent-9']
+  const clock = engine(on, { agents: () => ids.map(id => ({ id, description: `Task of ${id}`, type: 'general-purpose', status: 'running' })) })
+  await $.session.start({ cwd: '/work/main', surface: 'terminal', isInteractive: true })
+  // Two of the pane timer's syncs, the second while the first waits.
+  await clock.advance(6400)
+  expect(writes).toBe(1)
+  // Once it ends, the next sync runs.
+  answer()
+  ids.push('agent-8')
+  await clock.advance(3200)
+  expect(writes).toBe(2)
+})
+
 test('an agent status the crew has no word for leaves each worker as the crew knew it', async ($, on) => {
   let spawned = 0
   const status = new Map<string, AgentInfo['status']>()
