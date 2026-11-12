@@ -44,6 +44,26 @@ test('the newest check-in follows the round in place, its times once a minute; t
   expect(await lines(placed[0]!)).toEqual(['─ crew · round 3m · Pip reading 1/9 3m'])
 })
 
+test('the newest check-in follows a new step without writing the rows, which every placed row reads', async ($, on) => {
+  let writes = 0
+  on('state.set', { plugin: 'crew', key: 'checkins' }, (_, e, next) => {
+    writes += 1
+    return next(e)
+  })
+  const { clock, placed, delegate, lines } = await progressCrew($, on)
+  await delegate('Publish the plugin', '/work/api', 'Publicar')
+  await progress($, 'agent-1', 1, 9, 'Fast-forward main')
+  await clock.advance(180_000)
+  expect(placed).toHaveLength(1)
+  writes = 0
+
+  await progress($, 'agent-1', 2, 9, 'Tag the release')
+  await $.tool.call({ tool: 'Edit', file_path: '/work/api/a.ts', old_string: 'a', new_string: 'b', agentId: 'agent-1' })
+  await clock.advance(61_000)
+  expect(await lines(placed[0]!)).toEqual(['─ crew · 1 active · round 4m', '  Pip  editing  2/9  4m  Tag the release'])
+  expect(writes).toBe(0)
+})
+
 test('with check-ins off, as the store keeps them from an earlier session, no row comes, nor a summary', async ($, on) => {
   const { clock, placed, delegate, end } = await progressCrew($, on, { progress: 0 })
   await delegate('Run the tests', '/work/api', 'Arreglar tests')

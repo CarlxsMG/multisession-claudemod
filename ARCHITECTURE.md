@@ -100,6 +100,7 @@ under, so it never changes even where the code name differs.
 | `runs` | `runs` | `runs-1` | Each worker's current or latest run |
 | `round` | `round` | `round-1` | The current round |
 | `checkins` | `checkins` | `checkins-1` | The rows placed in the conversation |
+| `shown` | `shown` | `shown-1` | A family, one value per check-in's id: what the round's newest check-in shows now, apart from the rows so a follow-up draws only that row again |
 | `due` | `pendingRows` | `due-1` | Rows waiting for the main turn to end |
 | `beat` | `paneTick` | none | A counter whose change redraws the pane |
 | `listed` | `listed` | `listed-1` | The agents the engine has listed, up to 200 |
@@ -394,8 +395,9 @@ agents.
   lasts, a **check-in** is placed every interval (3 minutes by default) when something changed;
   when it closes, a **summary** is placed if two or more workers ran or it outlasted the
   interval. The newest check-in follows the round in place: its lines are read again from the
-  runs into `shown`, written when a phase, step or run changes and for its times once a minute,
-  and its row is drawn again because its render hook reads the list. The engine has no call to
+  runs into its member of the `shown` family, written when a phase, step, run or what a worker
+  does changes and for its times once a minute. Only the newest check-in's render hook reads that
+  member, so a follow-up draws that row again and none of the others, which read the list alone. The engine has no call to
   replace or remove a placed row; a row is redrawn when state its hook read changes, and a hook
   that passes draws nothing.
 - Nothing is placed while the orchestrator's turn is streaming: rows wait in `due` and go when

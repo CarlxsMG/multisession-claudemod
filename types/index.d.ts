@@ -312,13 +312,15 @@ export type CheckIn = {
   isAsked: boolean
   lines: CheckLine[]
   note?: Note
-  /**
-   * What the round's newest check-in shows now, read again from the runs
-   * since it was placed (`at` the time it was read); `lines` and `roundMs`
-   * keep what it showed when placed, which it folds to once another comes.
-   */
-  shown?: { at: number; roundMs: number; lines: CheckLine[] }
 }
+
+/**
+ * What the round's newest check-in shows now, read again from the runs since
+ * it was placed (`at` the time it was read). The row's own `lines` and
+ * `roundMs` keep what it showed when placed, which it folds to once another
+ * comes.
+ */
+export type Shown = { at: number; roundMs: number; lines: CheckLine[] }
 
 /** A row that waits for the main session's turn to end, to be placed. */
 export type PendingRow = Pick<CheckIn, 'kind' | 'lines' | 'note'>
@@ -426,6 +428,7 @@ declare module 'claude-code' {
       runs: Shaped<Run[]>
       round: Shaped<Round>
       checkins: Shaped<CheckIn[]>
+      shown: StateFamily<Shaped<Shown | null>>
       due: Shaped<PendingRow[]>
       beat: number
       listed: Shaped<string[]>
