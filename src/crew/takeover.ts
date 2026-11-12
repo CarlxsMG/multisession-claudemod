@@ -52,9 +52,12 @@ export function releaseIfDue($: Engine) {
  * marks whose tasks missed now.
  */
 export async function release($: Engine): Promise<Takeover[]> {
-  if ((await readTakeovers($)).length === 0) return []
+  const marks = await readTakeovers($)
+  if (marks.length === 0) return []
   const list = await readWorkers($)
   const isLifted = (mark: Takeover) => mark.missed === undefined && !ACTIVE.has(list.find(w => w.id === mark.id)?.status ?? 'done')
+  // Every sync comes here: with nothing to lift the marks are not written again.
+  if (!marks.some(isLifted)) return []
   let lifted: Takeover[] = []
   await updateTakeovers($, marks => {
     lifted = marks.filter(isLifted)
