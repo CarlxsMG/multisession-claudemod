@@ -528,6 +528,43 @@ test('a longer napAfter moves the redraw that takes a worker off the row with it
   await ui.unmount()
 })
 
+test('one timer waits for the nap that is due, and no frame asks the clock for it', { options: { napAfter: '30s' } }, async ($, on) => {
+  // The waits the plugin asks of the clock, and how often it reads the time.
+  const afters: number[] = []
+  let nows = 0
+  const counting = ((event: string, hook: (...args: unknown[]) => unknown) =>
+    on(
+      event as never,
+      (event === 'clock.after'
+        ? (host: unknown, wait: { ms: number }, next: unknown) => {
+            afters.push(wait.ms)
+            return hook(host, wait, next)
+          }
+        : event === 'clock.now'
+          ? (...args: unknown[]) => {
+              nows += 1
+              return hook(...args)
+            }
+          : hook) as never,
+    )) as On
+  const { clock, ui, card } = await freeCrew($, counting)
+  await clock.advance(400 * 2)
+  // A drawing that owed another moment meanwhile replaced the timer; each waits the nap's whole delay.
+  expect(afters.length).toBeGreaterThan(0)
+  expect(new Set(afters)).toEqual(new Set([30_000]))
+  const scheduled = afters.length
+  // Ten frames read the time only for the progress tick, the syncs and a redraw for the ages: none for the nap.
+  nows = 0
+  await clock.advance(400 * 10)
+  expect(nows).toBeLessThan(10)
+  await clock.advance(30_000 - 4800 - 100)
+  expect(await card('agent-1')).toBeDefined()
+  await clock.advance(100)
+  expect(await ui.find({ type: 'Raster', key: 'w-agent-1' })).toBeUndefined()
+  expect(afters).toHaveLength(scheduled)
+  await ui.unmount()
+})
+
 test("no worker wears the color of the orchestrator's name", async ($, on) => {
   let spawned = 0
   engine(on, { nextId: () => `agent-${++spawned}` })

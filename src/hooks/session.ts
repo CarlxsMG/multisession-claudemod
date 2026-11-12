@@ -19,7 +19,7 @@ import { resetRuntime } from '../runtime'
 import { readModel } from '../settings/model'
 import { checkConversation, freezeBrief } from '../settings/notes'
 import { STORE_KEYS, readBrief, readDropped, readWorkers, updateIsOn, updateLimits, updateLook, updateMoodLines, updateOrch } from '../state/atoms'
-import { stopTyping, tick, typeForTerminal } from '../ui/pane/animation'
+import { forgetNap, stopTyping, tick, typeForTerminal } from '../ui/pane/animation'
 import { openPaneOnAttach, openPaneWhenShown } from '../ui/pane/index'
 import { allowUsageProbe, hasApp, probeUsage, toLimits } from '../usage/limits'
 
@@ -31,6 +31,7 @@ type OnSessionStartHook = HookFor<'session.start'>
  */
 export async function onSessionStart($: Engine, e: Parameters<OnSessionStartHook>[1], next: Parameters<OnSessionStartHook>[2]) {
   stopTyping()
+  forgetNap()
   resetRuntime()
   await settleLocale($)
   // Terminal.app gets the engine's 256 colors unless it was told it shows

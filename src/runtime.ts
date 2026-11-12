@@ -103,8 +103,8 @@ function fresh() {
      * until when the last drawing had a bubble typing out, the timer that
      * types it, whether Terminal.app sets that timer's pace, when a
      * worker it showed napping leaves the row or an end stops standing out
-     * (0 for none), and the rasters it drew by key, each with how to draw any
-     * frame and the cells it shows now.
+     * (0 for none) and the timer that waits for it, and the rasters it drew
+     * by key, each with how to draw any frame and the cells it shows now.
      */
     pane: {
       frame: 0,
@@ -115,6 +115,7 @@ function fresh() {
       typer: undefined as Timer | undefined,
       isAppleTerminal: false,
       napDue: 0,
+      napTimer: undefined as Timer | undefined,
       mounted: new Map<string, (frame: number) => Cells>(),
       blitted: new Map<string, string>(),
     },
