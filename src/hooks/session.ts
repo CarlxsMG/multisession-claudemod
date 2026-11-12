@@ -21,7 +21,7 @@ import { checkConversation, freezeBrief } from '../settings/notes'
 import { STORE_KEYS, readBrief, readDropped, readWorkers, updateIsOn, updateLimits, updateLook, updateMoodLines, updateOrch } from '../state/atoms'
 import { forgetNap, stopTyping, tick, typeForTerminal } from '../ui/pane/animation'
 import { openPaneOnAttach, openPaneWhenShown } from '../ui/pane/index'
-import { allowUsageProbe, hasApp, probeUsage, toLimits } from '../usage/limits'
+import { allowUsageProbe, hasApp, noticeLimitsShown, noticeWindows, probeUsage, toLimits } from '../usage/limits'
 
 type OnSessionStartHook = HookFor<'session.start'>
 /**
@@ -79,12 +79,16 @@ export async function onSessionStart($: Engine, e: Parameters<OnSessionStartHook
   $.clock.every(TICK_MS, () => tick($))
   await startProgress($)
   const usage = await quiet($, $.session.usage(), 'usage')
-  if (usage?.rateLimits) await updateLimits($, () => toLimits(usage.rateLimits))
+  if (usage?.rateLimits) {
+    noticeWindows(usage.rateLimits)
+    await updateLimits($, () => toLimits(usage.rateLimits))
+  }
   await readModel($)
   // Only the person's own session asks: a headless one never does. The
   // desktop app and the editors run theirs as the SDK, not interactive,
   // with the app attached, now or once it attaches.
   if (e.isInteractive || (await hasApp($))) allowUsageProbe()
+  noticeLimitsShown(startedAt)
   void probeUsage($)
   await openPaneWhenShown($)
 
@@ -98,6 +102,7 @@ type OnMeasureHook = HookFor<'session.measure'>
  */
 export async function onMeasure($: Engine, e: Parameters<OnMeasureHook>[1], next: Parameters<OnMeasureHook>[2]) {
   if (e.changed.includes('rateLimits')) {
+    noticeWindows(e.rateLimits)
     await updateLimits($, () => toLimits(e.rateLimits))
     void probeUsage($)
   }

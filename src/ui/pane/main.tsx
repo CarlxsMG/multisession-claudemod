@@ -17,7 +17,7 @@ import { JUST_ENDED_MS, isOpen } from '../../progress/runs'
 import { cardText } from '../../progress/text/card'
 import { setMode } from '../../settings/notes'
 import { readBackground, readIsOn, readLimits, readMainModel, readMessages, readModelLimits, readMoodLines, readOrch, updateView } from '../../state/atoms'
-import { LIMITS_SHOWN, limitColor, limitLabel } from '../../usage/limits'
+import { LIMITS_SHOWN, limitColor, limitLabel, noticeLimitsShown } from '../../usage/limits'
 import { wrapText } from '../../util/text'
 import { END, cardLabel, statusLabel } from '../../words'
 import { drawFeed } from './feed'
@@ -62,6 +62,7 @@ async function drawHeader($: Engine, ctx: CrewContext, msgs: readonly Msg[]) {
   const extra = await readMoodLines($)
   // The session's window, the week's, and below them each model's week.
   const usage = [...(await readLimits($)), ...(await readModelLimits($))].slice(0, LIMITS_SHOWN)
+  noticeLimitsShown(now)
   // What is left running in the background, a press away from its list.
   const inBackground = (await readBackground($)).length
   const hasCount = list.length > 0 || inBackground > 0

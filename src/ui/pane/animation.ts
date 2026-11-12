@@ -15,6 +15,7 @@ import { hasHeldCalls, writeCalls } from '../../progress/calls'
 import { runtime } from '../../runtime'
 import { ensureLines } from '../../settings/mood-lines'
 import { updatePaneTick } from '../../state/atoms'
+import { probeIfMissed } from '../../usage/limits'
 import { APPLE_TYPE_TICK_MS, TYPE_TICK_MS } from './feed'
 
 // What the timer and the pane's drawings leave each other. The rasters the
@@ -203,6 +204,8 @@ export function tick($: Engine) {
     waitingIfDue($)
   }
   if (state.frame % LINES_FRAMES === LINES_PHASE) void quiet($, ensureLines($), 'mood lines')
+  // A usage probe skipped while nothing showed the limits, once the pane drew them again.
+  probeIfMissed($)
 }
 
 // While a bubble types out, each tick of its own timer draws the pane again,
