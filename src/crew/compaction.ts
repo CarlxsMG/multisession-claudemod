@@ -102,6 +102,11 @@ async function runCompaction($: Engine, ask: CompactAsk) {
 export async function compactWhenSafe($: Engine, list: readonly Worker[], now: number) {
   if (state.isRunning) return
   const { ask, lastAt } = await readCompaction($)
+  // Outside these windows no ask runs, and the context's fill, which changes
+  // only with a main response, is read again within the next: an idle tick
+  // asks the engine for no usage.
+  if (now < lastAt + GAP_MS) return
+  if (now - state.mainEndedAt >= WARM_MS) return
   let wanted = ask
   if (wanted === null) {
     if (!(await isPastShare($, now))) return
@@ -109,8 +114,6 @@ export async function compactWhenSafe($: Engine, list: readonly Worker[], now: n
     await updateCompaction($, c => ({ ...c, ask: c.ask ?? asked }))
     wanted = asked
   }
-  if (now < lastAt + GAP_MS) return
-  if (now - state.mainEndedAt >= WARM_MS) return
   if (!(await isSafe($, wanted, list))) return
   state.isRunning = true
   void runCompaction($, wanted).finally(() => {
